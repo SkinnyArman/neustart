@@ -3,7 +3,7 @@
 // go and pick it up. Rules in finds.ts already threw out the obvious misses;
 // this catches what a title can't show - and the rating needs the call anyway.
 
-export type ItemKey = "bike" | "bed" | "kommode" | "free";
+export type ItemKey = "bike" | "bed" | "kommode" | "carpet" | "free";
 
 export interface Assessment {
   is_match: boolean;
@@ -59,6 +59,17 @@ const SPECS: Record<ItemKey, Spec> = {
 - transport: pickup needs a car or van, so distance counts more than for small things`,
     caps: `condition not described at all -> at most 6. 20 km or more away -> at most 6. A broken drawer or needs repair -> at most 5.`,
     notes: `dimensions, number of drawers, damage, pickup deadlines`,
+  },
+  carpet: {
+    what: "area rug (carpet)",
+    isMatch: `true if the ad sells a normal indoor area rug (Teppich) for part of a roughly 25 m² bedroom in a shared flat. The room is 25 m², NOT the rug: prefer sizes like 160×230 or 200×300 cm. Rectangular rugs with a short side of 120-240 cm and a long side of 160-340 cm, or round rugs about 160-240 cm across, count. Any colour, style or material is fine. If a normal area rug's size isn't stated anywhere, count it but add "Size not stated - ask" and score at most 5. false for wall-to-wall/fitted carpet, rolls or tiles of flooring, very large room-covering carpets, tiny rugs, runners, doormats, bath mats, kids' play mats, outdoor/artificial-grass carpets, underlays, cleaning products or services, and posts searching for a rug.`,
+    kinds: `"Area rug 160×230 cm", "Wool rug 200×300 cm", "Round rug, 200 cm"`,
+    factors: `- condition and hygiene weigh most: clean, no stains, smells or damage; heavy wear or needing deep cleaning lowers the score
+- size: a normal area rug that leaves plenty of the room's floor visible
+- value: a clean, usable rug for little money is better than a cheap one needing costly cleaning
+- transport: can it be rolled up and carried home easily`,
+    caps: `condition not described at all -> at most 6. Size not stated -> at most 5. 20 km or more away -> at most 6. Stains, smells or needs deep cleaning -> at most 4.`,
+    notes: `dimensions, material, stains or smells, pets or smoking if stated, cleaning needed, pickup deadlines`,
   },
   free: {
     what: "free giveaway",
@@ -150,10 +161,10 @@ export async function assessItem(
   const data = (await r.json()) as any;
   const d = JSON.parse(data?.choices?.[0]?.message?.content ?? "{}");
   let score = Math.round(Number(d.score));
-  // A bed whose size the ad never states might not take a 140×200 mattress:
+  // A bed or carpet whose size the ad never states might not fit:
   // the prompt caps it at 5, and the model doesn't always listen.
   const notes = Array.isArray(d.notes) ? d.notes.map(String) : [];
-  if (item === "bed" && notes.some((n: string) => /size not stated/i.test(n))) score = Math.min(score, 5);
+  if ((item === "bed" || item === "carpet") && notes.some((n: string) => /size not stated/i.test(n))) score = Math.min(score, 5);
   return {
     is_match: d.is_match !== false,
     reason: String(d.reason ?? "").slice(0, 80),

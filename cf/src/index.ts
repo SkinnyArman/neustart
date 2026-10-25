@@ -35,6 +35,7 @@ export interface Env {
   TOPIC_BIKE?: string;
   TOPIC_BED?: string;
   TOPIC_KOMMODE?: string;
+  TOPIC_CARPET?: string;
   TOPIC_FREE?: string;
 }
 
@@ -413,7 +414,7 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
   const owner = String(env.TELEGRAM_OWNER_ID || env.TELEGRAM_CHAT_ID);
   const isOwner = !!from && String(from.id) === owner;
 
-  // The finds (bikes, bed, Kommode) belong to the whole group: anyone in it
+  // The finds (bikes, furniture, free stuff) belong to the whole group: anyone in it
   // may run /finds (or /bikes) and press its buttons.
   // Everything else stays the owner's.
   const chatId = String(update.message?.chat?.id ?? update.callback_query?.message?.chat?.id ?? "");
@@ -456,7 +457,7 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
         `/pause [2h] — stop it\n` +
         `/scan — check now\n/more [n] — send more now\n` +
         `/filters — which ads qualify\n/settings — timing\n/stats — totals\n` +
-        `/finds — bikes, bed & Kommode alerts`);
+        `/finds — bikes, bed, Kommode, carpet & free stuff alerts`);
       return;
     }
 
@@ -481,7 +482,7 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
         `/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n` +
         `/filters — which ads qualify\n/settings — timing\n` +
         `/stats — totals\n/retry — re-draft failed\n` +
-        `/finds — bikes, bed & Kommode alerts (anyone in the group)`);
+        `/finds — bikes, bed, Kommode, carpet & free stuff alerts (anyone in the group)`);
       return;
 
     case "/stats": {
@@ -605,7 +606,7 @@ async function handleFinds(update: any, env: Env, tg: Telegram, store: Store): P
     tg.send(t, { ...sameTopic(update.message), ...o }, chat);
   const [cmdRaw, sub = "", val = ""] = update.message.text.trim().split(/\s+/);
   const isBikes = /^\/bikes/i.test(cmdRaw);
-  const usage = "Try /finds, /finds bed 80, /finds kommode 40, /finds free 7 (min rating), /finds bike off, /finds min 5, /finds now";
+  const usage = "Try /finds, /finds bed 80, /finds kommode 40, /finds carpet 30, /finds free 7 (min rating), /finds bike off, /finds min 5, /finds now";
   const lsub = sub.toLowerCase();
   const item = parseItem(lsub);
 

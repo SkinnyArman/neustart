@@ -76,7 +76,7 @@ Commands are identical to the Python version: `/scan`, `/more`, `/filters`,
 `/settings`, `/pause`, `/resume`, `/stats`, `/retry`.
 
 **Forum topics.** If the group has topics, each kind of post goes to its own
-one: set `TOPIC_WG`, `TOPIC_BIKE`, `TOPIC_BED`, `TOPIC_KOMMODE`, `TOPIC_FREE` in
+one: set `TOPIC_WG`, `TOPIC_BIKE`, `TOPIC_BED`, `TOPIC_KOMMODE`, `TOPIC_CARPET`, `TOPIC_FREE` in
 `wrangler.toml` to the number at the end of the topic's link
 (`t.me/c/<group>/<topic>`). Commands are answered in the topic they were
 typed in; anything without a topic (or with a deleted one) goes to General.
@@ -93,7 +93,7 @@ each time it's refused again: 45, 90, 180 minutes, up to 6 hours. The group
 isn't told - `/status` (and `/bikes`) show the countdown. Only an outage that
 has gone on for 6 hours straight sends one message, once.
 
-### Finds: bikes, a bed, a Kommode, free stuff
+### Finds: bikes, a bed, a Kommode, a carpet, free stuff
 
 A second, independent job (`src/finds.ts`, `src/findai.ts`) posts cheap or
 free finds from Kleinanzeigen within 30 km of Cottbus to the same group, each
@@ -104,6 +104,7 @@ with its own price cap:
 | 🚲 | adult bikes (Damen, Herren, Weiteres) | 30 € |
 | 🛏 | a bed frame for a 140×200 mattress (category Betten) | 100 € |
 | 🗄 | a Kommode / chest of drawers (keyword search) | 35 € |
+| 🧶 | a normal area rug for a ~25 m² room (keyword Teppich) | 30 € |
 | 🎁 | anything free a new student can use for their room (category Zu verschenken) | rated 6/10+ |
 
 Each one is read in full and rated 1-10 by a cheap model (`FINDS_MODEL`,
@@ -117,7 +118,8 @@ What gets through is decided mostly without AI:
    mattresses on their own are never fetched.
 2. Title rules reject what's obvious - bike parts and "Fahrrad…" compounds,
    kids' markers; beds of another size, bunk/pet beds, slats or mattresses
-   alone; changing tables and wardrobe inserts.
+   alone; changing tables and wardrobe inserts; fitted carpet, runners,
+   mats, carpet accessories and rugs of clearly unsuitable sizes.
 3. The ad page's own "Art" field has to agree.
 4. Ads that were already more than 2 days old when first seen are stored
    quietly: no backlog flood when a search starts, no pinned "TOP" ads.
@@ -126,17 +128,25 @@ Only what's left reaches the AI, in the one call it needs anyway for the
 rating; that call also confirms it's the right thing (it reads the bed size
 from the description, tells a Kommode from a nightstand).
 
+The carpet is for part of the room, not the whole floor: prefer 160×230 or
+200×300 cm, accepting rectangular rugs roughly 120–240 cm on the short side
+and 160–340 cm on the long side, or round rugs 160–240 cm across. If the ad
+never states a size, the AI can still pass it with a note and a score capped
+at 5. Without AI, only a clearly named rug with suitable stated rectangular
+dimensions can be posted. Carpets go to topic `838`, with the same ±5 €,
+pause/resume, minimum-rating and check-now controls as the other priced finds.
+
 Free stuff comes in fast and is mostly junk, so it has one more tier: titles
 that are clearly junk (stones, clothes, plants, sofas, kids' things) are
 dropped, titles naming something on the wishlist (kettle, desk, monitor…) go
 straight to a full rating, and vague ones ("Verschiedenes zu verschenken") are
 screened together in one cheap AI call from their title and preview. Free
-beds, Kommoden and bikes are handed to their own items and topics. Only free
+beds, Kommoden, carpets and bikes are handed to their own items and topics. Only free
 finds rated 6/10 or better are posted; the card's ⭐ buttons move that bar.
 
 It runs on its own cron (every 10 min on odd minutes), so it never shares a
 tick or CPU budget with the WG job. Each tick checks the most overdue search
-(bikes every 30 min, Weiteres every 2 h, bed and Kommode hourly) and reads
+(bikes every 30 min, Weiteres every 2 h, bed, Kommode and carpet hourly) and reads
 and rates at most two new ads. It keeps its own
 backoff and cookie jar: if Kleinanzeigen rate-limits the bike search, the WG
 search is not paused. While the WG search is itself being limited by
@@ -147,6 +157,7 @@ overlapping triggers or a tap on "Check now" can't post a bike twice.
 `/finds` is open to **everyone in the group** (all other commands stay
 owner-only): a card with − / + price buttons and a pause button per item, a
 minimum rating, and check-now. Also `/finds bed 80`, `/finds kommode off`,
+`/finds carpet 30`, `/finds carpet off`, `/finds carpet on` (`rug` and `teppich` work too),
 `/finds min 5`, `/finds now`; `/bikes` still works for the bikes. It ignores
 `/pause`, which only stops the room search.
 

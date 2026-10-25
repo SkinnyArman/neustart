@@ -1,5 +1,5 @@
 // Free and cheap finds around Cottbus - adult bikes, a 140×200 bed, a
-// Kommode, and anything free that's useful for a student's room - rated by
+// Kommode, a carpet, and anything free that's useful for a student's room - rated by
 // AI, straight to Telegram.
 //
 // Kept apart from the WG search on purpose:
@@ -45,6 +45,7 @@ export interface FindsEnv {
   TOPIC_BIKE?: string;
   TOPIC_BED?: string;
   TOPIC_KOMMODE?: string;
+  TOPIC_CARPET?: string;
   TOPIC_FREE?: string;
 }
 
@@ -214,6 +215,46 @@ export const namesKommode = (title: string) => {
   return KOMMODE_LIKE.test(t) && !KOMMODE_UNSURE.test(t) && !KOMMODE_NOT.test(t);
 };
 
+// ================================================================ carpet
+// An area rug for a ~25 m² room, not 25 m² of fitted carpet. Normal room
+// sizes (say 160×230 or 200×300) are fine. The title catches mats, flooring
+// and clearly wrong sizes; the AI reads anything whose size isn't stated.
+
+const CARPET_NOT = /teppichboden|auslegware|meterware|teppichfliesen|rasenteppich|kunstrasen|outdoor|außenteppich|aussenteppich|balkon|läufer|laeufer|runner|fußmatte|fussmatte|türmatte|tuermatte|doormat|badematte|badteppich|badezimmer|duschmatte|kinder|baby|spielteppich|puzzle|autoteppich|kofferraum/;
+const CARPET_PART = /unterlage|stopper|reiniger|reinigung|shampoo|sauger|kehrer|klebeband|kleber|reparatur/;
+const isCarpetWord = (w: string) => /teppiche?$/.test(w) || /^(rugs?|carpets?)$/.test(w);
+const CARPET_SIZE = /(?<![\d.,])(\d{1,3}(?:[,.]\d{1,2})?)\s*(cm|meter|m)?\s*(?:x|×|\*)\s*(\d{1,3}(?:[,.]\d{1,2})?)\s*(cm|meter|m)?(?![\p{L}\d]|[.,]\d)/gu;
+
+function carpetSizes(t: string): number[][] {
+  return [...t.matchAll(CARPET_SIZE)].map((m) => {
+    const cm = (raw: string, unit: string | undefined) => {
+      const n = Number(raw.replace(",", "."));
+      return n * (unit === "cm" ? 1 : unit || n < 10 ? 100 : 1);
+    };
+    return [cm(m[1], m[2] || m[4]), cm(m[3], m[4] || m[2])].sort((a, b) => a - b);
+  });
+}
+const roomRug = ([short, long]: number[]) => short >= 120 && short <= 240 && long >= 160 && long <= 340;
+
+export function carpetRejectReason(title: string): string | null {
+  const t = lower(title);
+  if (SEARCHING.test(t)) return "someone searching";
+  const bad = CARPET_NOT.exec(t);
+  if (bad) return `not an area rug (${bad[0]})`;
+  // A rug with an underlay is fine; an underlay on its own isn't a rug.
+  const head = t.split(/\s+(?:mit|inkl\.?|inklusive)\s+/)[0];
+  if (CARPET_PART.test(head)) return "carpet accessory or cleaning";
+  const sizes = carpetSizes(t);
+  if (sizes.length && !sizes.some(roomRug)) return "not a room-sized area rug";
+  return null;
+}
+
+/** Without AI, only a named rug with a known, suitable size can go out. */
+export const namesCarpet = (title: string) => {
+  const t = lower(title);
+  return !carpetRejectReason(title) && words(t).some(isCarpetWord) && carpetSizes(t).some(roomRug);
+};
+
 // ================================================================ free stuff
 // The free category ("Zu verschenken") is mostly junk with the odd gem. Three
 // tiers keep the AI bill small:
@@ -222,7 +263,7 @@ export const namesKommode = (title: string) => {
 //   - everything vague ("Verschiedenes zu verschenken") is screened in one
 //     batched AI call per check, titles and previews only; just the ones that
 //     pass get their page read and rated
-// Free beds, Kommoden and bikes go to their own items and topics instead.
+// Free beds, Kommoden, carpets and bikes go to their own items and topics instead.
 
 // Whole words only - as word endings these hit good ads: "Versand" ends in
 // "sand", "Preis" in "reis", "Massivholz" in "holz", "Schallplatten" in "platten".
@@ -284,12 +325,14 @@ export function freeRejectReason(title: string): string | null {
 /** Names something on the wishlist: worth a full rating without screening. */
 export const namesFree = (title: string) => !freeRejectReason(title) && words(lower(title)).some(isWant);
 
-/** A free ad that's really a bed, a Kommode or a bike belongs to that item. */
+/** A free ad that's really one of our other items belongs to that topic. */
 export function routeFree(title: string): ItemKey | null {
   const t = lower(title);
   if (words(t).some(isBedWord) && !bedRejectReason(title)) return "bed";
   if (KOMMODE_LIKE.test(t) && !kommodeRejectReason(title)) return "kommode";
   if (namesBike(title) && !rejectReason(title)) return "bike";
+  // Even a wrong-sized rug goes through the carpet rules, not the free wishlist.
+  if (words(t).some(isCarpetWord)) return "carpet";
   return null;
 }
 
@@ -349,6 +392,15 @@ export const ITEMS: Item[] = [
     reject: kommodeRejectReason, named: namesKommode,
   },
   {
+    key: "carpet", emoji: "🧶", label: "Carpet", kv: "carpet", priced: true, defaultMax: 30, defaultFloor: 0, step: 5,
+    searches: [{
+      id: "carpet", every: 60,
+      url: (max) => `https://www.kleinanzeigen.de/s-haus-garten/cottbus/anzeige:angebote/` +
+        `preis::${max}/teppich/k0c80l7743r${RADIUS_KM}`,
+    }],
+    reject: carpetRejectReason, named: namesCarpet,
+  },
+  {
     // a lot comes in and most of it is junk: only the well-rated ones go out
     key: "free", emoji: "🎁", label: "Free stuff", kv: "free", priced: false, defaultMax: 0, defaultFloor: 6, step: 1,
     searches: [{
@@ -361,12 +413,13 @@ export const ITEMS: Item[] = [
 const ITEM = Object.fromEntries(ITEMS.map((i) => [i.key, i])) as Record<ItemKey, Item>;
 const itemOf = (row: { item?: string | null }) => ITEM[(row.item as ItemKey) || "bike"] ?? ITEM.bike;
 
-/** "bike", "bikes", "fahrrad", "bed", "bett", "kommode", "dresser" → item */
+/** English and German names ("bike", "bett", "rug", "teppich"…) → item */
 export function parseItem(word: string): ItemKey | null {
   const w = word.toLowerCase();
   if (/^(bikes?|fahrr(ad|äder)|rad)$/.test(w)) return "bike";
   if (/^(beds?|bett(en)?)$/.test(w)) return "bed";
   if (/^(kommoden?|dressers?|drawers?)$/.test(w)) return "kommode";
+  if (/^(carpets?|rugs?|teppiche?)$/.test(w)) return "carpet";
   if (/^(free|gratis|umsonst|verschenken)$/.test(w)) return "free";
   return null;
 }
@@ -465,7 +518,7 @@ const COLUMNS: Record<string, string> = {
   first_seen: "INTEGER NOT NULL", sent_at: "INTEGER",
   score: "INTEGER", kind: "TEXT", notes: "TEXT",
   rating_why: "TEXT",         // the score explained in one line
-  item: "TEXT",               // bike | bed | kommode (empty: bike, from before)
+  item: "TEXT",               // bike | bed | kommode | carpet | free (empty: bike, from before)
 };
 const tableReady = new WeakSet<D1Database>();
 
@@ -586,7 +639,7 @@ async function checkListing(
     const ad = !raw.rent && search.id === "free" ? { ...raw, rent: "Zu verschenken" } : raw;
     const price = priceEur(ad.rent);
     const km = distanceKm(ad.district);
-    // a free ad that's really a bed, Kommode or bike joins that item
+    // a free ad that's really one of our other items joins it
     const routed = item.key === "free" ? routeFree(ad.title) : null;
     const it = routed ? ITEM[routed] : item;
     const why =
@@ -808,6 +861,7 @@ const WHAT: Record<ItemKey, string> = {
   bike: "adult bikes, no kids' bikes or parts",
   bed: "frame, with or without slats",
   kommode: "chest of drawers",
+  carpet: "area rug for a ~25 m² room, not fitted carpet",
   free: "anything a new student can use",
 };
 

@@ -5,7 +5,7 @@ compatibility_date = "2026-09-01"
 # WG: one step every 2 minutes. Each step is tiny: refresh one city's
 # listing, or fetch+draft one queued ad. That keeps every invocation well
 # under the free plan's 10ms CPU budget.
-# Finds (bikes, bed, Kommode): every 10 min on odd minutes, so it never
+# Finds (bikes, bed, Kommode, carpet, free stuff): every 10 min on odd minutes, so it never
 # shares a tick with the WG job. Each tick checks the most overdue search and
 # rates up to two new ads (src/finds.ts).
 [triggers]
@@ -25,5 +25,6 @@ FINDS_MODEL = "gpt-5.6-luna"
 TOPIC_WG = "597"
 TOPIC_BIKE = "595"
 TOPIC_KOMMODE = "596"
+TOPIC_CARPET = "838"
 TOPIC_BED = "598"
 TOPIC_FREE = "610"
