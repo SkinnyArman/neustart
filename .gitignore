@@ -3,12 +3,6 @@
 filters.local.json
 
 # local state
-*.db
-*.db-wal
-*.db-shm
-debug/
-venv/
-__pycache__/
 *.pyc
 .DS_Store
 profile.yaml

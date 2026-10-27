@@ -1,16 +1,7 @@
 # wg-finder on Cloudflare Workers
 
-The same bot, ported to run on Cloudflare's free plan. No card, no VM, no
+The bot, running on Cloudflare's free plan. No card, no VM, no
 always-on process to babysit.
-
-**How it differs from the Python version**
-
-| | Python | Worker |
-|---|---|---|
-| Runs | a long-lived process | cron every 2 min + webhook |
-| Storage | SQLite file | D1 |
-| Telegram | long-polling | webhook |
-| Profile | `profile.yaml` | a row in D1 |
 
 Each cron tick does **one** small thing — refresh one city's listing, or draft
 one queued ad — so no invocation comes near the free plan's 10 ms CPU limit.
@@ -66,13 +57,9 @@ using the same secret you set above:
 
 Send `/start` in Telegram. If it answers, you're done.
 
-**Only run one of the two.** If the Python bot is still running anywhere it
-will fight the Worker over the same Telegram updates. Stop it first, and note
-that `setWebhook` disables long-polling for that token automatically.
-
 ## Day to day
 
-Commands are identical to the Python version: `/scan`, `/more`, `/filters`,
+Owner commands: `/status`, `/review`, `/scan`, `/more`, `/filters`,
 `/settings`, `/pause`, `/resume`, `/stats`, `/retry`.
 
 **Forum topics.** If the group has topics, each kind of post goes to its own

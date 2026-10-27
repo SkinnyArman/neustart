@@ -4,15 +4,15 @@
 set -e
 cd "$(dirname "$0")"
 
-../venv/bin/python -c "
-import json, yaml, pathlib
-d = yaml.safe_load(pathlib.Path('../profile.yaml').read_text(encoding='utf-8'))
-raw = json.dumps(d, ensure_ascii=False, separators=(',', ':'))
-esc = raw.replace(chr(39), chr(39)*2)          # SQL-escape single quotes
-pathlib.Path('profile.sql').write_text(
-    \"INSERT INTO kv (k,v) VALUES ('profile','\" + esc + \"')\n\"
-    \"ON CONFLICT(k) DO UPDATE SET v=excluded.v;\n\", encoding='utf-8')
-print(f'profile.sql written ({len(raw)} bytes of JSON)')
+node --input-type=module -e "
+import { parse } from 'yaml';
+import { readFileSync, writeFileSync } from 'node:fs';
+const raw = JSON.stringify(parse(readFileSync('../profile.yaml', 'utf8')));
+const esc = raw.replaceAll(\"'\", \"''\");          // SQL-escape single quotes
+writeFileSync('profile.sql',
+  \"INSERT INTO kv (k,v) VALUES ('profile','\" + esc + \"')\n\" +
+  'ON CONFLICT(k) DO UPDATE SET v=excluded.v;\n');
+console.log('profile.sql written (' + raw.length + ' bytes of JSON)');
 "
 
 echo
