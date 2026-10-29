@@ -179,6 +179,16 @@ the owner.
 Profiles and CV text are personal: they live in the gitignored
 `jobs-people.json` and are loaded into D1 with `./seed-jobs.sh`.
 
+### Casual jobs (Cottbus)
+
+`src/casual.ts` posts Minijobs within 25 km of Cottbus (Aushilfe, Verkauf,
+Reinigung, Zeitung austragen, …) to their own topic, from the Jobbörse's
+Minijob filter every 30 minutes. No AI and no buttons: each card is the job,
+the pay (the hourly wage field, else a euro amount the ad names, else "not
+stated"), the times of day, the start and the description. Titles that need
+a trade or a licence are left out by a word list. Pause with kv
+`casual_on` = `0`.
+
 ## Tests
 
     npm test

@@ -16,6 +16,7 @@ import {
 import { compose } from "./writer.ts";
 import { Telegram, esc, inTopic, type Button } from "./telegram.ts";
 import { aiFailed, aiWorked, checkKey } from "./aikey.ts";
+import { CASUAL_CRON, casualLine, casualStep } from "./casual.ts";
 import { JOBS_CRON, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, skillsCommand, weeklyReport } from "./jobs.ts";
 import {
   FINDS_CRON, findsKeyboard, findsLine, findsStatus, findsStep, loadFindSettings,
@@ -39,6 +40,7 @@ export interface Env {
   TOPIC_CARPET?: string;
   TOPIC_FREE?: string;
   TOPIC_JOBS?: string;
+  TOPIC_CASUAL?: string;
 }
 
 const wgTopic = (env: Env) => inTopic(Number(env.TOPIC_WG) || null);
@@ -294,6 +296,7 @@ export async function statusReport(env: Env, store: Store, profile: Profile): Pr
     ...(stats.pending ? [`Waiting on you:  ${stats.pending}  → /review`] : []),
     await findsLine(store),
     await jobsLine(store, env.DB),
+    await casualLine(store, env.DB),
     "",
     `Seen so far: ${seen}`,
   ].join("\n");
@@ -815,8 +818,14 @@ export default {
     // trigger only ever fires on even minutes, the finds one on odd minutes -
     // dispatching on that, not just the exact cron text, keeps working while
     // a changed trigger is still rolling out (that takes Cloudflare minutes).
-    // The jobs trigger fires at :03, :13, …; checked first, by its text or its minute.
+    // The jobs trigger fires at :03, :13, …, the casual jobs one at :07, :17, …;
+    // both are checked first, by their text or their minute.
     const minute = new Date(c.scheduledTime).getUTCMinutes();
+    if (c.cron === CASUAL_CRON || minute % 10 === 7) {
+      ctx.waitUntil(casualStep(env, new Store(env.DB), tg).then(
+        (r) => console.log("step:", r), (e) => console.error("casual failed:", e?.message ?? e)));
+      return;
+    }
     if (c.cron === JOBS_CRON || minute % 10 === 3) {
       ctx.waitUntil(jobsStep(env, new Store(env.DB), tg).then(
         (r) => console.log("step:", r), (e) => console.error("jobs failed:", e?.message ?? e)));

@@ -101,9 +101,9 @@ export const dedupeKey = (company: string, title: string) =>
   (company.toLowerCase().replace(/\b(gmbh|ag|se|kg|co|mbh|ug|e\.v|inc|ltd)\b|[^\p{L}\d]+/gu, "") + "|" +
    title.toLowerCase().replace(/\((m|w|d|f|x|div)[^)]*\)/g, "").replace(/[^\p{L}\d]+/gu, "")).slice(0, 160);
 
-const strip = (html: string) =>
+export const strip = (html: string) =>
   html.replace(/<(br|\/p|\/li|\/h\d)[^>]*>/gi, "\n").replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{2,}/g, "\n").trim();
 
 // ---------------------------------------------------------------- storage
 const COLUMNS: Record<string, string> = {
