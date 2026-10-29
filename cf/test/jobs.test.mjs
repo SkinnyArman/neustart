@@ -60,9 +60,9 @@ globalThis.fetch = async (url, init = {}) => {
     const body = JSON.parse(init.body);
     const user = body.messages[1].content;
     if (net.ai === "401") return new Response('{"error":{"message":"Incorrect API key provided"}}', { status: 401 });
-    if (/You write short, specific job applications/.test(body.messages[0].content)) {
+    if (/Write a short cover letter/.test(body.messages[0].content)) {
       net.letters.push({ model: body.model, sys: body.messages[0].content, user });
-      return Response.json({ choices: [{ message: { content: "Sehr geehrte Damen und Herren, … Mit freundlichen Grüßen, Diba Test" } }] });
+      return Response.json({ choices: [{ message: { content: "Sehr geehrte Damen und Herren — Ihr ETCS-Dashboard … Mit freundlichen Grüßen, Diba Test" } }] });
     }
     const title = /Title: (.*)/.exec(user)[1];
     net.calls.push(title);
@@ -143,8 +143,8 @@ const cardOf = (t) => sent().find((c) => c.body.text.startsWith("💼") && c.bod
 await ok("card: who it's for, Werkstudent, why, gaps, German level, hours, deadline - no rating", () => {
   const c = cardOf("Werkstudent Data Analyst").body.text;
   console.log("   card:\n     " + c.split("\n").join("\n     "));
-  assert.match(c, /👩‍💻 For Diba · 🎓 Werkstudent/);
-  assert.match(c, /Gaps: Tableau - mention Power BI and Metabase/);
+  assert.match(c, /\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n/);
+  assert.match(c, /\n\nGaps:\n• Tableau - mention Power BI and Metabase\n\n/);
   assert.match(c, /German: B2 · ⏱ 20 h\/week · 📅 start asap · ⏳ apply by 15\.11\./);
   assert.ok(!/⭐|\b\d+\/10\b/.test(c));
 });
@@ -171,9 +171,25 @@ let calls = await press(`jb:letter:diba:${analyst}`);
 await ok("✍️ Cover letter: written on tap with the better model, from her CV, in the ad's language", () => {
   const l = net.letters.at(-1);
   assert.equal(l.model, "gpt-5.6-terra");
-  assert.match(l.sys, /Write in German/);
+  assert.match(l.sys, /in German \(an Anschreiben/);
   assert.match(l.user, /Diba CV: two data/);
   assert.match(calls.find((c) => c.method === "sendMessage").body.text, /Cover letter for Diba[\s\S]*<pre>Sehr geehrte/);
+  assert.ok(!calls.some((c) => c.method === "sendDocument"), "no CV saved yet, none sent");
+});
+await ok("…short, about this ad, plain words: 120-170 words, a detail from the ad first, stock phrases banned, no em dashes", () => {
+  const l = net.letters.at(-1);
+  assert.match(l.sys, /120-170 words/);
+  assert.match(l.sys, /first sentence names something specific from this ad/);
+  assert.match(l.sys, /passionate[\s\S]*hiermit bewerbe ich mich[\s\S]*Teamplayer/);
+  assert.match(calls.find((c) => c.method === "sendMessage").body.text, /Herren - Ihr ETCS/);
+});
+await st.kvSet("jobs_cv:diba", "FILE-DIBA");
+calls = await press(`jb:letter:diba:${analyst}`);
+await ok("…and once her CV is saved, it comes right under the letter", () => {
+  const d = calls.find((c) => c.method === "sendDocument");
+  assert.equal(d.body.document, "FILE-DIBA");
+  assert.equal(d.body.message_thread_id, 965);
+  assert.ok(d.body.reply_to_message_id);
 });
 calls = await press(`jb:applied:diba:${analyst}`);
 await ok("✅ Applied (pressed by Diba, a group member): card edited in place, next stage's buttons", () => {
@@ -212,11 +228,41 @@ const say = async (text, from = 555, chat = -100) => {
   return net.tg;
 };
 calls = await say("/jobs");
-await ok("/jobs: the board per person, answered in the Jobs topic", () => {
+await ok("/jobs: the board per person and where each application stands, in the Jobs topic", () => {
   const t = calls[0].body.text;
   console.log("   /jobs ->\n     " + t.split("\n").join("\n     "));
   assert.match(t, /Diba<\/b>: \d+ open · 2 applied · 1 waiting · 1 interviews/);
+  assert.match(t, /<b>Applications<\/b>\n🗓 Interview · <b>[^<]+<\/b> - .+ \(Diba, \d\d\.\d\d\)/);
+  assert.match(t, /🔁 Applied before · <b>Vattenfall GmbH<\/b>/);
   assert.equal(calls[0].body.message_thread_id, 965);
+});
+const sayMsg = async (message) => {
+  net.tg = [];
+  await worker.fetch(new Request("https://w/", { method: "POST",
+    headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" },
+    body: JSON.stringify({ message: { from: { id: 555 }, chat: { id: -100 }, message_thread_id: 965, is_topic_message: true, ...message } }) }), E);
+  return net.tg;
+};
+await st.kvSet("jobs_cv:diba", "");
+calls = await sayMsg({ text: "/cv" });
+await ok("/cv with nothing saved says how to save one", () => assert.match(calls[0].body.text, /answer it with \/cv diba/));
+calls = await sayMsg({ text: "/cv diba", reply_to_message: { document: { file_id: "FILE-2" } } });
+await ok("answering a PDF with /cv diba saves it as her CV", async () => {
+  assert.equal(await st.kvGet("jobs_cv:diba"), "FILE-2");
+  assert.match(calls[0].body.text, /Saved as Diba's CV/);
+});
+calls = await sayMsg({ caption: "/cv diba", document: { file_id: "FILE-3" } });
+await ok("…so does sending the PDF with /cv diba as the caption", async () => assert.equal(await st.kvGet("jobs_cv:diba"), "FILE-3"));
+calls = await sayMsg({ caption: "/cv", document: { file_id: "FILE-4" } });
+await ok("…but not without a name", async () => {
+  assert.match(calls[0].body.text, /Whose CV is it/);
+  assert.equal(await st.kvGet("jobs_cv:diba"), "FILE-3");
+});
+calls = await sayMsg({ text: "/cv" });
+await ok("/cv sends the saved CVs into the topic", () => {
+  const d = calls.filter((c) => c.method === "sendDocument");
+  assert.deepEqual(d.map((c) => c.body.document), ["FILE-3"]);
+  assert.equal(d[0].body.message_thread_id, 965);
 });
 calls = await say("/skills diba + Tableau");
 await ok("/skills diba + Tableau: added to what she's matched against", async () => {
@@ -242,6 +288,35 @@ await ok("a dead OpenAI key: one alert, the job waits for another try", () => {
   assert.equal(row(DB, "an:acme-working-student-ml").status, "new");
 });
 net.ai = "ok";
+
+await ok("kv jobs_repost=1: untouched cards are deleted and posted again, once; tracked ones stay", async () => {
+  net.tg = []; await J.jobsStep(E, st, tg);     // the job the dead key held back gets posted
+  const open = DB.raw.prepare("SELECT id, msg_id FROM jobs WHERE status='posted'").all();
+  assert.ok(open.length > 0);
+  await st.kvSet("jobs_repost", "1");
+  net.tg = []; await J.jobsStep(E, st, tg);
+  const del = net.tg.filter((c) => c.method === "deleteMessage").map((c) => c.body.message_id).sort();
+  assert.deepEqual(del, open.map((r) => r.msg_id).filter(Boolean).sort());
+  assert.equal(sent().filter((c) => /open the job/.test(c.body.text)).length, Math.min(open.length, 4));
+  assert.equal(row(DB, analyst).status, "interview");
+  assert.equal(await st.kvGet("jobs_repost"), "0");
+  net.tg = []; await J.jobsStep(E, st, tg);
+  assert.ok(!net.tg.some((c) => c.method === "deleteMessage"));
+});
+
+await ok('the "/" menu: shared commands for the group, all of them for the owner; sent once', async () => {
+  const tick = async () => { const w = []; await worker.scheduled({ cron: J.JOBS_CRON, scheduledTime: Date.UTC(2026, 9, 29, 10, 3) }, E, { waitUntil: (p) => w.push(p) }); await Promise.all(w); };
+  net.tg = []; await tick();
+  const c = net.tg.filter((x) => x.method === "setMyCommands");
+  assert.equal(c.length, 3);
+  const group = c.find((x) => x.body.scope.type === "chat" && x.body.scope.chat_id === "-100");
+  assert.deepEqual(group.body.commands.map((x) => x.command), ["jobs", "cv", "jobreport", "skills", "finds"]);
+  const mine = c.find((x) => x.body.scope.type === "chat_member");
+  assert.equal(mine.body.scope.user_id, 1000001);
+  assert.ok(mine.body.commands.some((x) => x.command === "review") && mine.body.commands.some((x) => x.command === "jobs"));
+  net.tg = []; await tick();
+  assert.ok(!net.tg.some((x) => x.method === "setMyCommands"));
+});
 
 console.log("\n5. only Diba searching (the default)");
 {

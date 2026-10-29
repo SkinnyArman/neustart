@@ -160,10 +160,19 @@ full-time roles a student permit doesn't cover.
 
 Buttons: ✍️ Cover letter (written on tap, from the CV, in the ad's language),
 ✅ Applied, 🔁 Already applied, ⏭ Skip, then 🗓 Interview / ❌ Rejected / 🎉
-Offer. No answer after 10 days: one reminder. `/jobs` is the board,
-`/skills diba + Power BI` keeps the skills list current, `/jobreport` (and
-every Monday) shows what gets answers, what's due and the one skill most
-asked for. Open to everyone in the group.
+Offer. No answer after 10 days: one reminder. `/jobs` is the board and lists
+where each application stands, `/skills diba + Power BI` keeps the skills list
+current, `/jobreport` (and every Monday) shows what gets answers, what's due
+and the one skill most asked for. Open to everyone in the group.
+
+CVs: send the PDF in the chat and answer it with `/cv diba`; `/cv` sends it
+back, and it comes with every cover letter (Telegram keeps the file, D1 only
+its id). To re-post the cards nobody has pressed yet (say, after a layout
+change), set kv `jobs_repost` to `1`; the next jobs tick does it once.
+
+The "/" menu is sent to Telegram by the jobs tick whenever the command list
+in `src/index.ts` changes: the shared commands for the group, all of them for
+the owner.
 
 Profiles and CV text are personal: they live in the gitignored
 `jobs-people.json` and are loaded into D1 with `./seed-jobs.sh`.

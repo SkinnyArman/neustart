@@ -42,6 +42,19 @@ export class Telegram {
     });
   }
 
+  sendDocument(document: string, opts: Record<string, unknown> = {}, chatId?: string) {
+    return this.call("sendDocument", { chat_id: chatId ?? this.chatId, document, ...opts });
+  }
+
+  deleteMessage(messageId: number, chatId?: number | string) {
+    return this.call("deleteMessage", { chat_id: chatId ?? this.chatId, message_id: messageId });
+  }
+
+  /** The menu shown when someone types "/" - per scope (a chat, one member of it, …). */
+  setMyCommands(commands: { command: string; description: string }[], scope: Record<string, unknown>) {
+    return this.call("setMyCommands", { commands, scope });
+  }
+
   keyboard(rows: Button[][]) {
     return { reply_markup: { inline_keyboard: rows } };
   }

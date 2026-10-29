@@ -273,6 +273,8 @@ export async function jobsStep(env: JobsEnv, store: Store, tg: Telegram): Promis
     const did: string[] = [];
     did.push(await collect(db, store));
     did.push(await assess(env, store, tg));
+    const redone = await repost(db, store, tg);
+    if (redone) did.push(`${redone} taken down to re-post`);
     const posted = await post(env, tg);
     if (posted) did.push(`${posted} posted`);
     const due = await remind(env, tg);
@@ -377,16 +379,18 @@ export function card(row: JobRow): string {
   const st = STATUS[row.status] ?? "";
   const who = row.status !== "posted" && (row.person === "diba" || row.person === "arman") && row.applied_at
     ? ` by ${NAME[row.person as Who]}` : "";
-  return (
-    `💼 <b>${esc(row.title)}</b>\n` +
-    `${esc(row.company)}${row.place ? ` · ${esc(row.place)}` : ""} · via ${row.source}\n` +
-    `${forWhom(row.person)} · ${KIND[f.kind ?? "other"] ?? KIND.other}\n` +
-    (f.why ? `<i>${esc(f.why)}</i>\n` : "") +
-    (f.gaps?.length ? `Gaps: ${f.gaps.map(esc).join(" · ")}\n` : "") +
-    (facts ? `${esc(facts)}\n` : "") +
-    `<a href="${esc(row.url)}">open the job</a>` +
-    (st ? `\n\n<b>${st}${who}${row.applied_at ? ` · ${day(row.applied_at)}` : ""}</b>` : "")
-  );
+  // one block per thing, a blank line between: who and what kind, why,
+  // the requirements, the gaps, the link, then where the application stands
+  const blocks = [
+    `💼 <b>${esc(row.title)}</b>\n${esc(row.company)}${row.place ? ` · ${esc(row.place)}` : ""} · via ${row.source}`,
+    `${forWhom(row.person)}\n${KIND[f.kind ?? "other"] ?? KIND.other}`,
+    f.why ? `<i>${esc(f.why)}</i>` : "",
+    facts ? esc(facts) : "",
+    f.gaps?.length ? `Gaps:\n${f.gaps.map((g) => `• ${esc(g)}`).join("\n")}` : "",
+    `<a href="${esc(row.url)}">open the job</a>`,
+    st ? `<b>${st}${who}${row.applied_at ? ` · ${day(row.applied_at)}` : ""}</b>` : "",
+  ];
+  return blocks.filter(Boolean).join("\n\n");
 }
 
 /** The buttons for where the application is now. */
@@ -432,6 +436,21 @@ async function post(env: JobsEnv, tg: Telegram): Promise<number> {
   return n;
 }
 
+/**
+ * kv jobs_repost=1: delete the cards nobody has pressed a button on yet and
+ * post them again (in the current layout). Runs once, then clears the flag.
+ */
+async function repost(db: D1Database, store: Store, tg: Telegram): Promise<number> {
+  if ((await store.kvGet("jobs_repost")) !== "1") return 0;
+  await store.kvSet("jobs_repost", "0");
+  const { results } = await db.prepare("SELECT id, msg_id FROM jobs WHERE status='posted'").all<{ id: string; msg_id: number | null }>();
+  for (const r of results ?? []) {
+    if (r.msg_id) try { await tg.deleteMessage(r.msg_id); } catch { /* already gone or too old */ }
+    await setJob(db, r.id, { status: "ready", msg_id: null });
+  }
+  return results?.length ?? 0;
+}
+
 async function remind(env: JobsEnv, tg: Telegram): Promise<number> {
   const db = env.DB;
   const { results } = await db.prepare(
@@ -463,8 +482,10 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
     const w = (who as Who) in NAME ? (who as Who) : "diba";
     try {
       const letter = await coverLetter(env, store, row, w);
-      await tg.send(`✍️ <b>Cover letter for ${NAME[w]}</b> - ${esc(row.company)}\n\n<pre>${esc(letter)}</pre>`,
+      const r = await tg.send(`✍️ <b>Cover letter for ${NAME[w]}</b> - ${esc(row.company)}\n\n<pre>${esc(letter)}</pre>`,
         { ...topic(env), ...(cq.message?.message_id ? { reply_to_message_id: cq.message.message_id } : {}) });
+      const cv = await store.kvGet(`jobs_cv:${w}`);
+      if (cv) await tg.sendDocument(cv, { ...topic(env), reply_to_message_id: r?.result?.message_id, caption: `📎 ${NAME[w]}'s CV` });
     } catch (e: any) {
       await aiFailed(store, tg, e);
       await tg.send("Couldn't write it right now - try the button again in a bit.", topic(env));
@@ -492,22 +513,35 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
     try { await tg.clearKeyboard(cq.message.chat.id, cq.message.message_id); } catch { /* fine */ }
 }
 
+// Words that make a letter read as machine-written (or as a template) in either language.
+const STOCK = `passionate, excited, thrilled, eager, dynamic, innovative, cutting-edge, leverage, delve, foster, align, synergy, ` +
+  `seamless, robust, journey, landscape, tapestry, "I am confident", "I am writing to", "furthermore", "moreover", "in today's", ` +
+  `"hiermit bewerbe ich mich", "mit großem Interesse", "begeistert", "leidenschaftlich", "hochmotiviert", "spannende Herausforderung", ` +
+  `"Teamplayer", "zielorientiert", "Mehrwert", "innovativ", "dynamisch", "Ihr renommiertes Unternehmen", "abgerundet"`;
+
 async function coverLetter(env: JobsEnv, store: Store, row: JobRow, w: Who): Promise<string> {
   const p = await people(store);
   const f: Partial<Facts> = row.facts ? JSON.parse(row.facts) : {};
   const lang = f.lang === "en" ? "English" : "German";
-  const sys = `You write short, specific job applications (cover letters) for ${NAME[w]}. Write in ${lang}, ${lang === "German" ? "as an Anschreiben with \"Sie\"" : "in a friendly professional tone"}. 180-250 words, body only (no address block, no date), ending with a greeting and the name ${p[w].name}.
-Open with why this role and company, then 2-3 concrete matches between the ad and the CV (name projects, tools, numbers from the CV), then availability (master's student in Cottbus; as a Werkstudent up to 20 hours a week during the semester) and a short close. Use only facts from the CV - never invent experience, tools or numbers. No clichés like "I am writing to apply" or "hiermit bewerbe ich mich".`;
+  const sys = `Write a short cover letter for ${NAME[w]} in ${lang}${lang === "German" ? ` (an Anschreiben, "Sie")` : ""}. It should read like ${NAME[w]} wrote it in twenty minutes: plain, direct, a bit personal - not like a template and not like AI.
+
+- 120-170 words, body only (no address block, no date, no subject line), ending with a greeting and the name ${p[w].name}.
+- The first sentence names something specific from this ad - the product, the team, the project, a tool or task they mention - so it's clear the ad was actually read. No generic praise of the company.
+- Then 2 concrete matches between what the ad asks for and what the CV shows (a project, a tool, a number from the CV). Only facts from the CV - never invent experience, tools or numbers.
+- One sentence on availability: master's student in Cottbus, as a Werkstudent up to 20 hours a week during the semester.
+- Short, everyday words and short sentences. Vary sentence length. No em dashes, no lists, no rhetorical questions, no exaggeration.
+- Never use these: ${STOCK}.`;
   const user = `=== CV ===\n${p[w].cv}\n\n=== JOB ===\nTitle: ${row.title}\nCompany: ${row.company}\nPlace: ${row.place}\n\n${(row.text ?? "").slice(0, 3000)}`;
   const out = await ai(env.OPENAI_API_KEY, env.OPENAI_MODEL, sys, user, false);
   await aiWorked(store);
-  return out.trim();
+  return out.trim().replace(/\s*[—–]\s*/g, " - ");
 }
 
 // ---------------------------------------------------------------- /jobs, /skills
 const DONE = ["applied", "already", "interview", "rejected", "offer"];
 
-export async function jobsBoard(db: D1Database, store: Store): Promise<string> {
+/** chatLink: https://t.me/c/<id> for the group, so the board can link to each card. */
+export async function jobsBoard(db: D1Database, store: Store, chatLink = ""): Promise<string> {
   await ensureTable(db);
   const { results } = await db.prepare(
     `SELECT person, status, COUNT(*) n FROM jobs WHERE status IN ('posted','applied','already','interview','rejected','offer')
@@ -525,8 +559,17 @@ export async function jobsBoard(db: D1Database, store: Store): Promise<string> {
       `${applied - answered} waiting · ${s.interview ?? 0} interviews · ${s.rejected ?? 0} rejected · ${s.offer ?? 0} offers`;
   };
   const active = await activePeople(store);
-  return `💼 <b>Jobs</b> (Berlin, Cottbus, remote)\n\n${active.map(line).join("\n")}\n\n` +
-    `<i>/skills diba - see or change the skills list the bot matches against</i>`;
+  const { results: going } = await db.prepare(
+    `SELECT * FROM jobs WHERE status IN ('applied','already','interview','offer','rejected')
+     ORDER BY COALESCE(replied_at, applied_at) DESC LIMIT 15`).all<JobRow>();
+  const list = (going ?? []).map((r) => {
+    const link = r.msg_id && chatLink ? ` <a href="${chatLink}/${r.msg_id}">↗</a>` : "";
+    const who = r.person === "diba" || r.person === "arman" ? `${NAME[r.person as Who]}, ` : "";
+    return `${STATUS[r.status]} · <b>${esc(r.company)}</b> - ${esc(r.title.slice(0, 60))} (${who}${day(r.replied_at ?? r.applied_at ?? now())})${link}`;
+  });
+  return `💼 <b>Jobs</b> (Berlin, Cottbus, remote)\n\n${active.map(line).join("\n")}` +
+    (list.length ? `\n\n<b>Applications</b>\n${list.join("\n")}` : "") +
+    `\n\n<i>/cv - the CVs · /skills diba - the skills list the bot matches against</i>`;
 }
 
 /** /skills diba · /skills diba + Power BI · /skills arman - Vue */
@@ -542,6 +585,29 @@ export async function skillsCommand(store: Store, args: string[]): Promise<strin
     await store.kvSet(`jobs_skills:${w}`, JSON.stringify(list));
   }
   return `${ICON[w]} <b>${NAME[w]}'s skills</b> (what jobs are matched against):\n${esc(list.join(", "))}`;
+}
+
+/**
+ * /cv - send the saved CVs. To save one: send the PDF in the chat and answer
+ * it with /cv diba (or send it with /cv diba as the caption).
+ */
+export async function cvCommand(store: Store, tg: Telegram, msg: any, args: string[], where: Record<string, unknown>): Promise<void> {
+  const chat = String(msg.chat.id);
+  const w = (args[0] ?? "").toLowerCase() as Who;
+  const doc = msg.document ?? msg.reply_to_message?.document;
+  if (doc) {
+    if (!WHO.includes(w)) { await tg.send("Whose CV is it? Answer the PDF with /cv diba or /cv arman.", where, chat); return; }
+    await store.kvSet(`jobs_cv:${w}`, doc.file_id);
+    await tg.send(`📎 Saved as ${NAME[w]}'s CV - /cv sends it, and it comes with every cover letter.`, where, chat);
+    return;
+  }
+  const whom = WHO.includes(w) ? [w] : await activePeople(store);
+  let sent = 0;
+  for (const p of whom) {
+    const id = await store.kvGet(`jobs_cv:${p}`);
+    if (id) { await tg.sendDocument(id, { ...where, caption: `📎 ${NAME[p]}'s CV` }, chat); sent++; }
+  }
+  if (!sent) await tg.send(`No CV saved yet. Send the PDF here, then answer it with /cv ${whom[0]}.`, where, chat);
 }
 
 // ---------------------------------------------------------------- weekly report

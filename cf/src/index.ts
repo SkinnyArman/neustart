@@ -16,7 +16,7 @@ import {
 import { compose } from "./writer.ts";
 import { Telegram, esc, inTopic, type Button } from "./telegram.ts";
 import { aiFailed, aiWorked, checkKey } from "./aikey.ts";
-import { JOBS_CRON, jobButton, jobsBoard, jobsLine, jobsStep, skillsCommand, weeklyReport } from "./jobs.ts";
+import { JOBS_CRON, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, skillsCommand, weeklyReport } from "./jobs.ts";
 import {
   FINDS_CRON, findsKeyboard, findsLine, findsStatus, findsStep, loadFindSettings,
   parseItem, setFindSetting, setItemOn, ITEMS, type ItemKey,
@@ -403,7 +403,8 @@ const filtersKeyboard = (s: Settings): Button[][] => [
 async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> {
   const store = new Store(env.DB);
 
-  const text: string = update.message?.text ?? "";
+  // a caption counts too: a PDF sent with "/cv diba" under it
+  const text: string = update.message?.text ?? update.message?.caption ?? "";
   const isCommand = text.startsWith("/");
 
   // Ordinary group chatter is none of our business. Only commands and button
@@ -425,14 +426,17 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
   if ((bikeCmd || bikeBtn) && (isOwner || inGroup))
     return handleFinds(update, env, tg, store);
   // jobs are Diba's as much as Arman's: open to the group too
-  const jobCmd = /^\/(jobs|skills|jobreport)(@\w+)?(\s|$)/i.exec(text.trim());
+  const jobCmd = /^\/(jobs|skills|jobreport|cv)(@\w+)?(\s|$)/i.exec(text.trim());
   const jobBtn = String(update.callback_query?.data ?? "").startsWith("jb:");
   if ((jobCmd || jobBtn) && (isOwner || inGroup)) {
     if (jobBtn) return jobButton(env, store, tg, update.callback_query);
     const [, ...a] = text.trim().split(/\s+/);
+    if (/^cv$/i.test(jobCmd![1])) return cvCommand(store, tg, update.message, a, sameTopic(update.message));
+    // https://t.me/c/<id> links to messages in a supergroup
+    const link = /^-100\d+$/.test(chatId) ? `https://t.me/c/${chatId.slice(4)}` : "";
     const body = /skills/i.test(jobCmd![1]) ? await skillsCommand(store, a)
       : /jobreport/i.test(jobCmd![1]) ? await weeklyReport(env.DB, store)
-      : await jobsBoard(env.DB, store);
+      : await jobsBoard(env.DB, store, link);
     await tg.send(body, sameTopic(update.message), String(update.message.chat.id));
     return;
   }
@@ -496,7 +500,7 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
         `/filters — which ads qualify\n/settings — timing\n` +
         `/stats — totals\n/retry — re-draft failed\n` +
         `/finds — bikes, bed, Kommode, carpet & free stuff alerts (anyone in the group)\n` +
-        `/jobs — job board for Diba & Arman · /skills diba · /jobreport`);
+        `/jobs — job board and where each application stands · /cv — the CVs · /skills diba · /jobreport`);
       return;
 
     case "/stats": {
@@ -764,6 +768,44 @@ async function handleButton(
   }
 }
 
+// ------------------------------------------------------------- the "/" menu
+// What Telegram suggests when someone types "/". Everyone in the group sees
+// the shared commands; the owner (in the group and in private) sees all.
+// Sent again whenever this list changes.
+const GROUP_COMMANDS = [
+  { command: "jobs", description: "Job board - where each application stands" },
+  { command: "cv", description: "Send the CVs" },
+  { command: "jobreport", description: "Jobs report: matches, answers, what to learn" },
+  { command: "skills", description: "Skills list, e.g. /skills diba + Power BI" },
+  { command: "finds", description: "Bike, bed, Kommode, carpet & free stuff alerts" },
+];
+const OWNER_COMMANDS = [
+  { command: "status", description: "Is it running" },
+  { command: "review", description: "Decide on WG ads you haven't answered" },
+  { command: "scan", description: "Check for WG ads now" },
+  { command: "more", description: "Send more WG ads now" },
+  { command: "pause", description: "Stop the WG search, e.g. /pause 2h" },
+  { command: "start", description: "Start (also un-pauses)" },
+  { command: "filters", description: "Which WG ads qualify" },
+  { command: "settings", description: "Timing" },
+  { command: "stats", description: "Totals" },
+  { command: "retry", description: "Re-draft failed replies" },
+  ...GROUP_COMMANDS,
+  { command: "help", description: "All commands" },
+];
+
+async function syncCommands(env: Env, store: Store, tg: Telegram): Promise<void> {
+  const version = JSON.stringify([GROUP_COMMANDS, OWNER_COMMANDS]);
+  if ((await store.kvGet("commands_sent")) === version) return;
+  const group = env.TELEGRAM_CHAT_ID, owner = env.TELEGRAM_OWNER_ID || group;
+  await tg.setMyCommands(GROUP_COMMANDS, { type: "chat", chat_id: group });
+  if (owner !== group) {
+    await tg.setMyCommands(OWNER_COMMANDS, { type: "chat_member", chat_id: group, user_id: Number(owner) });
+    await tg.setMyCommands(OWNER_COMMANDS, { type: "chat", chat_id: owner });
+  }
+  await store.kvSet("commands_sent", version);
+}
+
 // ------------------------------------------------------------- entrypoints
 export default {
   async scheduled(c: ScheduledController, env: Env, ctx: ExecutionContext) {
@@ -778,6 +820,8 @@ export default {
     if (c.cron === JOBS_CRON || minute % 10 === 3) {
       ctx.waitUntil(jobsStep(env, new Store(env.DB), tg).then(
         (r) => console.log("step:", r), (e) => console.error("jobs failed:", e?.message ?? e)));
+      ctx.waitUntil(syncCommands(env, new Store(env.DB), tg).catch(
+        (e) => console.error("commands failed:", e?.message ?? e)));
       return;
     }
     const odd = minute % 2 === 1;
