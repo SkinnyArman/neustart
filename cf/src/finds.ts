@@ -1,6 +1,6 @@
-// Free and cheap finds around Cottbus - adult bikes, a 140×200 bed, a
-// Kommode, a carpet, and anything free that's useful for a student's room - rated by
-// AI, straight to Telegram.
+// Free and cheap finds around the config's city - adult bikes, a bed (140×200
+// unless the config says otherwise), a Kommode, a carpet, and anything free
+// that's useful for a new room - rated by AI, straight to Telegram.
 //
 // Kept apart from the WG search on purpose:
 //   - its own cron (odd minutes), which never lands on the WG job's
@@ -19,8 +19,10 @@
 
 import { Blocked, get, type CookieJar } from "./scraper.ts";
 import { parseListing, parseAd } from "./kleinanzeigen.ts";
-import { assessItem, screenFree, type ItemKey } from "./findai.ts";
+import { assessItem, screenFree, type FindContext, type ItemKey } from "./findai.ts";
 import { aiFailed, aiWorked } from "./aikey.ts";
+import { loadConfig, NO_CONFIG, type Config } from "./config.ts";
+import { topicOf } from "./topics.ts";
 import {
   blockSecondsLeft, dueOutageNotice, endOutage, fmtLeft, noteBlock, outageHours,
 } from "./settings.ts";
@@ -29,7 +31,6 @@ import { esc, inTopic, type Button, type Telegram } from "./telegram.ts";
 
 export type { ItemKey };
 export const FINDS_CRON = "5,15,25,35,45,55 * * * *";
-export const RADIUS_KM = 30;
 const ASSESS_PER_TICK = 2;
 // Telegram allows about 20 messages a minute into a group.
 const SEND_PER_TICK = 6;
@@ -41,16 +42,13 @@ export interface FindsEnv {
   DB: D1Database;
   OPENAI_API_KEY: string;
   FINDS_MODEL?: string;
-  // the group's forum topic for each item (wrangler.toml); none: General
-  TOPIC_BIKE?: string;
-  TOPIC_BED?: string;
-  TOPIC_KOMMODE?: string;
-  TOPIC_CARPET?: string;
-  TOPIC_FREE?: string;
 }
 
-const topicOf = (env: FindsEnv, item: ItemKey): number | undefined =>
-  Number(env[`TOPIC_${item.toUpperCase()}` as "TOPIC_BIKE"]) || undefined;
+/** What the prompts need from the config. */
+const contextOf = (cfg: Config): FindContext => ({
+  city: cfg.city, for_whom: cfg.finds.for_whom,
+  bed_cm: cfg.finds.items.bed.width_cm, room_m2: cfg.finds.items.carpet.room_m2,
+});
 
 const now = () => Math.floor(Date.now() / 1000);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -151,14 +149,25 @@ export function namesBike(title: string): boolean {
 
 // ================================================================ bed 140×200
 // The search asks for the seller's category "Betten" only. Then the title:
-// a stated size other than 140 wide, kids'/bunk/pet beds, and mattresses,
-// slatted bases or bedding sold on their own are clear misses. A title that
-// says 140 and names a bed is a clear hit; anything else ("IKEA Hemnes Bett",
-// "Doppelbett") goes to the AI, which reads the full description for the size.
+// a stated size other than 140 wide (or the config's width), kids'/bunk/pet
+// beds, and mattresses, slatted bases or bedding sold on their own are clear
+// misses. A title that says 140 and names a bed is a clear hit; anything else
+// ("IKEA Hemnes Bett", "Doppelbett") goes to the AI, which reads the full
+// description for the size.
 
 const BED_SIZE = /(?<![\d.,])(\d{2,3})\s*(?:x|×|\*)\s*(?:19|20|21|22)0(?!\d)/g;
 const METRE = /\b([0-2])[,.](\d0?)\s*(?:m\b|meter|x)/g;
-const SAYS_140 = /(?<![\d.,])140(?:\s*(?:x|×|\*|cm|er|breit)|\b)|\b1[,.]40?\s*(?:m\b|meter|x)/;
+// "140x", "140 cm", "140er", "1,40 m" - for another width, the same with it
+const saysWidth = new Map<number, RegExp>();
+const SAYS = (cm: number) => {
+  let rx = saysWidth.get(cm);
+  if (!rx) {
+    const d = String(cm % 100).padStart(2, "0");
+    rx = new RegExp(`(?<![\\d.,])${cm}(?:\\s*(?:x|×|\\*|cm|er|breit)|\\b)|\\b${Math.floor(cm / 100)}[,.]${d[0]}${d[1]}?\\s*(?:m\\b|meter|x)`);
+    saysWidth.set(cm, rx);
+  }
+  return rx;
+};
 const BED_KIDS = /kinder|baby|beistellbett|reisebett|laufstall|hochbett|etagenbett|stockbett|puppen/;
 const BED_PET = /hunde|katzen|tierbett/;
 // one-person, folding or inflatable beds and sofas: never a 140×200 frame
@@ -182,17 +191,17 @@ function bedWidth(t: string): number[] {
  * in the title ("Bettgestell mit Lattenrost" … "100x200"). Catching it here
  * saves the AI call that would only have said "wrong size".
  */
-export function bedRejectReason(title: string, snippet = ""): string | null {
+export function bedRejectReason(title: string, snippet = "", width = 140): string | null {
   const t = lower(title);
   const all = `${t} ${lower(snippet)}`;
   if (SEARCHING.test(t)) return "someone searching";
   if (BED_PET.test(t)) return "pet bed";
   if (BED_KIDS.test(t)) return "kids' or bunk bed";
   // a sofa bed that sleeps 140×200 (IKEA Lyksele) still counts
-  if (BED_SMALL.test(t) && !(/couch|sofa/.test(t) && SAYS_140.test(all))) return "single, folding or sofa bed";
+  if (BED_SMALL.test(t) && !(/couch|sofa/.test(t) && SAYS(width).test(all))) return "single, folding or sofa bed";
   if (BED_NOT.test(t)) return "not a bed";
   const sizes = bedWidth(all);
-  if (sizes.length && !sizes.includes(140) && !SAYS_140.test(all)) return `size ${sizes[0]} wide`;
+  if (sizes.length && !sizes.includes(width) && !SAYS(width).test(all)) return `size ${sizes[0]} wide`;
   const named = words(t).some(isBedWord) || IKEA_BEDS.test(t);
   if (!named && /matratze/.test(t)) return "mattress only";
   if (!named && /lattenrost/.test(t)) return "slatted base only";
@@ -200,10 +209,10 @@ export function bedRejectReason(title: string, snippet = ""): string | null {
   return null;
 }
 
-/** Says 140 and names a bed: may go out unrated if the AI is down. */
-export const namesBed = (title: string) => {
+/** Says 140 (or the width) and names a bed: may go out unrated if the AI is down. */
+export const namesBed = (title: string, width = 140) => {
   const t = lower(title);
-  return SAYS_140.test(t) && (words(t).some(isBedWord) || IKEA_BEDS.test(t));
+  return SAYS(width).test(t) && (words(t).some(isBedWord) || IKEA_BEDS.test(t));
 };
 
 // ================================================================ Kommode
@@ -339,9 +348,9 @@ export function freeRejectReason(title: string): string | null {
 export const namesFree = (title: string) => !freeRejectReason(title) && words(lower(title)).some(isWant);
 
 /** A free ad that's really one of our other items belongs to that topic. */
-export function routeFree(title: string): ItemKey | null {
+export function routeFree(title: string, width = 140): ItemKey | null {
   const t = lower(title);
-  if (words(t).some(isBedWord) && !bedRejectReason(title)) return "bed";
+  if (words(t).some(isBedWord) && !bedRejectReason(title, "", width)) return "bed";
   if (KOMMODE_LIKE.test(t) && !kommodeRejectReason(title)) return "kommode";
   if (namesBike(title) && !rejectReason(title)) return "bike";
   // Even a wrong-sized rug goes through the carpet rules, not the free wishlist.
@@ -350,7 +359,9 @@ export function routeFree(title: string): ItemKey | null {
 }
 
 // ================================================================ the items
-interface Search { id: string; every: number; url: (max: number) => string }
+/** Kleinanzeigen's name and id for the city, and the radius: cottbus, 7743, 30 */
+interface Place { slug: string; id: string; r: number }
+interface Search { id: string; every: number; url: (max: number, at: Place) => string }
 export interface Item {
   key: ItemKey;
   emoji: string;
@@ -361,18 +372,18 @@ export interface Item {
   defaultFloor: number;   // only post from this rating up
   step: number;           // € (or ⭐ for free stuff) per tap on the card
   searches: Search[];
-  reject: (title: string, snippet?: string) => string | null;   // clearly not it, by title (and preview)
-  named: (title: string) => boolean;          // clearly it - may go out unrated without AI
+  reject: (title: string, snippet: string, width: number) => string | null;   // clearly not it, by title (and preview)
+  named: (title: string, width: number) => boolean;          // clearly it - may go out unrated without AI
   page?: (details: Record<string, string>) => string | null;  // the ad page disagrees
 }
 
-const fahrrad = (art: string) => (max: number) =>
-  `https://www.kleinanzeigen.de/s-fahrraeder/${art}/cottbus/anzeige:angebote/` +
-  `preis::${max}/c217l7743r${RADIUS_KM}+fahrraeder.art_s:${art}`;
+const fahrrad = (art: string) => (max: number, at: Place) =>
+  `https://www.kleinanzeigen.de/s-fahrraeder/${art}/${at.slug}/anzeige:angebote/` +
+  `preis::${max}/c217l${at.id}r${at.r}+fahrraeder.art_s:${art}`;
 
-// All: offers only, up to max € ("Zu verschenken" counts as 0 €), RADIUS_KM
-// around Cottbus (l7743), newest first. Far fewer than a page (25) of new
-// ads appear between two checks, so page 1 is enough.
+// All: offers only, up to max € ("Zu verschenken" counts as 0 €), the radius
+// around the city (cottbus/l7743), newest first. Far fewer than a page (25)
+// of new ads appear between two checks, so page 1 is enough.
 export const ITEMS: Item[] = [
   {
     key: "bike", emoji: "🚲", label: "Bikes", kv: "bikes", priced: true, defaultMax: 30, defaultFloor: 0, step: 5,
@@ -382,15 +393,15 @@ export const ITEMS: Item[] = [
       { id: "herren", every: 30, url: fahrrad("herren") },
       { id: "weiteres", every: 120, url: fahrrad("weiteres") },
     ],
-    reject: rejectReason, named: namesBike,
+    reject: (t) => rejectReason(t), named: (t) => namesBike(t),
     page: (d) => (d["Art"] === "Zubehör" || d["Art"] === "Kinder" ? `Art: ${d["Art"]}` : null),
   },
   {
     key: "bed", emoji: "🛏", label: "Bed 140×200", kv: "bed", priced: true, defaultMax: 100, defaultFloor: 0, step: 10,
     searches: [{
       id: "bed", every: 60,
-      url: (max) => `https://www.kleinanzeigen.de/s-schlafzimmer/betten/cottbus/anzeige:angebote/` +
-        `preis::${max}/c81l7743r${RADIUS_KM}+schlafzimmer.art_s:betten`,
+      url: (max, at) => `https://www.kleinanzeigen.de/s-schlafzimmer/betten/${at.slug}/anzeige:angebote/` +
+        `preis::${max}/c81l${at.id}r${at.r}+schlafzimmer.art_s:betten`,
     }],
     reject: bedRejectReason, named: namesBed,
     page: (d) => (d["Art"] && d["Art"] !== "Betten" ? `Art: ${d["Art"]}` : null),
@@ -399,31 +410,34 @@ export const ITEMS: Item[] = [
     key: "kommode", emoji: "🗄", label: "Kommode", kv: "kommode", priced: true, defaultMax: 35, defaultFloor: 0, step: 5,
     searches: [{
       id: "kommode", every: 60,
-      url: (max) => `https://www.kleinanzeigen.de/s-haus-garten/cottbus/anzeige:angebote/` +
-        `preis::${max}/kommode/k0c80l7743r${RADIUS_KM}`,
+      url: (max, at) => `https://www.kleinanzeigen.de/s-haus-garten/${at.slug}/anzeige:angebote/` +
+        `preis::${max}/kommode/k0c80l${at.id}r${at.r}`,
     }],
-    reject: kommodeRejectReason, named: namesKommode,
+    reject: (t) => kommodeRejectReason(t), named: (t) => namesKommode(t),
   },
   {
     key: "carpet", emoji: "🧶", label: "Carpet", kv: "carpet", priced: true, defaultMax: 30, defaultFloor: 0, step: 5,
     searches: [{
       id: "carpet", every: 60,
-      url: (max) => `https://www.kleinanzeigen.de/s-haus-garten/cottbus/anzeige:angebote/` +
-        `preis::${max}/teppich/k0c80l7743r${RADIUS_KM}`,
+      url: (max, at) => `https://www.kleinanzeigen.de/s-haus-garten/${at.slug}/anzeige:angebote/` +
+        `preis::${max}/teppich/k0c80l${at.id}r${at.r}`,
     }],
-    reject: carpetRejectReason, named: namesCarpet,
+    reject: (t) => carpetRejectReason(t), named: (t) => namesCarpet(t),
   },
   {
     // a lot comes in and most of it is junk: only the well-rated ones go out
     key: "free", emoji: "🎁", label: "Free stuff", kv: "free", priced: false, defaultMax: 0, defaultFloor: 6, step: 1,
     searches: [{
       id: "free", every: 30,
-      url: () => `https://www.kleinanzeigen.de/s-zu-verschenken/cottbus/anzeige:angebote/c192l7743r${RADIUS_KM}`,
+      url: (_, at) => `https://www.kleinanzeigen.de/s-zu-verschenken/${at.slug}/anzeige:angebote/c192l${at.id}r${at.r}`,
     }],
-    reject: freeRejectReason, named: namesFree,
+    reject: (t) => freeRejectReason(t), named: (t) => namesFree(t),
   },
 ];
 const ITEM = Object.fromEntries(ITEMS.map((i) => [i.key, i])) as Record<ItemKey, Item>;
+/** "Bed 140×200" follows the config's bed width. */
+const labelOf = (item: Item, cfg?: Config | null) =>
+  item.key === "bed" && cfg ? `Bed ${cfg.finds.items.bed.width_cm}×200` : item.label;
 const itemOf = (row: { item?: string | null }) => ITEM[(row.item as ItemKey) || "bike"] ?? ITEM.bike;
 
 /** English and German names ("bike", "bett", "rug", "teppich"…) → item */
@@ -443,19 +457,23 @@ export interface FindSettings {
   items: Record<ItemKey, { on: boolean; max: number; floor: number }>;
 }
 
-export async function loadFindSettings(store: Store): Promise<FindSettings> {
+/** Changed from Telegram: kv. Otherwise what the config says, else the built-in defaults. */
+export async function loadFindSettings(store: Store, cfg?: Config | null): Promise<FindSettings> {
   const num = async (k: string, d: number) => {
     const raw = await store.kvGet(k);
     const v = Number(raw);
     return raw === null || !Number.isFinite(v) ? d : v;
   };
   const items = {} as FindSettings["items"];
-  for (const i of ITEMS)
+  for (const i of ITEMS) {
+    const c = cfg?.finds.items[i.key];
+    const on = await store.kvGet(`${i.kv}_on`);
     items[i.key] = {
-      on: (await store.kvGet(`${i.kv}_on`)) !== "0",
-      max: await num(`${i.kv}_max_price`, i.defaultMax),
-      floor: await num(`${i.kv}_floor`, i.defaultFloor),
+      on: on === null ? c?.on ?? true : on !== "0",
+      max: await num(`${i.kv}_max_price`, c?.max_price ?? i.defaultMax),
+      floor: await num(`${i.kv}_floor`, c?.min_rating ?? i.defaultFloor),
     };
+  }
   return { min_score: await num("bikes_min_score", 0), items };
 }
 
@@ -463,11 +481,11 @@ export async function loadFindSettings(store: Store): Promise<FindSettings> {
  * Max price for an item, the minimum rating ("min") for all of them, or for
  * free stuff - which has no price - its own minimum rating.
  */
-export async function setFindSetting(store: Store, key: ItemKey | "min", value: number): Promise<string> {
+export async function setFindSetting(store: Store, key: ItemKey | "min", value: number, cfg?: Config | null): Promise<string> {
   if (key !== "min" && !ITEM[key].priced) {
     const v = Math.min(10, Math.max(0, Math.round(value)));
     await store.kvSet(`${ITEM[key].kv}_floor`, String(v));
-    return `${ITEM[key].emoji} ${ITEM[key].label}: only ⭐ ${v}/10 or better`;
+    return `${ITEM[key].emoji} ${labelOf(ITEM[key], cfg)}: only ⭐ ${v}/10 or better`;
   }
   if (key === "min") {
     const v = Math.min(10, Math.max(0, Math.round(value)));
@@ -476,12 +494,12 @@ export async function setFindSetting(store: Store, key: ItemKey | "min", value: 
   }
   const v = Math.min(500, Math.max(0, Math.round(value)));
   await store.kvSet(`${ITEM[key].kv}_max_price`, String(v));
-  return `${ITEM[key].emoji} ${ITEM[key].label}: up to ${v} €`;
+  return `${ITEM[key].emoji} ${labelOf(ITEM[key], cfg)}: up to ${v} €`;
 }
 
-export async function setItemOn(store: Store, key: ItemKey, on: boolean): Promise<string> {
+export async function setItemOn(store: Store, key: ItemKey, on: boolean, cfg?: Config | null): Promise<string> {
   await store.kvSet(`${ITEM[key].kv}_on`, on ? "1" : "0");
-  return `${ITEM[key].emoji} ${ITEM[key].label}: ${on ? "on" : "paused"}`;
+  return `${ITEM[key].emoji} ${labelOf(ITEM[key], cfg)}: ${on ? "on" : "paused"}`;
 }
 
 // ---------------------------------------------------------------- helpers
@@ -586,7 +604,10 @@ export async function findsStep(
   env: FindsEnv, store: Store, tg: Telegram, forceList = false,
 ): Promise<string> {
   const db = env.DB;
-  const s = await loadFindSettings(store);
+  const cfg = await loadConfig(store);
+  if (!cfg) return `finds: ${NO_CONFIG}`;
+  if (!cfg.modules.finds) return "finds: off";
+  const s = await loadFindSettings(store, cfg);
   const live = ITEMS.filter((i) => s.items[i.key].on);
   if (!live.length) return "finds: all paused";
 
@@ -609,17 +630,17 @@ export async function findsStep(
           [i, sr, now() - Number(checked["bikes_checked:" + sr.id] ?? 0) - (sr.every - 2) * 60] as const))
         .reduce((x, y) => (y[2] > x[2] ? y : x));
       if (forceList || overdue >= 0)
-        did.push(await checkListing(db, store, s, item, search));
-      const screened = await screenSome(env, store, tg);
+        did.push(await checkListing(db, store, cfg, s, item, search));
+      const screened = await screenSome(env, store, tg, cfg);
       if (screened) did.push(screened);
-      did.push(await assessSome(env, store, s, tg));
+      did.push(await assessSome(env, store, cfg, s, tg));
     } catch (e) {
       if (!(e instanceof Blocked)) throw e;
       return await backOff(store, tg, e.message);
     }
     await endOutage(store, "bikes");
 
-    const sent = await sendReady(env, tg, s);
+    const sent = await sendReady(env, store, tg, cfg, s);
     if (did.length > 1 && did.at(-1) === "nothing to rate") did.pop();
     return `finds: ${did.join(", ")}${sent ? `, ${sent} sent` : ""}`;
   } finally {
@@ -628,9 +649,11 @@ export async function findsStep(
 }
 
 async function checkListing(
-  db: D1Database, store: Store, s: FindSettings, item: Item, search: Search,
+  db: D1Database, store: Store, cfg: Config, s: FindSettings, item: Item, search: Search,
 ): Promise<string> {
-  const html = await get(search.url(s.items[item.key].max), jar(store));
+  const at: Place = { slug: cfg.ka!.slug, id: cfg.ka!.id, r: cfg.finds.radius_km };
+  const width = cfg.finds.items.bed.width_cm;
+  const html = await get(search.url(s.items[item.key].max, at), jar(store));
   // only once it worked: after a block the next tick should look again
   await store.kvSet("bikes_checked:" + search.id, String(now()));
   const ads = parseListing(html);
@@ -653,16 +676,16 @@ async function checkListing(
     const price = priceEur(ad.rent);
     const km = distanceKm(ad.district);
     // a free ad that's really one of our other items joins it
-    const routed = item.key === "free" ? routeFree(ad.title) : null;
+    const routed = item.key === "free" ? routeFree(ad.title, width) : null;
     const it = routed ? ITEM[routed] : item;
     const why =
       routed && !s.items[routed].on ? "paused"
       : it.priced && price !== null && price > s.items[it.key].max ? `price ${ad.rent}`
       // a thin result page gets padded with ads from far away
-      : km !== null && km > RADIUS_KM + 5 ? `too far (${km} km)`
+      : km !== null && km > cfg.finds.radius_km + 5 ? `too far (${km} km)`
       // no flood of old ads when a search starts, no pinned "TOP" ads
       : isStale(posted.get(ad.ad_id)) ? `old ad (${posted.get(ad.ad_id)})`
-      : it.reject(ad.title, ad.snippet ?? "");
+      : it.reject(ad.title, ad.snippet ?? "", width);
     if (!why) maybe++;
     // vague free ads wait for the batched screen; wishlist titles skip it
     const status = why ? "skipped" : it.key === "free" && !namesFree(ad.title) ? "screen" : "new";
@@ -680,7 +703,7 @@ async function checkListing(
  * The vague free ads, all in one cheap AI call on title + preview. Passing
  * (5/10 and up) means a full read and rating; the rest are dropped unread.
  */
-async function screenSome(env: FindsEnv, store: Store, tg: Telegram): Promise<string> {
+async function screenSome(env: FindsEnv, store: Store, tg: Telegram, cfg: Config): Promise<string> {
   const db = env.DB;
   const { results } = await db.prepare(
     `SELECT * FROM bikes WHERE status='screen' ORDER BY first_seen, rowid LIMIT 12`).all<FindRow>();
@@ -688,7 +711,7 @@ async function screenSome(env: FindsEnv, store: Store, tg: Telegram): Promise<st
   if (!rows.length) return "";
   try {
     const verdicts = await screenFree(env.OPENAI_API_KEY, env.FINDS_MODEL || "gpt-5.6-luna",
-      rows.map((r) => ({ id: r.ad_id, title: r.title, snippet: r.snippet })));
+      rows.map((r) => ({ id: r.ad_id, title: r.title, snippet: r.snippet })), cfg.finds.for_whom);
     await aiWorked(store);
     let pass = 0;
     for (const r of rows) {
@@ -711,7 +734,7 @@ async function screenSome(env: FindsEnv, store: Store, tg: Telegram): Promise<st
 
 /** Read the full ad; the AI confirms it's what we want and rates it. Two per tick. */
 async function assessSome(
-  env: FindsEnv, store: Store, s: FindSettings, tg: Telegram,
+  env: FindsEnv, store: Store, cfg: Config, s: FindSettings, tg: Telegram,
 ): Promise<string> {
   const db = env.DB;
   const { results } = await db.prepare(
@@ -752,7 +775,7 @@ async function assessSome(
     try {
       const a = await assessItem(env.OPENAI_API_KEY, env.FINDS_MODEL || "gpt-5.6-luna", item.key, {
         title: row.title, price: row.price, place: row.place, details, text,
-      });
+      }, contextOf(cfg));
       await aiWorked(store);
       if (!a.is_match) {
         await setRow(db, row.ad_id, { status: "skipped", why: `ai: ${a.reason || "not it"}` });
@@ -771,7 +794,7 @@ async function assessSome(
       // doesn't ("Kiox 300 Display") needed the AI to tell - it's dropped.
       const tries = row.attempts + 1;
       await setRow(db, row.ad_id, tries < MAX_ATTEMPTS ? { attempts: tries }
-        : item.named(row.title) ? { attempts: tries, status: "ready", why: "not rated: AI unavailable" }
+        : item.named(row.title, cfg.finds.items.bed.width_cm) ? { attempts: tries, status: "ready", why: "not rated: AI unavailable" }
         : { attempts: tries, status: "skipped", why: "unsure, and no AI to ask" });
       console.error(`rating failed for ${row.ad_id}:`, e?.message ?? e);
       out.push("rating failed");
@@ -797,7 +820,7 @@ async function backOff(store: Store, tg: Telegram, why: string): Promise<string>
   return `finds: blocked (${why}), retry in ${mins} min`;
 }
 
-async function sendReady(env: FindsEnv, tg: Telegram, s: FindSettings): Promise<number> {
+async function sendReady(env: FindsEnv, store: Store, tg: Telegram, cfg: Config, s: FindSettings): Promise<number> {
   const db = env.DB;
   const { results } = await db.prepare(
     `SELECT * FROM bikes WHERE status='ready' ORDER BY first_seen, rowid LIMIT ?`)
@@ -815,7 +838,7 @@ async function sendReady(env: FindsEnv, tg: Telegram, s: FindSettings): Promise<
       continue;
     }
     try {
-      await deliver(tg, row, topicOf(env, itemOf(row).key));
+      await deliver(tg, row, cfg, await topicOf(cfg, store, tg, itemOf(row).key));
     } catch (e: any) {
       const msg = String(e?.message ?? e);
       // flood control: stop here, the rest stays queued for the next tick
@@ -832,7 +855,7 @@ async function sendReady(env: FindsEnv, tg: Telegram, s: FindSettings): Promise<
   return sent;
 }
 
-function caption(row: FindRow): string {
+function caption(row: FindRow, cfg: Config): string {
   const item = itemOf(row);
   const free = priceEur(row.price) === 0;
   const notes: string[] = row.notes ? JSON.parse(row.notes) : [];
@@ -841,7 +864,7 @@ function caption(row: FindRow): string {
     : "⭐ not rated (AI unavailable)";
   const snip = row.snippet.length > 140 ? row.snippet.slice(0, 140).trimEnd() + "…" : row.snippet;
   return (
-    `${item.emoji} <b>${esc(row.title || item.label)}</b>\n` +
+    `${item.emoji} <b>${esc(row.title || labelOf(item, cfg))}</b>\n` +
     (free ? "🆓 <b>Free</b>" : `<b>${esc(row.price || "price?")}</b>`) +
     ` · ${esc(row.place || "?")}\n` +
     `${rating}\n` +
@@ -852,8 +875,8 @@ function caption(row: FindRow): string {
   );
 }
 
-async function deliver(tg: Telegram, row: FindRow, topic?: number): Promise<void> {
-  const text = caption(row);
+async function deliver(tg: Telegram, row: FindRow, cfg: Config, topic: number | null): Promise<void> {
+  const text = caption(row, cfg);
   if (row.image) {
     try {
       await tg.sendPhoto(bigImage(row.image), text, undefined, inTopic(topic));
@@ -870,17 +893,20 @@ async function deliver(tg: Telegram, row: FindRow, topic?: number): Promise<void
 const lastChecked = async (store: Store) =>
   Math.max(0, ...Object.values(await store.kvPrefix("bikes_checked:")).map(Number));
 
-const WHAT: Record<ItemKey, string> = {
+const WHAT = (cfg: Config): Record<ItemKey, string> => ({
   bike: "adult bikes, no kids' bikes or parts",
   bed: "frame, with or without slats",
   kommode: "chest of drawers",
-  carpet: "area rug for a ~25 m² room, not fitted carpet",
+  carpet: `area rug for a ~${cfg.finds.items.carpet.room_m2} m² room, not fitted carpet`,
   free: "anything a new student can use",
-};
+});
 
 export async function findsStatus(db: D1Database, store: Store): Promise<string> {
+  const cfg = await loadConfig(store);
+  if (!cfg) return NO_CONFIG;
+  if (!cfg.modules.finds) return "🔎 Finds are switched off in the config.";
   await ensureTable(db);
-  const s = await loadFindSettings(store);
+  const s = await loadFindSettings(store, cfg);
   const checked = await lastChecked(store);
   const until = Number((await store.kvGet("bikes_blocked_until")) ?? 0);
   const count = async (where: string, ...args: unknown[]) =>
@@ -896,11 +922,11 @@ export async function findsStatus(db: D1Database, store: Store): Promise<string>
   const ago = checked ? `${fmtLeft(Math.max(0, now() - checked))} ago` : "not yet";
 
   return [
-    `🔎 <b>Finds on Kleinanzeigen</b>, ${RADIUS_KM} km around Cottbus`,
+    `🔎 <b>Finds on Kleinanzeigen</b>, ${cfg.finds.radius_km} km around ${cfg.city}`,
     "",
     ...ITEMS.map((i) => {
       const it = s.items[i.key];
-      return `${i.emoji} <b>${i.label}</b> (${WHAT[i.key]}): ` +
+      return `${i.emoji} <b>${labelOf(i, cfg)}</b> (${WHAT(cfg)[i.key]}): ` +
         (!it.on ? "⏸ paused" : i.priced ? `up to <b>${it.max} €</b> or free` : `free, rated <b>${it.floor}/10</b> or better`);
     }),
     "",
@@ -936,7 +962,7 @@ export const findsKeyboard = (s: FindSettings): Button[][] => [
 
 /** One line for /status. */
 export async function findsLine(store: Store): Promise<string> {
-  const s = await loadFindSettings(store);
+  const s = await loadFindSettings(store, await loadConfig(store));
   const on = ITEMS.filter((i) => s.items[i.key].on);
   if (!on.length) return "Finds:           ⏸ all paused  → /finds";
   const until = Number((await store.kvGet("bikes_blocked_until")) ?? 0);

@@ -7,6 +7,7 @@ if [ -z "$TOKEN" ]; then
   TOKEN="$1"
 fi
 [ -z "$TOKEN" ] && exit 1
+DB=$(sed -n 's/^database_name *= *"\(.*\)"/\1/p' wrangler.toml)
 
 echo "=== 1. Telegram webhook ==="
 curl -s "https://api.telegram.org/bot$TOKEN/getWebhookInfo" \
@@ -23,7 +24,7 @@ if err: print('    ^ 403 here means WEBHOOK_SECRET does not match')
 
 echo
 echo "=== 2. Database ==="
-npx wrangler d1 execute wg-finder --remote --json \
+npx wrangler d1 execute "$DB" --remote --json \
   --command "SELECT k, length(v) AS bytes FROM kv" 2>/dev/null \
  | python3 -c "
 import json,sys
@@ -31,14 +32,14 @@ try:
     rows=json.load(sys.stdin)[0]['results']
 except Exception:
     print('  could not read kv — is the schema created?'); sys.exit()
-if not any(r['k']=='profile' for r in rows):
-    print('  NO PROFILE ROW — run ./make-profile.sh then load profile.sql')
+if not any(r['k']=='config' for r in rows):
+    print('  NO CONFIG — fill in neustart.yaml, then: npm run config')
 for r in rows: print(f\"  {r['k']:14} {r['bytes']} bytes\")
 "
 
 echo
 echo "=== 3. Ads seen so far ==="
-npx wrangler d1 execute wg-finder --remote --json \
+npx wrangler d1 execute "$DB" --remote --json \
   --command "SELECT status, COUNT(*) n FROM ads GROUP BY status" 2>/dev/null \
  | python3 -c "
 import json,sys

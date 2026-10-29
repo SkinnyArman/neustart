@@ -1,4 +1,4 @@
-import { SYSTEM } from "./prompt.ts";
+import { systemPrompt } from "./prompt.ts";
 import type { Profile } from "./settings.ts";
 
 export interface Draft {
@@ -56,7 +56,7 @@ function detailsBlock(d?: Record<string, string>): string {
 }
 
 export async function compose(
-  apiKey: string, model: string, profile: Profile, ad: AdLike, retryNote = "",
+  apiKey: string, model: string, profile: Profile, ad: AdLike, retryNote = "", city = "",
 ): Promise<Draft> {
   let adText = (ad.text ?? "").trim();
   if (adText.length > 6000) adText = adText.slice(0, 6000) + "\n[...truncated]";
@@ -75,7 +75,7 @@ export async function compose(
     model,
     response_format: { type: "json_object" },
     messages: [
-      { role: "system", content: SYSTEM },
+      { role: "system", content: systemPrompt(city, String((profile.about as any)?.pronouns ?? "he/him")) },
       { role: "user", content: user },
     ],
   };

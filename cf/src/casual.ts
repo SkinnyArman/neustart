@@ -1,27 +1,29 @@
-// Casual jobs - Minijobs around Cottbus (Aushilfe, Verkauf, Reinigung,
-// Zeitung austragen, Küchenhilfe, …) - posted to their own topic. No AI and
-// no buttons: each card is the job, the pay, the hours and the description.
+// Casual jobs - Minijobs around the config's city (Aushilfe, Verkauf,
+// Reinigung, Zeitung austragen, Küchenhilfe, …) - posted to their own topic.
+// No AI and no buttons: each card is the job, the pay, the hours and the
+// description.
 //
 // Source: the Jobbörse's Minijob filter, every 30 minutes. Its details give
 // the hourly wage when the employer filled it in (about one ad in five) and
 // which times of day the job is for. Titles that need a trade or a licence
 // (Pflegefachkraft, Erzieher, Berufskraftfahrer, …) are left out by a word list.
 
+import { loadConfig, NO_CONFIG, type Config } from "./config.ts";
 import { strip } from "./jobs.ts";
 import { fmtLeft } from "./settings.ts";
 import type { Store } from "./store.ts";
 import { esc, inTopic, type Telegram } from "./telegram.ts";
+import { topicOf } from "./topics.ts";
 
 export const CASUAL_CRON = "7,17,27,37,47,57 * * * *";
 const SEARCH_EVERY = 30 * 60;
 const POST_PER_TICK = 5;
 const MAX_ATTEMPTS = 3;
-const PLACE = { wo: "Cottbus", umkreis: "25" };
 
 const BA = "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service";
 const BA_KEY = { "X-API-Key": "jobboerse-jobsuche" };   // the Jobbörse's public client key
 
-export interface CasualEnv { DB: D1Database; TOPIC_CASUAL?: string }
+export interface CasualEnv { DB: D1Database }
 
 const now = () => Math.floor(Date.now() / 1000);
 const date = (iso?: string) => (iso ? iso.slice(0, 10).split("-").reverse().slice(0, 2).join(".") + "." : "");
@@ -61,22 +63,26 @@ interface Row { id: string; title: string; company: string; place: string; attem
 
 // ---------------------------------------------------------------- one tick
 export async function casualStep(env: CasualEnv, store: Store, tg: Telegram): Promise<string> {
+  const cfg = await loadConfig(store);
+  if (!cfg) return `casual: ${NO_CONFIG}`;
+  if (!cfg.modules.casual_jobs) return "casual: off";
   if ((await store.kvGet("casual_on")) === "0") return "casual: paused";
   const db = env.DB;
   await ensureTable(db);
   const did: string[] = [];
   if (now() - Number((await store.kvGet("casual_searched_at")) ?? 0) >= SEARCH_EVERY) {
-    try { did.push(await search(db)); await store.kvSet("casual_searched_at", String(now())); }
+    try { did.push(await search(db, cfg)); await store.kvSet("casual_searched_at", String(now())); }
     catch (e: any) { did.push(`search: ${e?.message ?? e}`); }
   }
-  const n = await post(env, tg);
+  const n = await post(env, store, tg, cfg);
   if (n) did.push(`${n} posted`);
   return `casual: ${did.join(", ") || "nothing to do"}`;
 }
 
-async function search(db: D1Database): Promise<string> {
+async function search(db: D1Database, cfg: Config): Promise<string> {
   const u = new URL(`${BA}/pc/v6/jobs`);
-  for (const [k, v] of Object.entries({ ...PLACE, arbeitszeit: "mj", veroeffentlichtseit: "30", size: "100" }))
+  const place = { wo: cfg.city, umkreis: String(cfg.casual_jobs.radius_km) };
+  for (const [k, v] of Object.entries({ ...place, arbeitszeit: "mj", veroeffentlichtseit: "30", size: "100" }))
     u.searchParams.set(k, v);
   const r = await fetch(u, { headers: BA_KEY });
   if (!r.ok) throw new Error(`Jobbörse ${r.status}`);
@@ -158,7 +164,7 @@ export function casualCard(row: Row, d: any): string {
   ].filter(Boolean).join("\n\n");
 }
 
-async function post(env: CasualEnv, tg: Telegram): Promise<number> {
+async function post(env: CasualEnv, store: Store, tg: Telegram, cfg: Config): Promise<number> {
   const db = env.DB;
   const { results } = await db.prepare(
     "SELECT * FROM casual WHERE status='new' ORDER BY first_seen, rowid LIMIT ?").bind(POST_PER_TICK).all<Row>();
@@ -170,7 +176,7 @@ async function post(env: CasualEnv, tg: Telegram): Promise<number> {
       if (r.status === 404) { await setRow(db, row.id, { status: "skipped", why: "gone" }); continue; }
       if (!r.ok) throw new Error(`Jobbörse details ${r.status}`);
       const d = await r.json();
-      const sent = await tg.send(casualCard(row, d), inTopic(Number(env.TOPIC_CASUAL) || null));
+      const sent = await tg.send(casualCard(row, d), inTopic(await topicOf(cfg, store, tg, "casual_jobs")));
       await setRow(db, row.id, { status: "posted", posted_at: now(), msg_id: sent?.result?.message_id ?? null,
         pay: payOf(d, describe((d as any)?.stellenangebotsBeschreibung ?? "")) || null });
       n++;

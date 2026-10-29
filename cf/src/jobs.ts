@@ -1,26 +1,28 @@
-// Jobs for two people - Diba (data science / analytics / data engineering)
-// and Arman (frontend / React Native) - posted to the Jobs topic as cards
-// that double as an application tracker.
+// Jobs for the people in the config's jobs section, posted to the Jobs topic
+// as cards that double as an application tracker.
 //
 // Sources, both public and meant to be read by programs:
-//   - Bundesagentur für Arbeit, Jobbörse: keyword searches around Berlin and
-//     Cottbus, two per tick in rotation
+//   - Bundesagentur für Arbeit, Jobbörse: each person's keyword searches
+//     around each of the config's cities, two per tick in rotation
 //   - Arbeitnow: a free feed of German (often English-speaking) tech jobs,
-//     every two hours; Berlin, Cottbus or remote
+//     every two hours; in those cities or remote
 //
 // Rules drop the obvious misses for free (senior/lead roles, Ausbildung,
-// titles that aren't data or frontend work). One cheap AI call per remaining
-// job decides who it's for, why, what's missing, the German level, hours,
-// start, deadline. Full-time roles are dropped: a student permit can't cover them.
-// Cover letters are only written on request, with the better model.
+// titles without any of a person's title words). One cheap AI call per
+// remaining job decides who it's for, why, what's missing, the German level,
+// hours, start, deadline. With student_permit, full-time roles are dropped:
+// a student residence permit can't cover them. Cover letters are only written
+// on request, with the better model.
 //
-// Personal data (profiles, CV text, skills) lives in D1 (kv jobs_people,
-// jobs_skills:<who>), never in this public repo - see seed-jobs.sh.
+// Personal data (profiles, CV text, skills) lives in D1 (kv config, and
+// jobs_skills:<id> once changed with /skills), never in this public repo.
 
 import { aiFailed, aiWorked } from "./aikey.ts";
+import { loadConfig, NO_CONFIG, type Config, type Person } from "./config.ts";
 import { fmtLeft } from "./settings.ts";
 import type { Store } from "./store.ts";
 import { esc, inTopic, type Button, type Telegram } from "./telegram.ts";
+import { topicOf } from "./topics.ts";
 
 export const JOBS_CRON = "3,13,23,33,43,53 * * * *";
 const QUERIES_PER_TICK = 2;
@@ -31,44 +33,47 @@ const FOLLOW_UP_DAYS = 10;
 const ARBEITNOW_EVERY = 2 * 3600;
 const LOCK_SECONDS = 300;
 
-export type Who = "diba" | "arman";
-const WHO: Who[] = ["diba", "arman"];
+type Jobs = Config["jobs"];
+const ids = (j: Jobs) => j.people.map((p) => p.id);
+const byId = (j: Jobs, id: string | null | undefined) => j.people.find((p) => p.id === id);
+const nameOf = (j: Jobs, id: string) => byId(j, id)?.name ?? id;
 
 /**
- * Who is searching right now (kv jobs_active, e.g. "diba" or "diba,arman").
- * Only they get searches, matches, board lines and reports. Default: Diba.
+ * Who is searching right now: the people not marked `active: false`, or, when
+ * set, kv jobs_active ("diba" or "diba,arman"). Only they get searches,
+ * matches, board lines and reports.
  */
-export async function activePeople(store: Store): Promise<Who[]> {
-  const raw = (await store.kvGet("jobs_active")) ?? "diba";
-  const a = raw.split(",").map((x) => x.trim().toLowerCase()).filter((x): x is Who => WHO.includes(x as Who));
-  return a.length ? a : ["diba"];
+export async function activePeople(store: Store, j: Jobs): Promise<string[]> {
+  const raw = await store.kvGet("jobs_active");
+  const a = raw === null ? j.people.filter((p) => p.active).map((p) => p.id)
+    : raw.split(",").map((x) => x.trim().toLowerCase()).filter((x) => ids(j).includes(x));
+  return a.length ? a : ids(j).slice(0, 1);
 }
-const NAME: Record<Who, string> = { diba: "Diba", arman: "Arman" };
-const ICON: Record<Who, string> = { diba: "👩‍💻", arman: "🧑‍💻" };
+
+// The AI says a job is for one person, or for everyone ("both" when there are
+// two, "all" otherwise); a card for some of several is stored as "a,b".
+const everyone = (j: Jobs) => (j.people.length === 2 ? "both" : "all");
+/** The people a stored `person` names. */
+const peopleOf = (j: Jobs, person: string | null): string[] =>
+  !person ? [] : person === "both" || person === "all" ? ids(j) : person.split(",").filter((x) => ids(j).includes(x));
+/** One known person, or null. */
+const single = (j: Jobs, person: string | null) => (person && byId(j, person) ? person : null);
 
 export interface JobsEnv {
   DB: D1Database;
   OPENAI_API_KEY: string;
   OPENAI_MODEL: string;      // cover letters
   FINDS_MODEL?: string;      // matching (the budget model)
-  TOPIC_JOBS?: string;
 }
 
 const now = () => Math.floor(Date.now() / 1000);
 const day = (ts: number) => new Date(ts * 1000).toISOString().slice(0, 10).split("-").reverse().slice(0, 2).join(".");
 
 // ---------------------------------------------------------------- searches
-// [keywords, who it's mainly for] × [place, radius km]
-const KEYWORDS: [string, Who][] = [
-  ["Werkstudent Data", "diba"], ["Werkstudent Data Analyst", "diba"], ["Werkstudent Data Science", "diba"],
-  ["Werkstudent Business Intelligence", "diba"], ["Data Analyst", "diba"], ["Data Scientist", "diba"],
-  ["Data Engineer", "diba"], ["Business Analyst", "diba"],
-  ["Werkstudent Frontend", "arman"], ["Werkstudent Softwareentwicklung", "arman"],
-  ["Werkstudent Webentwicklung", "arman"], ["Frontend", "arman"], ["React", "arman"], ["React Native", "arman"],
-];
-const PLACES: [string, number][] = [["Berlin", 25], ["Cottbus", 50]];
-export const searchesFor = (active: Who[]) =>
-  KEYWORDS.filter(([, w]) => active.includes(w)).flatMap(([q]) => PLACES.map(([wo, r]) => ({ q, wo, r })));
+/** Each active person's keywords × each city, in config order. */
+export const searchesFor = (j: Jobs, active: string[]) =>
+  j.people.filter((p) => active.includes(p.id))
+    .flatMap((p) => p.searches.flatMap((q) => j.cities.map((c) => ({ q, wo: c.name, r: c.radius_km }))));
 
 const BA = "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service";
 const BA_KEY = { "X-API-Key": "jobboerse-jobsuche" };   // the Jobbörse's public client key
@@ -77,9 +82,11 @@ const BA_KEY = { "X-API-Key": "jobboerse-jobsuche" };   // the Jobbörse's publi
 const SENIOR = /\b(senior|sr\.|lead|leitung|leiter|head of|principal|staff|director|chief|vp)\b|teamleit|abteilungsleit|bereichsleit/;
 const NOT_A_JOB = /\b(ausbildung|azubi|auszubildende|duales studium|dual(er|es)? student|umschulung|minijob|freelance|freiberuf|selbstständig|ehrenamt)\b/;
 // the title has to be about the work someone searching does at all
-const ON_TOPIC: Record<Who, RegExp> = {
-  diba: /data|daten|analyst|analytics|analytik|scien|statisti|machine learning|\bml\b|\bki\b|\bai\b|business intelligence|\bbi\b|reporting|python|sql/,
-  arman: /frontend|front-end|react|javascript|typescript|web ?entwick|web ?develop|software|developer|entwickler|engineer|programm|backend|fullstack|full-stack|mobile|\bapp\b|ios|android/,
+const onTopic = new WeakMap<Person, RegExp>();
+const topicRx = (p: Person) => {
+  let rx = onTopic.get(p);
+  if (!rx) { rx = new RegExp(p.title_words.map((w) => w.toLowerCase()).join("|")); onTopic.set(p, rx); }
+  return rx;
 };
 
 // a full-time listing is still fine when the title says it's for students or part-time
@@ -87,12 +94,13 @@ const STUDENT = /werkstudent|working student|studentische|student job|praktik|in
 const FULL_TIME = /full[- ]?time|vollzeit/;
 
 /** Why a job is clearly not for anyone searching, by title and listed hours, or null. */
-export function jobRejectReason(title: string, active: Who[] = WHO, kind = ""): string | null {
+export function jobRejectReason(title: string, j: Jobs, active: string[] = ids(j), kind = ""): string | null {
   const t = title.toLowerCase();
   if (SENIOR.test(t)) return "senior or lead role";
   if (NOT_A_JOB.test(t)) return "apprenticeship, freelance or similar";
-  if ((FULL_TIME.test(kind.toLowerCase()) || FULL_TIME.test(t)) && !STUDENT.test(t)) return "full-time";
-  if (!active.some((w) => ON_TOPIC[w].test(t))) return `not ${active.map((w) => (w === "diba" ? "data" : "frontend")).join(" or ")} work`;
+  if (j.student_permit && (FULL_TIME.test(kind.toLowerCase()) || FULL_TIME.test(t)) && !STUDENT.test(t)) return "full-time";
+  const who = j.people.filter((p) => active.includes(p.id));
+  if (!who.some((p) => topicRx(p).test(t))) return `not ${who.map((p) => p.field).join(" or ")} work`;
   return null;
 }
 
@@ -112,7 +120,7 @@ const COLUMNS: Record<string, string> = {
   source: "TEXT", title: "TEXT", company: "TEXT", place: "TEXT", url: "TEXT",
   remote: "INTEGER", kind: "TEXT", text: "TEXT",
   status: "TEXT NOT NULL",       // new → ready → posted → applied → interview → offer | rejected; skipped
-  why: "TEXT", person: "TEXT",   // diba | arman | both; who applied, once applied
+  why: "TEXT", person: "TEXT",   // a person's id, "both"/"all", or "a,b"; who applied, once applied
   facts: "TEXT",                 // JSON from the AI: why, gaps, german, hours, start, deadline, lang, skills
   attempts: "INTEGER NOT NULL DEFAULT 0",
   first_seen: "INTEGER NOT NULL", posted_at: "INTEGER", applied_at: "INTEGER",
@@ -139,7 +147,8 @@ export interface JobRow {
   replied_at: number | null; reminded: number; msg_id: number | null;
 }
 interface Facts {
-  for: "diba" | "arman" | "both" | "none"; reason?: string; kind: string; why: string;
+  for: string;   // a person's id, everyone ("both"/"all"), some ("a,b"), or "none"
+  reason?: string; kind: string; why: string;
   gaps: string[]; german: string; hours: string; start: string; deadline: string;
   lang: string; skills: string[];
 }
@@ -192,12 +201,15 @@ async function detailsBA(id: string): Promise<string> {
   return [d.stellenangebotsBeschreibung ?? "", d.externeURL ? `\nApply: ${d.externeURL}` : ""].join("");
 }
 
-async function fetchArbeitnow(): Promise<Found[]> {
+const escRx = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+async function fetchArbeitnow(jobs: Jobs): Promise<Found[]> {
   const r = await fetch("https://www.arbeitnow.com/api/job-board-api");
   if (!r.ok) throw new Error(`Arbeitnow ${r.status}`);
   const d = (await r.json()) as any;
+  const here = new RegExp(jobs.cities.map((c) => escRx(c.name.toLowerCase())).join("|"), "i");
   return (d.data ?? [])
-    .filter((j: any) => j.remote || /berlin|cottbus/i.test(j.location ?? ""))
+    .filter((j: any) => (jobs.remote && j.remote) || here.test(j.location ?? ""))
     .map((j: any) => ({
       id: "an:" + j.slug, source: "Arbeitnow", title: j.title ?? "", company: j.company_name ?? "",
       place: [j.location, j.remote ? "remote" : ""].filter(Boolean).join(" · "), url: j.url,
@@ -206,32 +218,38 @@ async function fetchArbeitnow(): Promise<Found[]> {
 }
 
 // ---------------------------------------------------------------- the AI
-interface Person { name: string; summary: string; cv: string; skills: string[] }
-async function people(store: Store): Promise<Record<Who, Person>> {
-  const raw = await store.kvGet("jobs_people");
-  if (!raw) throw new Error("No jobs_people in D1 - run cf/seed-jobs.sh");
-  const p = JSON.parse(raw) as Record<Who, Person>;
-  for (const w of WHO) {
-    const s = await store.kvGet(`jobs_skills:${w}`);
-    if (s) p[w].skills = JSON.parse(s);
+/** The people with their skills as they are now: /skills changes win over the config. */
+async function people(store: Store, j: Jobs): Promise<Record<string, Person>> {
+  const out: Record<string, Person> = {};
+  for (const p of j.people) {
+    const s = await store.kvGet(`jobs_skills:${p.id}`);
+    out[p.id] = s ? { ...p, skills: JSON.parse(s) } : p;
   }
-  return p;
+  return out;
 }
 
-const MATCH = `You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.
+const COUNT = ["no", "one", "two", "three", "four", "five", "six"];
+const MATCH = (j: Jobs) => {
+  const n = j.people.length;
+  const q = (s: string) => JSON.stringify(s);
+  const fors = [...ids(j), ...(n > 1 ? [everyone(j)] : []), "none"].map(q).join("|");
+  const none = j.student_permit
+    ? `"none" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If "none", give reason (max 8 words, "full-time" for full-time jobs) and leave the rest empty.`
+    : `"none" for senior roles, unrelated work, roles needing far more experience than they have, and roles requiring native German. If "none", give reason (max 8 words) and leave the rest empty.`;
+  return `You match German job ads to ${COUNT[n] ?? n} job seeker${n === 1 ? "" : "s"}.${j.situation ? ` ${j.situation}` : ""}
 
-DIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.
-ARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.
+${j.people.map((p) => `${p.name.toUpperCase()} wants: ${p.wants}`).join("\n")}
 
 Return JSON only:
-{"for": "diba"|"arman"|"both"|"none", "reason": string, "kind": "werkstudent"|"internship"|"thesis"|"part-time"|"other", "why": string, "gaps": [string], "german": string, "hours": string, "start": string, "deadline": string, "lang": "de"|"en", "skills": [string]}
+{"for": ${fors}, "reason": string, "kind": "werkstudent"|"internship"|"thesis"|"part-time"|"other", "why": string, "gaps": [string], "german": string, "hours": string, "start": string, "deadline": string, "lang": "de"|"en", "skills": [string]}
 
-for: who should apply, from the profiles below. "none" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If "none", give reason (max 8 words, "full-time" for full-time jobs) and leave the rest empty.
+for: who should apply, from the profiles below. ${none}
 why: one line, under 110 characters, why it fits that person - name the concrete overlap.
 gaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. "dbt - mention the SQL reporting pipelines from the last job").
 german: the German level the ad needs, short ("C1 / fluent", "basic", "not needed"). hours: hours a week if stated, else "". start/deadline: as stated, else "". lang: the ad's language.
 skills: up to 8 concrete skills/tools the ad asks for, short canonical names ("Power BI", "dbt", "TypeScript").
 Never invent facts about the people.`;
+};
 
 async function ai(apiKey: string, model: string, system: string, user: string, json = true): Promise<string> {
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -247,19 +265,20 @@ async function ai(apiKey: string, model: string, system: string, user: string, j
   return d?.choices?.[0]?.message?.content ?? "";
 }
 
-async function match(env: JobsEnv, p: Record<Who, Person>, row: JobRow, text: string, active: Who[]): Promise<Facts> {
+async function match(env: JobsEnv, j: Jobs, p: Record<string, Person>, row: JobRow, text: string, active: string[]): Promise<Facts> {
   const user =
-    `Searching right now: ${active.map((w) => NAME[w].toUpperCase()).join(" and ")} only - never return anyone else.\n\n` +
-    active.map((w) => `${NAME[w].toUpperCase()}: ${p[w].summary}\nSkills: ${p[w].skills.join(", ")}\n\n`).join("") +
+    `Searching right now: ${active.map((w) => p[w].name.toUpperCase()).join(" and ")} only - never return anyone else.\n\n` +
+    active.map((w) => `${p[w].name.toUpperCase()}: ${p[w].summary}\nSkills: ${p[w].skills.join(", ")}\n\n`).join("") +
     `=== JOB ===\nTitle: ${row.title}\nCompany: ${row.company}\nPlace: ${row.place}\nType: ${row.kind || "?"}\n\n` +
     text.slice(0, 1500);
-  const d = JSON.parse(await ai(env.OPENAI_API_KEY, env.FINDS_MODEL || "gpt-5.6-luna", MATCH, user) || "{}");
+  const d = JSON.parse(await ai(env.OPENAI_API_KEY, env.FINDS_MODEL || "gpt-5.6-luna", MATCH(j), user) || "{}");
   const arr = (x: unknown, n: number) => (Array.isArray(x) ? x.map(String).filter(Boolean).slice(0, n) : []);
   // keep the answer to the people actually searching
-  let who: Facts["for"] = ["diba", "arman", "both"].includes(d.for) ? d.for : "none";
-  if (who === "both" && active.length === 1) who = active[0];
-  if ((who === "diba" || who === "arman") && !active.includes(who)) who = "none";
-  if (d.kind === "full-time") { who = "none"; d.reason = "full-time"; }
+  const all = everyone(j);
+  let who: string = typeof d.for === "string" && (ids(j).includes(d.for) || (d.for === all && j.people.length > 1)) ? d.for : "none";
+  if (who === all) who = active.length === 1 ? active[0] : active.length < j.people.length ? active.join(",") : all;
+  if (single(j, who) && !active.includes(who)) who = "none";
+  if (j.student_permit && d.kind === "full-time") { who = "none"; d.reason = "full-time"; }
   return {
     for: who,
     reason: String(d.reason ?? "").slice(0, 80), kind: String(d.kind ?? "other"),
@@ -272,31 +291,34 @@ async function match(env: JobsEnv, p: Record<Who, Person>, row: JobRow, text: st
 // ---------------------------------------------------------------- one tick
 export async function jobsStep(env: JobsEnv, store: Store, tg: Telegram): Promise<string> {
   const db = env.DB;
+  const cfg = await loadConfig(store);
+  if (!cfg) return `jobs: ${NO_CONFIG}`;
+  if (!cfg.modules.jobs) return "jobs: off";
   if ((await store.kvGet("jobs_on")) === "0") return "jobs: paused";
   if (!(await takeLock(db))) return "jobs: another run is still going";
   try {
     await ensureTable(db);
     const did: string[] = [];
-    did.push(await collect(db, store));
-    did.push(await assess(env, store, tg));
-    const redone = await repost(db, store, tg);
+    did.push(await collect(db, store, cfg.jobs));
+    did.push(await assess(env, store, tg, cfg.jobs));
+    const redone = await repost(db, store, tg, cfg.jobs);
     if (redone) did.push(`${redone} taken down to re-post`);
-    const posted = await post(env, tg);
+    const posted = await post(env, store, tg, cfg);
     if (posted) did.push(`${posted} posted`);
-    const due = await remind(env, tg);
+    const due = await remind(env, store, tg, cfg);
     if (due) did.push(`${due} reminders`);
-    if (await weekly(env, store, tg)) did.push("weekly report");
+    if (await weekly(env, store, tg, cfg)) did.push("weekly report");
     return `jobs: ${did.filter(Boolean).join(", ")}`;
   } finally {
     await store.kvSet("jobs_lock", "0");
   }
 }
 
-async function collect(db: D1Database, store: Store): Promise<string> {
+async function collect(db: D1Database, store: Store, j: Jobs): Promise<string> {
   const found: Found[] = [];
   const out: string[] = [];
-  const active = await activePeople(store);
-  const searches = searchesFor(active);
+  const active = await activePeople(store, j);
+  const searches = searchesFor(j, active);
   const i = Number((await store.kvGet("jobs_query")) ?? 0) % searches.length;
   for (let k = 0; k < QUERIES_PER_TICK; k++) {
     const q = searches[(i + k) % searches.length];
@@ -304,8 +326,8 @@ async function collect(db: D1Database, store: Store): Promise<string> {
     catch (e: any) { out.push(`${q.q}: ${e?.message ?? e}`); }
   }
   await store.kvSet("jobs_query", String((i + QUERIES_PER_TICK) % searches.length));
-  if (now() - Number((await store.kvGet("jobs_arbeitnow_at")) ?? 0) >= ARBEITNOW_EVERY) {
-    try { found.push(...(await fetchArbeitnow())); out.push("Arbeitnow"); await store.kvSet("jobs_arbeitnow_at", String(now())); }
+  if (j.arbeitnow && now() - Number((await store.kvGet("jobs_arbeitnow_at")) ?? 0) >= ARBEITNOW_EVERY) {
+    try { found.push(...(await fetchArbeitnow(j))); out.push("Arbeitnow"); await store.kvSet("jobs_arbeitnow_at", String(now())); }
     catch (e: any) { out.push(`Arbeitnow: ${e?.message ?? e}`); }
   }
   if (!found.length) return out.join(" + ") + ": nothing";
@@ -326,7 +348,7 @@ async function collect(db: D1Database, store: Store): Promise<string> {
     if (known.has(f.id) || known.has(dkey)) continue;
     known.add(f.id); known.add(dkey);
     fresh++;
-    const why = jobRejectReason(f.title, active, f.kind);
+    const why = jobRejectReason(f.title, j, active, f.kind);
     if (!why) keep++;
     await db.prepare(
       `INSERT OR IGNORE INTO jobs (id,dkey,source,title,company,place,url,remote,kind,text,status,why,first_seen)
@@ -337,18 +359,18 @@ async function collect(db: D1Database, store: Store): Promise<string> {
   return `${out.join(" + ")}: ${found.length} found, ${fresh} new, ${keep} to match`;
 }
 
-async function assess(env: JobsEnv, store: Store, tg: Telegram): Promise<string> {
+async function assess(env: JobsEnv, store: Store, tg: Telegram, j: Jobs): Promise<string> {
   const db = env.DB;
   const { results } = await db.prepare(
     "SELECT * FROM jobs WHERE status='new' ORDER BY first_seen, rowid LIMIT ?").bind(ASSESS_PER_TICK).all<JobRow>();
   if (!results?.length) return "";
-  const p = await people(store);
-  const active = await activePeople(store);
+  const p = await people(store, j);
+  const active = await activePeople(store, j);
   let ok = 0, none = 0;
   for (const row of results) {
     try {
       const text = row.text ?? (row.id.startsWith("ba:") ? await detailsBA(row.id) : "");
-      const f = await match(env, p, row, text, active);
+      const f = await match(env, j, p, row, text, active);
       await aiWorked(store);
       if (f.for === "none") { none++; await setJob(db, row.id, { status: "skipped", why: `ai: ${f.reason || "not a fit"}`, text: text.slice(0, 6000) }); continue; }
       ok++;
@@ -373,23 +395,27 @@ const STATUS: Record<string, string> = {
   rejected: "❌ Rejected", offer: "🎉 Offer", skipped: "⏭ Skipped",
 };
 
-const forWhom = (p: string | null) =>
-  p === "both" ? "👥 For Diba & Arman" : p === "diba" || p === "arman" ? `${ICON[p]} For ${NAME[p]}` : "";
+const forWhom = (j: Jobs, person: string | null) => {
+  const one = single(j, person);
+  if (one) return `${byId(j, one)!.icon} For ${byId(j, one)!.name}`;
+  const ps = peopleOf(j, person);
+  return ps.length ? `👥 For ${ps.map((x) => nameOf(j, x)).join(" & ")}` : "";
+};
 
-export function card(row: JobRow): string {
+export function card(row: JobRow, j: Jobs): string {
   const f: Partial<Facts> = row.facts ? JSON.parse(row.facts) : {};
   const facts = [
     f.german ? `🗣 German: ${f.german}` : "", f.hours ? `⏱ ${f.hours}` : "",
     f.start ? `📅 start ${f.start}` : "", f.deadline ? `⏳ apply by ${f.deadline}` : "",
   ].filter(Boolean).join(" · ");
   const st = STATUS[row.status] ?? "";
-  const who = row.status !== "posted" && (row.person === "diba" || row.person === "arman") && row.applied_at
-    ? ` by ${NAME[row.person as Who]}` : "";
+  const who = row.status !== "posted" && single(j, row.person) && row.applied_at
+    ? ` by ${nameOf(j, row.person!)}` : "";
   // one block per thing, a blank line between: who and what kind, why,
   // the requirements, the gaps, the link, then where the application stands
   const blocks = [
     `💼 <b>${esc(row.title)}</b>\n${esc(row.company)}${row.place ? ` · ${esc(row.place)}` : ""} · via ${row.source}`,
-    `${forWhom(row.person)}\n${KIND[f.kind ?? "other"] ?? KIND.other}`,
+    `${forWhom(j, row.person)}\n${KIND[f.kind ?? "other"] ?? KIND.other}`,
     f.why ? `<i>${esc(f.why)}</i>` : "",
     facts ? esc(facts) : "",
     f.gaps?.length ? `Gaps:\n${f.gaps.map((g) => `• ${esc(g)}`).join("\n")}` : "",
@@ -400,16 +426,17 @@ export function card(row: JobRow): string {
 }
 
 /** The buttons for where the application is now. */
-export function jobKeyboard(row: JobRow): Button[][] {
+export function jobKeyboard(row: JobRow, j: Jobs): Button[][] {
   const id = row.id;
-  const both = row.person === "both";
-  const two = (a: string, label: string) => both
-    ? [{ text: `${label} (Diba)`, callback_data: `jb:${a}:diba:${id}` }, { text: `${label} (Arman)`, callback_data: `jb:${a}:arman:${id}` }]
+  // a card for several people gets one button each
+  const many = single(j, row.person) ? [] : peopleOf(j, row.person);
+  const each = (a: string, label: string) => many.length
+    ? many.map((w) => ({ text: `${label} (${nameOf(j, w)})`, callback_data: `jb:${a}:${w}:${id}` }))
     : [{ text: label, callback_data: `jb:${a}:${row.person}:${id}` }];
   switch (row.status) {
     case "posted":
-      return [two("letter", "✍️ Cover letter"), two("applied", "✅ Applied"),
-        [...two("already", "🔁 Already applied").slice(0, both ? 2 : 1), { text: "⏭ Skip", callback_data: `jb:skip:-:${id}` }]];
+      return [each("letter", "✍️ Cover letter"), each("applied", "✅ Applied"),
+        [...each("already", "🔁 Already applied"), { text: "⏭ Skip", callback_data: `jb:skip:-:${id}` }]];
     case "applied": case "already":
       return [[{ text: "🗓 Interview", callback_data: `jb:interview:-:${id}` },
         { text: "❌ Rejected", callback_data: `jb:rejected:-:${id}` }, { text: "🎉 Offer", callback_data: `jb:offer:-:${id}` }]];
@@ -420,9 +447,9 @@ export function jobKeyboard(row: JobRow): Button[][] {
   }
 }
 
-const topic = (env: JobsEnv) => inTopic(Number(env.TOPIC_JOBS) || null);
+const topic = async (cfg: Config, store: Store, tg: Telegram) => inTopic(await topicOf(cfg, store, tg, "jobs"));
 
-async function post(env: JobsEnv, tg: Telegram): Promise<number> {
+async function post(env: JobsEnv, store: Store, tg: Telegram, cfg: Config): Promise<number> {
   const db = env.DB;
   const { results } = await db.prepare(
     "SELECT * FROM jobs WHERE status='ready' ORDER BY first_seen, rowid LIMIT ?").bind(POST_PER_TICK).all<JobRow>();
@@ -430,7 +457,7 @@ async function post(env: JobsEnv, tg: Telegram): Promise<number> {
   for (const row of results ?? []) {
     const shown = { ...row, status: "posted" };
     try {
-      const r = await tg.send(card(shown), { ...tg.keyboard(jobKeyboard(shown)), ...topic(env) });
+      const r = await tg.send(card(shown, cfg.jobs), { ...tg.keyboard(jobKeyboard(shown, cfg.jobs)), ...(await topic(cfg, store, tg)) });
       await setJob(db, row.id, { status: "posted", posted_at: now(), msg_id: r?.result?.message_id ?? null });
       n++;
     } catch (e: any) {
@@ -448,33 +475,33 @@ async function post(env: JobsEnv, tg: Telegram): Promise<number> {
  * they go through the rules and the AI again first (after a rule change).
  * Runs once, then clears the flag.
  */
-async function repost(db: D1Database, store: Store, tg: Telegram): Promise<number> {
+async function repost(db: D1Database, store: Store, tg: Telegram, j: Jobs): Promise<number> {
   const mode = await store.kvGet("jobs_repost");
   if (mode !== "1" && mode !== "recheck") return 0;
   await store.kvSet("jobs_repost", "0");
-  const active = await activePeople(store);
+  const active = await activePeople(store, j);
   const { results } = await db.prepare("SELECT id, msg_id, title, kind FROM jobs WHERE status='posted'")
     .all<{ id: string; msg_id: number | null; title: string; kind: string | null }>();
   for (const r of results ?? []) {
     if (r.msg_id) try { await tg.deleteMessage(r.msg_id); } catch { /* already gone or too old */ }
-    const why = mode === "recheck" ? jobRejectReason(r.title, active, r.kind ?? "") : null;
+    const why = mode === "recheck" ? jobRejectReason(r.title, j, active, r.kind ?? "") : null;
     await setJob(db, r.id, mode === "1" ? { status: "ready", msg_id: null }
       : why ? { status: "skipped", why, msg_id: null } : { status: "new", attempts: 0, msg_id: null });
   }
   return results?.length ?? 0;
 }
 
-async function remind(env: JobsEnv, tg: Telegram): Promise<number> {
+async function remind(env: JobsEnv, store: Store, tg: Telegram, cfg: Config): Promise<number> {
   const db = env.DB;
   const { results } = await db.prepare(
     `SELECT * FROM jobs WHERE status IN ('applied','already') AND reminded=0 AND applied_at < ? LIMIT 3`)
     .bind(now() - FOLLOW_UP_DAYS * 86400).all<JobRow>();
   for (const row of results ?? []) {
-    const who = row.person === "diba" || row.person === "arman" ? `${NAME[row.person as Who]}, ` : "";
+    const who = single(cfg.jobs, row.person) ? `${nameOf(cfg.jobs, row.person!)}, ` : "";
     await tg.send(
       `⏰ ${who}no answer from <b>${esc(row.company)}</b> for <i>${esc(row.title)}</i> after ${FOLLOW_UP_DAYS} days. ` +
       `A short follow-up email often helps - or mark it below.`,
-      { ...tg.keyboard(jobKeyboard(row)), ...topic(env), ...(row.msg_id ? { reply_to_message_id: row.msg_id } : {}) });
+      { ...tg.keyboard(jobKeyboard(row, cfg.jobs)), ...(await topic(cfg, store, tg)), ...(row.msg_id ? { reply_to_message_id: row.msg_id } : {}) });
     await setJob(db, row.id, { reminded: 1 });
   }
   return results?.length ?? 0;
@@ -484,6 +511,9 @@ async function remind(env: JobsEnv, tg: Telegram): Promise<number> {
 /** jb:<action>:<who|->:<id> - pressed by anyone in the group. */
 export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: any): Promise<void> {
   const db = env.DB;
+  const cfg = await loadConfig(store);
+  if (!cfg?.modules.jobs) { await tg.answerCallback(cq.id, cfg ? "Jobs are switched off" : NO_CONFIG); return; }
+  const j = cfg.jobs;
   await ensureTable(db);
   const [, act, who, ...rest] = String(cq.data).split(":");
   const id = rest.join(":");
@@ -492,16 +522,17 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
 
   if (act === "letter") {
     await tg.answerCallback(cq.id, "Writing the cover letter…");
-    const w = (who as Who) in NAME ? (who as Who) : "diba";
+    const w = byId(j, who) ? who : ids(j)[0];
+    const where = await topic(cfg, store, tg);
     try {
-      const letter = await coverLetter(env, store, row, w);
-      const r = await tg.send(`✍️ <b>Cover letter for ${NAME[w]}</b> - ${esc(row.company)}\n\n<pre>${esc(letter)}</pre>`,
-        { ...topic(env), ...(cq.message?.message_id ? { reply_to_message_id: cq.message.message_id } : {}) });
+      const letter = await coverLetter(env, store, row, w, j);
+      const r = await tg.send(`✍️ <b>Cover letter for ${nameOf(j, w)}</b> - ${esc(row.company)}\n\n<pre>${esc(letter)}</pre>`,
+        { ...where, ...(cq.message?.message_id ? { reply_to_message_id: cq.message.message_id } : {}) });
       const cv = await store.kvGet(`jobs_cv:${w}`);
-      if (cv) await tg.sendDocument(cv, { ...topic(env), reply_to_message_id: r?.result?.message_id, caption: `📎 ${NAME[w]}'s CV` });
+      if (cv) await tg.sendDocument(cv, { ...where, reply_to_message_id: r?.result?.message_id, caption: `📎 ${nameOf(j, w)}'s CV` });
     } catch (e: any) {
       await aiFailed(store, tg, e);
-      await tg.send("Couldn't write it right now - try the button again in a bit.", topic(env));
+      await tg.send("Couldn't write it right now - try the button again in a bit.", where);
     }
     return;
   }
@@ -520,7 +551,7 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
   const updated = { ...row, ...next[act] } as JobRow;
   await tg.answerCallback(cq.id, STATUS[updated.status] || "Saved");
   const msgId = row.msg_id ?? cq.message?.message_id;
-  try { await tg.editText(cq.message.chat.id, msgId, card(updated), jobKeyboard(updated)); } catch { /* unchanged or too old */ }
+  try { await tg.editText(cq.message.chat.id, msgId, card(updated, j), jobKeyboard(updated, j)); } catch { /* unchanged or too old */ }
   // the reminder message itself loses its buttons once answered
   if (cq.message?.message_id && cq.message.message_id !== msgId)
     try { await tg.clearKeyboard(cq.message.chat.id, cq.message.message_id); } catch { /* fine */ }
@@ -532,16 +563,16 @@ const STOCK = `passionate, excited, thrilled, eager, dynamic, innovative, cuttin
   `"hiermit bewerbe ich mich", "mit großem Interesse", "begeistert", "leidenschaftlich", "hochmotiviert", "spannende Herausforderung", ` +
   `"Teamplayer", "zielorientiert", "Mehrwert", "innovativ", "dynamisch", "Ihr renommiertes Unternehmen", "abgerundet"`;
 
-async function coverLetter(env: JobsEnv, store: Store, row: JobRow, w: Who): Promise<string> {
-  const p = await people(store);
+async function coverLetter(env: JobsEnv, store: Store, row: JobRow, w: string, j: Jobs): Promise<string> {
+  const p = await people(store, j);
   const f: Partial<Facts> = row.facts ? JSON.parse(row.facts) : {};
   const lang = f.lang === "en" ? "English" : "German";
-  const sys = `Write a short cover letter for ${NAME[w]} in ${lang}${lang === "German" ? ` (an Anschreiben, "Sie")` : ""}. It should read like ${NAME[w]} wrote it in twenty minutes: plain, direct, a bit personal - not like a template and not like AI.
+  const sys = `Write a short cover letter for ${p[w].name} in ${lang}${lang === "German" ? ` (an Anschreiben, "Sie")` : ""}. It should read like ${p[w].name} wrote it in twenty minutes: plain, direct, a bit personal - not like a template and not like AI.
 
-- 120-170 words, body only (no address block, no date, no subject line), ending with a greeting and the name ${p[w].name}.
+- 120-170 words, body only (no address block, no date, no subject line), ending with a greeting and the name ${p[w].full_name}.
 - The first sentence names something specific from this ad - the product, the team, the project, a tool or task they mention - so it's clear the ad was actually read. No generic praise of the company.
 - Then 2 concrete matches between what the ad asks for and what the CV shows (a project, a tool, a number from the CV). Only facts from the CV - never invent experience, tools or numbers.
-- One sentence on availability: master's student in Cottbus, as a Werkstudent up to 20 hours a week during the semester.
+- One sentence on availability: ${p[w].availability}.
 - Short, everyday words and short sentences. Vary sentence length. No em dashes, no lists, no rhetorical questions, no exaggeration.
 - Never use these: ${STOCK}.`;
   const user = `=== CV ===\n${p[w].cv}\n\n=== JOB ===\nTitle: ${row.title}\nCompany: ${row.company}\nPlace: ${row.place}\n\n${(row.text ?? "").slice(0, 3000)}`;
@@ -552,44 +583,55 @@ async function coverLetter(env: JobsEnv, store: Store, row: JobRow, w: Who): Pro
 
 // ---------------------------------------------------------------- /jobs, /skills
 const DONE = ["applied", "already", "interview", "rejected", "offer"];
+/** "Berlin, Cottbus, remote" */
+const where = (j: Jobs) => [...j.cities.map((c) => c.name), ...(j.remote ? ["remote"] : [])].join(", ");
 
 /** chatLink: https://t.me/c/<id> for the group, so the board can link to each card. */
 export async function jobsBoard(db: D1Database, store: Store, chatLink = ""): Promise<string> {
+  const cfg = await loadConfig(store);
+  if (!cfg) return NO_CONFIG;
+  if (!cfg.modules.jobs) return "💼 Jobs are switched off in the config.";
+  const j = cfg.jobs;
   await ensureTable(db);
   const { results } = await db.prepare(
     `SELECT person, status, COUNT(*) n FROM jobs WHERE status IN ('posted','applied','already','interview','rejected','offer')
      GROUP BY person, status`).all<{ person: string; status: string; n: number }>();
   const by: Record<string, Record<string, number>> = {};
   for (const r of results ?? []) {
-    const ps = r.person === "both" ? WHO : [r.person];
+    const ps = peopleOf(j, r.person);
     for (const p of ps) (by[p] ??= {})[r.status] = (by[p][r.status] ?? 0) + r.n;
   }
-  const line = (w: Who) => {
+  const line = (w: string) => {
     const s = by[w] ?? {};
     const applied = DONE.reduce((a, k) => a + (s[k] ?? 0), 0);
     const answered = (s.interview ?? 0) + (s.rejected ?? 0) + (s.offer ?? 0);
-    return `${ICON[w]} <b>${NAME[w]}</b>: ${s.posted ?? 0} open · ${applied} applied · ` +
+    return `${byId(j, w)!.icon} <b>${nameOf(j, w)}</b>: ${s.posted ?? 0} open · ${applied} applied · ` +
       `${applied - answered} waiting · ${s.interview ?? 0} interviews · ${s.rejected ?? 0} rejected · ${s.offer ?? 0} offers`;
   };
-  const active = await activePeople(store);
+  const active = await activePeople(store, j);
   const { results: going } = await db.prepare(
     `SELECT * FROM jobs WHERE status IN ('applied','already','interview','offer','rejected')
      ORDER BY COALESCE(replied_at, applied_at) DESC LIMIT 15`).all<JobRow>();
   const list = (going ?? []).map((r) => {
     const link = r.msg_id && chatLink ? ` <a href="${chatLink}/${r.msg_id}">↗</a>` : "";
-    const who = r.person === "diba" || r.person === "arman" ? `${NAME[r.person as Who]}, ` : "";
+    const who = single(j, r.person) ? `${nameOf(j, r.person!)}, ` : "";
     return `${STATUS[r.status]} · <b>${esc(r.company)}</b> - ${esc(r.title.slice(0, 60))} (${who}${day(r.replied_at ?? r.applied_at ?? now())})${link}`;
   });
-  return `💼 <b>Jobs</b> (Berlin, Cottbus, remote)\n\n${active.map(line).join("\n")}` +
+  return `💼 <b>Jobs</b> (${where(j)})\n\n${active.map(line).join("\n")}` +
     (list.length ? `\n\n<b>Applications</b>\n${list.join("\n")}` : "") +
-    `\n\n<i>/cv - the CVs · /skills diba - the skills list the bot matches against</i>`;
+    `\n\n<i>/cv - the CVs · /skills ${active[0]} - the skills list the bot matches against</i>`;
 }
 
 /** /skills diba · /skills diba + Power BI · /skills arman - Vue */
 export async function skillsCommand(store: Store, args: string[]): Promise<string> {
-  const w = (args[0] ?? "").toLowerCase() as Who;
-  if (!WHO.includes(w)) return "Try /skills diba, /skills diba + Power BI, /skills arman - Vue";
-  const p = await people(store);
+  const cfg = await loadConfig(store);
+  if (!cfg) return NO_CONFIG;
+  if (!cfg.modules.jobs) return "💼 Jobs are switched off in the config.";
+  const j = cfg.jobs;
+  const w = (args[0] ?? "").toLowerCase();
+  const [a, b = a] = ids(j);
+  if (!ids(j).includes(w)) return `Try /skills ${a}, /skills ${a} + Power BI, /skills ${b} - Vue`;
+  const p = await people(store, j);
   let list = p[w].skills;
   const op = args[1], skill = args.slice(2).join(" ").trim();
   if ((op === "+" || op === "-") && skill) {
@@ -597,7 +639,7 @@ export async function skillsCommand(store: Store, args: string[]): Promise<strin
       : list.filter((s) => s.toLowerCase() !== skill.toLowerCase());
     await store.kvSet(`jobs_skills:${w}`, JSON.stringify(list));
   }
-  return `${ICON[w]} <b>${NAME[w]}'s skills</b> (what jobs are matched against):\n${esc(list.join(", "))}`;
+  return `${p[w].icon} <b>${p[w].name}'s skills</b> (what jobs are matched against):\n${esc(list.join(", "))}`;
 }
 
 /**
@@ -606,45 +648,52 @@ export async function skillsCommand(store: Store, args: string[]): Promise<strin
  */
 export async function cvCommand(store: Store, tg: Telegram, msg: any, args: string[], where: Record<string, unknown>): Promise<void> {
   const chat = String(msg.chat.id);
-  const w = (args[0] ?? "").toLowerCase() as Who;
+  const cfg = await loadConfig(store);
+  if (!cfg?.modules.jobs) { await tg.send(cfg ? "💼 Jobs are switched off in the config." : NO_CONFIG, where, chat); return; }
+  const j = cfg.jobs;
+  const w = (args[0] ?? "").toLowerCase();
   const doc = msg.document ?? msg.reply_to_message?.document;
   if (doc) {
-    if (!WHO.includes(w)) { await tg.send("Whose CV is it? Answer the PDF with /cv diba or /cv arman.", where, chat); return; }
+    if (!ids(j).includes(w)) { await tg.send(`Whose CV is it? Answer the PDF with ${ids(j).map((x) => `/cv ${x}`).join(" or ")}.`, where, chat); return; }
     await store.kvSet(`jobs_cv:${w}`, doc.file_id);
-    await tg.send(`📎 Saved as ${NAME[w]}'s CV - /cv sends it, and it comes with every cover letter.`, where, chat);
+    await tg.send(`📎 Saved as ${nameOf(j, w)}'s CV - /cv sends it, and it comes with every cover letter.`, where, chat);
     return;
   }
-  const whom = WHO.includes(w) ? [w] : await activePeople(store);
+  const whom = ids(j).includes(w) ? [w] : await activePeople(store, j);
   let sent = 0;
   for (const p of whom) {
     const id = await store.kvGet(`jobs_cv:${p}`);
-    if (id) { await tg.sendDocument(id, { ...where, caption: `📎 ${NAME[p]}'s CV` }, chat); sent++; }
+    if (id) { await tg.sendDocument(id, { ...where, caption: `📎 ${nameOf(j, p)}'s CV` }, chat); sent++; }
   }
   if (!sent) await tg.send(`No CV saved yet. Send the PDF here, then answer it with /cv ${whom[0]}.`, where, chat);
 }
 
 // ---------------------------------------------------------------- weekly report
-async function weekly(env: JobsEnv, store: Store, tg: Telegram): Promise<boolean> {
+async function weekly(env: JobsEnv, store: Store, tg: Telegram, cfg: Config): Promise<boolean> {
   const d = new Date();
   if (d.getUTCDay() !== 1 || d.getUTCHours() < 7) return false;          // Mondays from 07:00 UTC
   const week = d.toISOString().slice(0, 10);
   if ((await store.kvGet("jobs_weekly")) === week) return false;
   await store.kvSet("jobs_weekly", week);
   const text = await weeklyReport(env.DB, store);
-  if (text) await tg.send(text, topic(env));
+  if (text) await tg.send(text, await topic(cfg, store, tg));
   return true;
 }
 
 export async function weeklyReport(db: D1Database, store: Store): Promise<string> {
+  const cfg = await loadConfig(store);
+  if (!cfg) return NO_CONFIG;
+  if (!cfg.modules.jobs) return "💼 Jobs are switched off in the config.";
+  const j = cfg.jobs;
   await ensureTable(db);
-  const p = await people(store);
+  const p = await people(store, j);
   const weekAgo = now() - 7 * 86400;
   const { results } = await db.prepare(
     `SELECT * FROM jobs WHERE person IS NOT NULL AND status NOT IN ('new','ready','skipped')`).all<JobRow>();
   const rows = results ?? [];
   const parts: string[] = ["📊 <b>Jobs - weekly report</b>"];
-  for (const w of await activePeople(store)) {
-    const mine = rows.filter((r) => r.person === w || r.person === "both");
+  for (const w of await activePeople(store, j)) {
+    const mine = rows.filter((r) => peopleOf(j, r.person).includes(w));
     const fx = (r: JobRow): Partial<Facts> => (r.facts ? JSON.parse(r.facts) : {});
     const newThisWeek = mine.filter((r) => (r.posted_at ?? 0) > weekAgo);
     const applied = mine.filter((r) => DONE.includes(r.status) && r.person === w);
@@ -652,7 +701,8 @@ export async function weeklyReport(db: D1Database, store: Store): Promise<string
     const positive = (rs: JobRow[]) => rs.filter((r) => ["interview", "offer"].includes(r.status)).length;
     const lines: string[] = [];
     const city = (c: string) => newThisWeek.filter((r) => (c === "remote" ? r.remote : r.place.toLowerCase().includes(c))).length;
-    lines.push(`New matches this week: ${newThisWeek.length} (Berlin ${city("berlin")}, Cottbus ${city("cottbus")}, remote ${city("remote")})`);
+    const per = [...j.cities.map((c) => `${c.name} ${city(c.name.toLowerCase())}`), ...(j.remote ? [`remote ${city("remote")}`] : [])];
+    lines.push(`New matches this week: ${newThisWeek.length} (${per.join(", ")})`);
     if (applied.length) {
       lines.push(`Applied so far: ${applied.length} · answers ${answered(applied)} · interviews or offers ${positive(applied)}`);
       // which kind of job gets answers
@@ -680,7 +730,7 @@ export async function weeklyReport(db: D1Database, store: Store): Promise<string
     for (const r of newThisWeek) for (const s of fx(r).skills ?? []) if (!have.has(s.toLowerCase())) asked.set(s, (asked.get(s) ?? 0) + 1);
     const top = [...asked].sort((a, b) => b[1] - a[1])[0];
     if (top && top[1] >= 2) lines.push(`Worth learning: <b>${esc(top[0])}</b> - asked in ${top[1]} of ${newThisWeek.length} new matches, not on the skills list`);
-    parts.push(`\n${ICON[w]} <b>${NAME[w]}</b>\n${lines.join("\n")}`);
+    parts.push(`\n${p[w].icon} <b>${p[w].name}</b>\n${lines.join("\n")}`);
   }
   return parts.join("\n");
 }

@@ -3,6 +3,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
+import { CONFIG } from "./fixtures/config.mjs";
 
 const SRC = new URL("../src/", import.meta.url).pathname;
 const SCHEMA = readFileSync(new URL("../schema.sql", import.meta.url), "utf8").replace(/-- bike alerts[\s\S]*$/, "");
@@ -94,11 +95,14 @@ const worker = (await import(SRC + "index.ts")).default;
 
 let pass = 0;
 const ok = async (name, fn) => { await fn(); pass++; console.log("  ✓", name); };
-const env = (DB) => ({ DB, OPENAI_API_KEY: "k", OPENAI_MODEL: "gpt-5.6-terra", FINDS_MODEL: "gpt-5.6-luna", TOPIC_JOBS: "965",
+const env = (DB) => ({ DB, OPENAI_API_KEY: "k", OPENAI_MODEL: "gpt-5.6-terra", FINDS_MODEL: "gpt-5.6-luna",
   TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100", TELEGRAM_OWNER_ID: "1000001", WEBHOOK_SECRET: "s" });
 const tg = new Telegram("T", "-100");
-const fresh = async () => {
+const { normalize } = await import(SRC + "config.ts");
+const JOBS = normalize(CONFIG).jobs;
+const fresh = async (config = CONFIG) => {
   const DB = makeDB(); const st = new Store(DB);
+  await st.kvSet("config", JSON.stringify(config));
   await st.kvSet("jobs_people", JSON.stringify(PEOPLE));
   await st.kvSet("jobs_active", "diba,arman");
   await st.kvSet("profile", JSON.stringify({ about: { name: "Arman" }, style: {}, searches: [], filters: {} }));
@@ -113,16 +117,16 @@ await ok("senior, lead, Ausbildung, freelance and off-topic titles are dropped",
   for (const t of ["Senior Data Scientist (m/w/d)", "Lead Frontend Engineer", "Head of Data", "Teamleiter BI",
     "Ausbildung Fachinformatiker Daten- und Prozessanalyse", "Freelance React Developer", "Sachbearbeiter Buchhaltung (m/w/d)",
     "Data Analyst (m/w/d) in Vollzeit"])
-    assert.ok(J.jobRejectReason(t), t);
+    assert.ok(J.jobRejectReason(t, JOBS), t);
   for (const t of ["Werkstudent Data Analyst (m/w/d)", "Working Student Machine Learning", "Junior Data Engineer",
     "Werkstudent Frontend Entwicklung React (m/w/d)", "Business Intelligence Analyst", "Werkstudent Softwareentwicklung"])
-    assert.equal(J.jobRejectReason(t), null, t);
+    assert.equal(J.jobRejectReason(t, JOBS), null, t);
 });
 await ok("full-time listings are dropped unless the title says Werkstudent, intern, thesis or part-time", () => {
-  assert.equal(J.jobRejectReason("Junior Data Engineer", undefined, "full-time"), "full-time");
-  assert.equal(J.jobRejectReason("Data Analyst", undefined, "Full Time"), "full-time");
+  assert.equal(J.jobRejectReason("Junior Data Engineer", JOBS, undefined, "full-time"), "full-time");
+  assert.equal(J.jobRejectReason("Data Analyst", JOBS, undefined, "Full Time"), "full-time");
   for (const t of ["Werkstudent Data Analyst", "Working Student BI", "Praktikum Data Science", "Masterarbeit Machine Learning", "Data Analyst (Teilzeit)", "Data Engineer part-time"])
-    assert.equal(J.jobRejectReason(t, undefined, "full-time"), null, t);
+    assert.equal(J.jobRejectReason(t, JOBS, undefined, "full-time"), null, t);
 });
 await ok("the same job from two sources has the same key (legal form and (m/w/d) ignored)", () =>
   assert.equal(J.dedupeKey("Zalando SE", "Werkstudent Data Analyst (m/w/d)"), J.dedupeKey("Zalando", "Werkstudent Data Analyst")));
@@ -345,9 +349,10 @@ await ok('the "/" menu: shared commands for the group, all of them for the owner
   assert.ok(!net.tg.some((x) => x.method === "setMyCommands"));
 });
 
-console.log("\n5. only Diba searching (the default)");
+console.log("\n5. only Diba searching (arman: active: false)");
 {
-  const [DB2, st2, E2] = await fresh();
+  const [DB2, st2, E2] = await fresh({ ...CONFIG, jobs: { ...CONFIG.jobs,
+    people: CONFIG.jobs.people.map((p) => (p.id === "arman" ? { ...p, active: false } : p)) } });
   DB2.raw.prepare("DELETE FROM kv WHERE k='jobs_active'").run();
   net.ba = 0; net.calls = []; net.tg = [];
   const urls = [];

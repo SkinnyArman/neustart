@@ -1,0 +1,172 @@
+# ============================================================
+#  neustart - your setup
+#
+#  Copy this file to neustart.yaml (it's gitignored: it holds your CV and
+#  your profile) and fill it in. Then, in the cf folder:
+#    npm run setup     the first time: database, keys, deploy, Telegram
+#    npm run config    after every later change (no deploy needed)
+#
+#  Everything below except `city` has a default. Switch off what you
+#  don't need under `modules`.
+# ============================================================
+
+# The city you're moving to. Searches, finds and Minijobs are around it.
+city: Leipzig
+
+# Kleinanzeigen's own code for the city. Leave it out and `npm run config`
+# looks it up from the city's name; set it if the lookup can't tell which
+# town you mean (open kleinanzeigen.de, search your city, paste the address).
+kleinanzeigen: https://www.kleinanzeigen.de/s-leipzig/l4233
+
+# What the bot does. Each one posts to its own forum topic.
+modules:
+  rooms: true          # WG rooms, with a reply drafted on request
+  finds: true          # cheap or free bikes, a bed, a Kommode, a rug, free stuff
+  jobs: true           # jobs for the people below, with an application tracker
+  casual_jobs: true    # Minijobs around the city, with the pay
+
+# Forum topics. Make the Telegram group a forum ("Topics" on) and the bot an
+# admin who may manage topics: it creates one topic per module the first
+# time it posts there. To use topics you made yourself, give their ids (the
+# number at the end of a topic's link, t.me/c/<group>/<id>):
+#   topics:
+#     rooms: 12
+#     jobs: 34
+# Or `topics: none` to post everything in the main chat.
+topics: auto
+
+# ============================================================
+#  FINDS - Kleinanzeigen, within radius_km of the city
+# ============================================================
+finds:
+  radius_km: 30
+  # who the free stuff is for: the AI rates giveaways by this
+  for_whom: "an international student who just arrived in Germany and is setting up a room in a shared flat (WG)"
+  items:
+    bike:    { on: true, max_price: 30 }
+    bed:     { on: true, max_price: 100, width_cm: 140 }    # 140 for a 140×200 mattress
+    kommode: { on: true, max_price: 35 }
+    carpet:  { on: true, max_price: 30, room_m2: 25 }       # the room it's for
+    free:    { on: true, min_rating: 6 }                    # only giveaways rated 6/10 or better
+  # Prices and on/off can be changed later from Telegram with /finds.
+
+# ============================================================
+#  JOBS - the Bundesagentur's Jobbörse and Arbeitnow
+# ============================================================
+jobs:
+  # On a student residence permit: Werkstudent jobs and internships first,
+  # full-time jobs left out (the permit doesn't cover them).
+  student_permit: true
+  cities:
+    - { name: Leipzig, radius_km: 50 }
+    # - { name: Berlin, radius_km: 25 }
+  remote: true
+  people:
+    - name: Alex
+      # The Jobbörse searches, one per line. Each runs in every city above.
+      searches:
+        - Werkstudent Data Analyst
+        - Werkstudent Business Intelligence
+        - Data Analyst
+      # For the AI: which roles fit, best first
+      wants: "Data Analyst and BI roles - Werkstudent first, then internships and junior roles."
+      # A job title has to contain one of these to be looked at (they're
+      # patterns: \bbi\b is the whole word "bi"). Left out: the words of the searches.
+      title_words: [data, daten, analyst, analytics, "\\bbi\\b", business intelligence, reporting, sql]
+      field: data          # "not data work", when a title is left out
+      summary: "M.Sc. student in Leipzig. Two years as a data analyst: SQL, Python, Power BI. German B2, English C1."
+      skills: [SQL, Python, pandas, Power BI, Excel, Statistics]
+      # The CV as plain text, for the cover letters. Or keep it in its own file
+      # next to this one: cv_file: alex.cv.txt (*.cv.txt is gitignored).
+      cv: |
+        Alex Example - M.Sc. Data Science, Leipzig University (since 10/2026)
+        Data Analyst, Example GmbH (2023-2026): SQL reporting, Power BI dashboards,
+        Python automation that cut weekly reporting time in half.
+      # icon: "🧑‍💻"
+      # active: false      # pause someone's search without deleting them
+    # - name: Robin
+    #   searches: [Werkstudent Frontend, React]
+    #   ...
+
+# ============================================================
+#  CASUAL JOBS - Minijobs from the Jobbörse, no AI
+# ============================================================
+casual_jobs:
+  radius_km: 25
+
+# ============================================================
+#  ROOMS - the room search and the replies it drafts
+#
+#  Facts are in three tiers, and the AI treats them differently:
+#    always      -> in every message
+#    if_relevant -> only when the ad gives off a vibe where it helps
+#    contextual  -> only when the ad mentions or asks for it
+#  Tiering is what stops every message reading the same.
+# ============================================================
+rooms:
+  about:
+    name: "Alex"
+    age: 25
+    pronouns: "they/them"   # he/him, she/her or they/them
+    whatsapp: ""            # filled in -> every message ends with it
+    always:
+      - "their name is Alex, they are 25"
+      - "non-smoker, no pets"
+      - "will be a student at <university>"
+      - "fluent in English; <your German level - a certificate if you have one>"
+      - "<how rent is covered: a job, a blocked account, ...>"
+      - "describe your temperament as BEHAVIOUR, not adjectives -
+         e.g. quiet on weeknights, happy to sit in the kitchen and talk"
+      - "respects house rules and gives people their space"
+      - "arriving around <date> (see move_in_rule)"
+    if_relevant:
+      - fact: "loves cats"
+        when: "the ad mentions a cat or pet, or sounds animal-friendly"
+    contextual:
+      - fact: "board games, favourite is <game>"
+        when: "the ad mentions games or a playful shared-hobby vibe"
+    # hard rules the AI must never break
+    never:
+      - "Never claim a German level above <your real level>."
+      - "Never invent facts, jobs, budgets or references."
+      - "Never use emojis."
+    move_in_rule: >
+      You arrive around <your date>. Read the ad for when the room is
+      actually free. If it's free earlier, say you can take it from then;
+      if later, use the ad's date. Never propose a date before the room is free.
+
+  style:
+    length: "90-120 words"
+    tone: >
+      Friendly, warm and relaxed - writing to people they would like to live
+      with, not to a landlord. Contractions throughout, varied sentence length.
+    always_include:
+      - "offer a video call to say hi properly (or an in-person visit if they prefer)"
+    never_include:
+      - "emojis"
+      - "bullet points"
+    sign_off: "Alex"
+
+  # Defaults; change them live from Telegram with /settings and /filters.
+  behaviour:
+    hot_minutes: 15         # searches marked hot: true (5-120)
+    poll_minutes: 180       # every other search (15-720)
+    max_per_hour: 2         # most rooms sent per hour (1-20)
+    block_backoff_min: 45   # first wait after a site refuses (it doubles each time)
+
+  # Search the site, then paste the address from the browser.
+  searches:
+    - name: "Leipzig"
+      url: "https://www.wg-gesucht.de/wg-zimmer-in-Leipzig.77.0.1.0.html"
+      hot: true
+    - name: "Kleinanzeigen Leipzig (offers only)"
+      url: "https://www.kleinanzeigen.de/s-auf-zeit-wg/leipzig/anzeige:angebote/c199l4233"
+      hot: true
+
+  # Applied before any AI call
+  filters:
+    skip_female_only: true    # rooms only for women
+    skip_pendler: true        # rooms for weekday commuters
+    max_rent: 600
+    min_rent: 0
+    skip_if_title_contains: ["nur frauen", "women only", "no deposit", "keine kaution"]

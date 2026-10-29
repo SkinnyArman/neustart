@@ -6,6 +6,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
+import { CONFIG } from "./fixtures/config.mjs";
 
 const SRC = new URL("../src/", import.meta.url).pathname;
 const SCHEMA = readFileSync(new URL("../schema.sql", import.meta.url), "utf8");
@@ -224,7 +225,10 @@ const captions = () => posts().map((p) => p.body.caption ?? p.body.text ?? "");
 const env = (DB) => ({ DB, OPENAI_API_KEY: "k", FINDS_MODEL: "gpt-5.6-luna", OPENAI_MODEL: "m",
   TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100", TELEGRAM_OWNER_ID: "1000001", WEBHOOK_SECRET: "s" });
 const tg = new Telegram("T", "-100");
-const fresh = () => { const DB = makeDB(); return [DB, new Store(DB), env(DB)]; };
+// the fixture setup, without topics (everything in General) and without a room search
+const setup = (DB, over = {}) => DB.raw.prepare("INSERT OR REPLACE INTO kv (k,v) VALUES ('config', ?)")
+  .run(JSON.stringify({ ...CONFIG, topics: "none", rooms: { about: { name: "Arman" }, style: {}, filters: {}, searches: [] }, ...over }));
+const fresh = (over) => { const DB = makeDB(); setup(DB, over); return [DB, new Store(DB), env(DB)]; };
 const status = (DB) => Object.fromEntries(DB.raw.prepare(
   "SELECT status, COUNT(*) n FROM bikes GROUP BY status").all().map((x) => [x.status, x.n]));
 const why = (DB, title) => DB.raw.prepare("SELECT why FROM bikes WHERE title = ?").get(title)?.why;
@@ -631,10 +635,9 @@ console.log("\n4. bot checks: quiet, backing off, isolated from the WG search");
 
 console.log("\n4b. the WG search's own Kleinanzeigen blocks");
 {
-  const [DB, st, E] = fresh(); reset();
   const URL = "https://www.kleinanzeigen.de/s-auf-zeit-wg/cottbus/anzeige:angebote/c199l7743";
-  await st.kvSet("profile", JSON.stringify({ about: { name: "Arman" }, style: {}, filters: {},
-    searches: [{ name: "Cottbus KA", url: URL, hot: true }] }));
+  const [DB, st, E] = fresh({ rooms: { about: { name: "Arman" }, style: {}, filters: {},
+    searches: [{ name: "Cottbus KA", url: URL, hot: true }] } }); reset();
   const waits = []; const ctx = { waitUntil: (p) => waits.push(p) };
   const logs = []; const log = console.log;
   const tick = async () => {
@@ -674,7 +677,10 @@ console.log("\n4b. the WG search's own Kleinanzeigen blocks");
 console.log("\n4c. forum topics");
 {
   const [DB, st, E0] = fresh(); reset();
-  const E = { ...E0, TOPIC_WG: "597", TOPIC_BIKE: "595", TOPIC_KOMMODE: "596", TOPIC_BED: "598", TOPIC_CARPET: "838", TOPIC_FREE: "610" };
+  // (the room search here used to come from the previous test's profile, cached in memory)
+  const E = E0; setup(DB, { topics: { rooms: 597, bike: 595, kommode: 596, bed: 598, carpet: 838, free: 610 },
+    rooms: { about: { name: "Arman" }, style: {}, filters: {},
+      searches: [{ name: "Cottbus KA", url: "https://www.kleinanzeigen.de/s-auf-zeit-wg/cottbus/anzeige:angebote/c199l7743", hot: true }] } });
   for (let i = 0; i < 7; i++) await B.findsStep(E, st, tg);
   await drain(E, st);
   const threads = (emoji) => [...new Set(posts().filter((p) => (p.body.caption ?? p.body.text).startsWith(emoji))
@@ -730,8 +736,7 @@ console.log("\n4c. forum topics");
   await ok("…and one typed in General stays in General", () => assert.equal(c.at(-1).body.message_thread_id, undefined));
 }
 {
-  const [DB, st, E0] = fresh(); reset();
-  const E = { ...E0, TOPIC_BIKE: "999" };                       // that topic was deleted
+  const [DB, st, E] = fresh({ topics: { bike: 999 } }); reset();   // that topic was deleted
   await B.findsStep(E, st, tg);
   await ok("a deleted topic: the post goes to General instead of being lost", () => {
     assert.equal(posts().length, 1);

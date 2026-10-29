@@ -2,12 +2,12 @@ name = "wg-finder"
 main = "src/index.ts"
 compatibility_date = "2026-09-01"
 
-# WG: one step every 2 minutes. Each step is tiny: refresh one city's
-# listing, or fetch+draft one queued ad. That keeps every invocation well
-# under the free plan's 10ms CPU budget.
-# Finds (bikes, bed, Kommode, carpet, free stuff): every 10 min on odd minutes, so it never
-# shares a tick with the WG job. Each tick checks the most overdue search and
-# rates up to two new ads (src/finds.ts).
+# One trigger per module, so they never share a tick or a CPU budget:
+#   rooms        every 2 min, on even minutes: refresh one listing, or post one room
+#   finds        :05, :15, …: check the most overdue search, rate up to two ads
+#   jobs         :03, :13, …: two Jobbörse searches, match up to three jobs
+#   casual jobs  :07, :17, …: the Minijob search every 30 min, post up to five
+# What each module looks for, and where, is in the config (neustart.yaml).
 [triggers]
 crons = ["*/2 * * * *", "5,15,25,35,45,55 * * * *", "3,13,23,33,43,53 * * * *", "7,17,27,37,47,57 * * * *"]
 
@@ -20,13 +20,3 @@ database_id = "2982a6b8-3107-401c-bed5-7a30249781f6"
 OPENAI_MODEL = "gpt-5.6-terra"
 # rating bike and furniture ads is a small job: the budget model
 FINDS_MODEL = "gpt-5.6-luna"
-# Forum topics in the group (the number at the end of the topic's link,
-# t.me/c/<group>/<topic>). Leave one out and that kind goes to General.
-TOPIC_WG = "597"
-TOPIC_BIKE = "595"
-TOPIC_KOMMODE = "596"
-TOPIC_CARPET = "838"
-TOPIC_BED = "598"
-TOPIC_FREE = "610"
-TOPIC_JOBS = "965"
-TOPIC_CASUAL = "992"

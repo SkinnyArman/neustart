@@ -55,6 +55,11 @@ export class Telegram {
     return this.call("setMyCommands", { commands, scope });
   }
 
+  /** A new forum topic in the group; needs the "manage topics" admin right. */
+  createForumTopic(name: string, chatId?: string) {
+    return this.call("createForumTopic", { chat_id: chatId ?? this.chatId, name });
+  }
+
   keyboard(rows: Button[][]) {
     return { reply_markup: { inline_keyboard: rows } };
   }

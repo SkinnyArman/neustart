@@ -1,5 +1,7 @@
-# secrets — never commit
+# secrets and personal data — never commit
 .env
+neustart.yaml
+*.cv.txt
 filters.local.json
 
 # local state
@@ -12,3 +14,4 @@ cf/.dev.vars
 cf/profile.json
 cf/profile.b64
 cf/profile.sql
+cf/config.sql

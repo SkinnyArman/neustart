@@ -3,11 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "setup": "node --no-warnings scripts/setup.mjs",
+    "config": "node --no-warnings scripts/config.mjs",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
-    "db:init": "wrangler d1 execute wg-finder --remote --file=schema.sql",
-    "test": "node --no-warnings test/finds.test.mjs && node --no-warnings test/jobs.test.mjs && node --no-warnings test/casual.test.mjs"
+    "test": "node --no-warnings test/finds.test.mjs && node --no-warnings test/jobs.test.mjs && node --no-warnings test/casual.test.mjs && node --no-warnings test/config.test.mjs && node --no-warnings test/golden.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260921.1",

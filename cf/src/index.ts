@@ -16,6 +16,8 @@ import {
 import { compose } from "./writer.ts";
 import { Telegram, esc, inTopic, type Button } from "./telegram.ts";
 import { aiFailed, aiWorked, checkKey } from "./aikey.ts";
+import { loadConfig, NO_CONFIG, type Config } from "./config.ts";
+import { topicOf } from "./topics.ts";
 import { CASUAL_CRON, casualLine, casualStep } from "./casual.ts";
 import { JOBS_CRON, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, skillsCommand, weeklyReport } from "./jobs.ts";
 import {
@@ -32,37 +34,12 @@ export interface Env {
   TELEGRAM_OWNER_ID: string;
   WEBHOOK_SECRET: string;
   FINDS_MODEL?: string;
-  // the group's forum topics (wrangler.toml); unset: everything in General
-  TOPIC_WG?: string;
-  TOPIC_BIKE?: string;
-  TOPIC_BED?: string;
-  TOPIC_KOMMODE?: string;
-  TOPIC_CARPET?: string;
-  TOPIC_FREE?: string;
-  TOPIC_JOBS?: string;
-  TOPIC_CASUAL?: string;
 }
 
-const wgTopic = (env: Env) => inTopic(Number(env.TOPIC_WG) || null);
+/** The room search's topic. */
+const wgTopic = async (cfg: Config, store: Store, tg: Telegram) => inTopic(await topicOf(cfg, store, tg, "rooms"));
 /** Answer in the topic the command or button came from. */
 const sameTopic = (msg: any) => inTopic(msg?.is_topic_message ? msg.message_thread_id : null);
-
-// The profile is ~4.5KB of JSON - too big for a Worker secret (5.1KB limit,
-// and base64 inflates it). It lives in D1 instead, seeded by make-profile.sh.
-// Cached per isolate so repeated invocations don't re-read or re-parse it.
-let _profileCache: Profile | null = null;
-
-async function profileOf(env: Env): Promise<Profile> {
-  if (_profileCache) return _profileCache;
-  const raw = await new Store(env.DB).kvGet("profile");
-  if (!raw) {
-    throw new Error(
-      "No profile in D1. Run ./make-profile.sh then: " +
-      "npx wrangler d1 execute wg-finder --remote --file=profile.sql");
-  }
-  _profileCache = JSON.parse(raw) as Profile;
-  return _profileCache;
-}
 
 const sourceOfUrl = (url: string): Source => (url.includes("kleinanzeigen.de") ? "ka" : "wg");
 const sourceOfId = (id: string): Source => (id.startsWith(KA_PREFIX) ? "ka" : "wg");
@@ -89,7 +66,10 @@ const clearOutage = (store: Store, src: Source) => endOutage(store, src);
  */
 async function step(env: Env, tg: Telegram, force = false): Promise<string> {
   const store = new Store(env.DB);
-  const profile = await profileOf(env);
+  const cfg = await loadConfig(store);
+  if (!cfg) return NO_CONFIG;
+  if (!cfg.modules.rooms) return "rooms: off";
+  const profile = cfg.rooms;
 
   const [paused] = await pauseState(store);
   if (paused) return "paused";
@@ -108,7 +88,7 @@ async function step(env: Env, tg: Telegram, force = false): Promise<string> {
         const budget = s.max_per_hour - (await store.pushedSince(3600));
         if (budget <= 0) return "hourly cap reached";
       }
-      return await draftOne(env, tg, store, profile, queued);
+      return await draftOne(env, tg, store, cfg, queued);
     }
     return await refreshOneSearch(store, profile, s, b);
   } catch (e) {
@@ -130,7 +110,7 @@ async function step(env: Env, tg: Telegram, force = false): Promise<string> {
           `${outageHours(o)} hours</b>\n\n` +
           `It keeps retrying by itself, waiting longer each time (next try in ` +
           `${mins} min). Nothing is lost, and ${other} isn't affected. ` +
-          `Nothing to do unless this goes on for days.\n\nDetails: /status`, wgTopic(env));
+          `Nothing to do unless this goes on for days.\n\nDetails: /status`, await wgTopic(cfg, store, tg));
       }
       return `${SITE[e.source]} blocked, retry in ${mins} min`;
     }
@@ -184,7 +164,7 @@ async function refreshOneSearch(
 }
 
 async function draftOne(
-  env: Env, tg: Telegram, store: Store, profile: Profile, row: AdRow,
+  env: Env, tg: Telegram, store: Store, cfg: Config, row: AdRow,
 ): Promise<string> {
   const src = sourceOfId(row.ad_id);
   const html = await get(row.url, cookieJar(store, src));
@@ -216,7 +196,7 @@ async function draftOne(
   // is only written when you tap "Draft reply". The card goes out first;
   // the ad text and listing facts are kept for the draft.
   try {
-    await pushCard(tg, ready, wgTopic(env));
+    await pushCard(tg, ready, await wgTopic(cfg, store, tg));
   } catch (e: any) {
     await store.noteFailure(row.ad_id);
     console.error(`delivery failed for ${row.ad_id}:`, e?.message ?? e);
@@ -229,15 +209,15 @@ async function draftOne(
 
 /** Write the reply for one room, on request; returns false if OpenAI failed. */
 async function draftFor(
-  env: Env, tg: Telegram, store: Store, profile: Profile, row: AdRow, retryNote = "",
+  env: Env, tg: Telegram, store: Store, cfg: Config, row: AdRow, retryNote = "",
 ): Promise<boolean> {
   const raw = await store.kvGet(`details:${row.ad_id}`);
   let draft;
   try {
-    draft = await compose(env.OPENAI_API_KEY, env.OPENAI_MODEL, profile, {
+    draft = await compose(env.OPENAI_API_KEY, env.OPENAI_MODEL, cfg.rooms, {
       title: row.title, rent: row.rent, size: row.size, district: row.district,
       text: row.ad_text, flatmates: row.flatmates, details: raw ? JSON.parse(raw) : undefined,
-    }, retryNote);
+    }, retryNote, cfg.city);
   } catch (e) {
     await aiFailed(store, tg, e);
     console.error(`draft failed for ${row.ad_id}:`, (e as any)?.message ?? e);
@@ -245,12 +225,21 @@ async function draftFor(
   }
   await aiWorked(store);
   await store.saveDraft(row.ad_id, draft.language, row.ad_text ?? "", draft.message);
-  await tg.send(`<pre>${esc(draft.message)}</pre>`, { ...tg.keyboard(adKeyboard(row.ad_id)), ...wgTopic(env) });
+  await tg.send(`<pre>${esc(draft.message)}</pre>`, { ...tg.keyboard(adKeyboard(row.ad_id)), ...(await wgTopic(cfg, store, tg)) });
   return true;
 }
 
 /** One screen that answers "is this thing working?" */
-export async function statusReport(env: Env, store: Store, profile: Profile): Promise<string> {
+export async function statusReport(env: Env, store: Store, cfg: Config): Promise<string> {
+  const on = cfg.modules;
+  const others = [
+    ...(on.finds ? [await findsLine(store)] : []),
+    ...(on.jobs ? [await jobsLine(store, env.DB)] : []),
+    ...(on.casual_jobs ? [await casualLine(store, env.DB)] : []),
+    ...cfg.problems.map((p) => `⚠️ config: ${p}`),
+  ];
+  if (!on.rooms) return [`🏠 Room search: off`, "", ...others].join("\n");
+  const profile = cfg.rooms;
   const s = await loadSettings(store, profile);
   const [paused, pstate] = await pauseState(store);
   const b = await blocks(store);
@@ -294,9 +283,7 @@ export async function statusReport(env: Env, store: Store, profile: Profile): Pr
     `Last ad sent:    ${ago}`,
     `Searches:        ${(profile.searches ?? []).length}`,
     ...(stats.pending ? [`Waiting on you:  ${stats.pending}  → /review`] : []),
-    await findsLine(store),
-    await jobsLine(store, env.DB),
-    await casualLine(store, env.DB),
+    ...others,
     "",
     `Seen so far: ${seen}`,
   ].join("\n");
@@ -424,11 +411,12 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
   // Everything else stays the owner's.
   const chatId = String(update.message?.chat?.id ?? update.callback_query?.message?.chat?.id ?? "");
   const inGroup = chatId === String(env.TELEGRAM_CHAT_ID);
+  const cfg = await loadConfig(store);
   const bikeCmd = /^\/(bikes|finds)(@\w+)?(\s|$)/i.test(text.trim());
   const bikeBtn = String(update.callback_query?.data ?? "").startsWith("bk:");
   if ((bikeCmd || bikeBtn) && (isOwner || inGroup))
     return handleFinds(update, env, tg, store);
-  // jobs are Diba's as much as Arman's: open to the group too
+  // the jobs belong to everyone searching: open to the group too
   const jobCmd = /^\/(jobs|skills|jobreport|cv)(@\w+)?(\s|$)/i.exec(text.trim());
   const jobBtn = String(update.callback_query?.data ?? "").startsWith("jb:");
   if ((jobCmd || jobBtn) && (isOwner || inGroup)) {
@@ -444,11 +432,10 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
     return;
   }
 
-  const profile = await profileOf(env);
-  const name = (profile.about as any)?.name ?? "its owner";
+  const name = (cfg?.rooms.about as any)?.name ?? "its owner";
   if (!isOwner) {
     const deny = `Sorry, this bot was built for ${name}'s own flat search and only answers to them.` +
-      (inGroup ? " The bike and furniture alerts are open to everyone here: /finds" : "");
+      (inGroup && cfg?.modules.finds ? " The bike and furniture alerts are open to everyone here: /finds" : "");
     if (update.callback_query) {
       await tg.answerCallback(update.callback_query.id, deny, true);
     } else {
@@ -458,13 +445,26 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
     return;
   }
 
-  if (update.callback_query) return handleButton(update.callback_query, env, tg, store, profile);
-
-  const chat = String(update.message.chat.id);
-  const [cmdRaw, ...args] = text.trim().split(/\s+/);
-  const cmd = cmdRaw.split("@")[0];
+  const chat = String(update.message?.chat?.id ?? update.callback_query?.message?.chat?.id);
   const reply = (t: string, o: Record<string, unknown> = {}) =>
     tg.send(t, { ...sameTopic(update.message), ...o }, chat);
+  if (!cfg) {
+    if (update.callback_query) await tg.answerCallback(update.callback_query.id, NO_CONFIG, true);
+    else await reply(NO_CONFIG);
+    return;
+  }
+  const profile = cfg.rooms;
+
+  if (update.callback_query) return handleButton(update.callback_query, env, tg, store, cfg);
+
+  const [cmdRaw, ...args] = text.trim().split(/\s+/);
+  const cmd = cmdRaw.split("@")[0];
+  const help = helpLines(cfg);
+  // the room search's own commands, when it's switched off
+  if (!cfg.modules.rooms && !["/start", "/resume", "/status", "/help"].includes(cmd)) {
+    await reply("🏠 The room search is switched off in the config. /help");
+    return;
+  }
 
   switch (cmd) {
     case "/start":
@@ -472,12 +472,7 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
       const [wasPaused] = await pauseState(store);
       if (wasPaused) await resume(store);
       const note = wasPaused ? "Started.\n\n" : "";
-      await reply(note + (await statusReport(env, store, profile)) +
-        `\n\n/status — is it running\n/review — decide on ads you haven't answered\n` +
-        `/pause [2h] — stop it\n` +
-        `/scan — check now\n/more [n] — send more now\n` +
-        `/filters — which ads qualify\n/settings — timing\n/stats — totals\n` +
-        `/finds — bikes, bed, Kommode, carpet & free stuff alerts`);
+      await reply(note + (await statusReport(env, store, cfg)) + "\n\n" + help.start);
       return;
     }
 
@@ -492,18 +487,11 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
     }
 
     case "/status":
-      await reply(await statusReport(env, store, profile));
+      await reply(await statusReport(env, store, cfg));
       return;
 
     case "/help":
-      await reply(
-        `/start — start it (also un-pauses)\n/status — is it running\n` +
-        `/review — decide on ads you haven't answered\n` +
-        `/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n` +
-        `/filters — which ads qualify\n/settings — timing\n` +
-        `/stats — totals\n/retry — re-draft failed\n` +
-        `/finds — bikes, bed, Kommode, carpet & free stuff alerts (anyone in the group)\n` +
-        `/jobs — job board and where each application stands · /cv — the CVs · /skills diba · /jobreport`);
+      await reply(help.help);
       return;
 
     case "/stats": {
@@ -595,7 +583,14 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
  * /bikes keeps its old meaning: /bikes price 30, /bikes off.
  */
 async function handleFinds(update: any, env: Env, tg: Telegram, store: Store): Promise<void> {
-  const card = async () => [await findsStatus(env.DB, store), findsKeyboard(await loadFindSettings(store))] as const;
+  const cfg = await loadConfig(store);
+  if (!cfg?.modules.finds) {
+    const no = cfg ? "🔎 Finds are switched off in the config." : NO_CONFIG;
+    if (update.callback_query) await tg.answerCallback(update.callback_query.id, no);
+    else await tg.send(no, sameTopic(update.message), String(update.message.chat.id));
+    return;
+  }
+  const card = async () => [await findsStatus(env.DB, store), findsKeyboard(await loadFindSettings(store, cfg))] as const;
   const checkNow = async () => (await findsStep(env, store, tg, true)).replace(/^finds: /, "Checked: ");
 
   const cq = update.callback_query;
@@ -603,16 +598,16 @@ async function handleFinds(update: any, env: Env, tg: Telegram, store: Store): P
     // bk:price:<item>:<±n> · bk:on|off:<item> · bk:min:<±n> · bk:now
     // (cards posted before beds existed say bk:price:<±n>, bk:on - bikes)
     const [, act, a, b] = String(cq.data).split(":");
-    const s = await loadFindSettings(store);
+    const s = await loadFindSettings(store, cfg);
     const item: ItemKey = (parseItem(a ?? "") ?? "bike");
     let toast = "";
     if (act === "price") {
       // free stuff has no price: its +/− moves the rating it needs instead
       const delta = Number(b ?? a);
       const priced = ITEMS.find((i) => i.key === item)!.priced;
-      toast = await setFindSetting(store, item, (priced ? s.items[item].max : s.items[item].floor) + delta);
-    } else if (act === "min") toast = await setFindSetting(store, "min", s.min_score + Number(a));
-    else if (act === "on" || act === "off") toast = await setItemOn(store, item, act === "on");
+      toast = await setFindSetting(store, item, (priced ? s.items[item].max : s.items[item].floor) + delta, cfg);
+    } else if (act === "min") toast = await setFindSetting(store, "min", s.min_score + Number(a), cfg);
+    else if (act === "on" || act === "off") toast = await setItemOn(store, item, act === "on", cfg);
     else if (act === "now") toast = await checkNow();
     await tg.answerCallback(cq.id, toast);
     try {
@@ -634,17 +629,17 @@ async function handleFinds(update: any, env: Env, tg: Telegram, store: Store): P
   if (lsub === "now") await reply(await checkNow());
   else if (lsub === "min") {
     if (!Number.isFinite(Number(val)) || !val) return void (await reply("Try /finds min 5 (0 = post everything)"));
-    await reply(await setFindSetting(store, "min", Number(val)));
+    await reply(await setFindSetting(store, "min", Number(val), cfg));
   } else if (lsub === "on" || lsub === "off") {
     // /bikes off → bikes only; /finds off → everything
     for (const i of isBikes ? ["bike" as ItemKey] : ITEMS.map((x) => x.key))
-      await setItemOn(store, i, lsub === "on");
+      await setItemOn(store, i, lsub === "on", cfg);
   } else if (lsub === "price" && isBikes) {
     if (!Number.isFinite(Number(val)) || !val) return void (await reply("Try /bikes price 30"));
-    await reply(await setFindSetting(store, "bike", Number(val)));
+    await reply(await setFindSetting(store, "bike", Number(val), cfg));
   } else if (item) {
-    if (val === "on" || val === "off") await reply(await setItemOn(store, item, val === "on"));
-    else if (val && Number.isFinite(Number(val))) await reply(await setFindSetting(store, item, Number(val)));
+    if (val === "on" || val === "off") await reply(await setItemOn(store, item, val === "on", cfg));
+    else if (val && Number.isFinite(Number(val))) await reply(await setFindSetting(store, item, Number(val), cfg));
     else if (val) return void (await reply(usage));
   } else if (lsub) return void (await reply(usage));
 
@@ -653,8 +648,9 @@ async function handleFinds(update: any, env: Env, tg: Telegram, store: Store): P
 }
 
 async function handleButton(
-  cq: any, env: Env, tg: Telegram, store: Store, profile: Profile,
+  cq: any, env: Env, tg: Telegram, store: Store, cfg: Config,
 ): Promise<void> {
+  const profile = cfg.rooms;
   const data: string = cq.data ?? "";
   const chat = cq.message?.chat?.id;
   const msgId = cq.message?.message_id;
@@ -757,47 +753,87 @@ async function handleButton(
     await tg.answerCallback(cq.id, "Drafting…");
     // the card keeps only Skip while the draft is written
     try { await tg.editMarkup(chat, msgId, [[{ text: "Skip", callback_data: `no:${adId}` }]]); } catch { /* old card */ }
-    if (!(await draftFor(env, tg, store, profile, row)))
-      await tg.send("Couldn't write the draft right now — tap Draft reply again in a bit.", wgTopic(env));
+    if (!(await draftFor(env, tg, store, cfg, row)))
+      await tg.send("Couldn't write the draft right now — tap Draft reply again in a bit.", await wgTopic(cfg, store, tg));
     return;
   }
 
   if (action === "re") {
     await tg.answerCallback(cq.id, "Rewriting…");
     await tg.clearKeyboard(chat, msgId);
-    await draftFor(env, tg, store, profile, row,
+    await draftFor(env, tg, store, cfg, row,
       "The previous draft was rejected. Take a noticeably different angle, " +
       "open with a different detail, and vary the rhythm.");
   }
 }
 
 // ------------------------------------------------------------- the "/" menu
-// What Telegram suggests when someone types "/". Everyone in the group sees
-// the shared commands; the owner (in the group and in private) sees all.
-// Sent again whenever this list changes.
-const GROUP_COMMANDS = [
-  { command: "jobs", description: "Job board - where each application stands" },
-  { command: "cv", description: "Send the CVs" },
-  { command: "jobreport", description: "Jobs report: matches, answers, what to learn" },
-  { command: "skills", description: "Skills list, e.g. /skills diba + Power BI" },
-  { command: "finds", description: "Bike, bed, Kommode, carpet & free stuff alerts" },
-];
-const OWNER_COMMANDS = [
-  { command: "status", description: "Is it running" },
-  { command: "review", description: "Decide on WG ads you haven't answered" },
-  { command: "scan", description: "Check for WG ads now" },
-  { command: "more", description: "Send more WG ads now" },
-  { command: "pause", description: "Stop the WG search, e.g. /pause 2h" },
-  { command: "start", description: "Start (also un-pauses)" },
-  { command: "filters", description: "Which WG ads qualify" },
-  { command: "settings", description: "Timing" },
-  { command: "stats", description: "Totals" },
-  { command: "retry", description: "Re-draft failed replies" },
-  ...GROUP_COMMANDS,
-  { command: "help", description: "All commands" },
-];
+// What Telegram suggests when someone types "/", for the modules that are on.
+// Everyone in the group sees the shared commands; the owner (in the group and
+// in private) sees all. Sent again whenever this list changes.
+function commandMenus(cfg: Config) {
+  const on = cfg.modules;
+  const first = cfg.jobs.people[0]?.id ?? "name";
+  const group = [
+    ...(on.jobs ? [
+      { command: "jobs", description: "Job board - where each application stands" },
+      { command: "cv", description: "Send the CVs" },
+      { command: "jobreport", description: "Jobs report: matches, answers, what to learn" },
+      { command: "skills", description: `Skills list, e.g. /skills ${first} + Power BI` },
+    ] : []),
+    ...(on.finds ? [{ command: "finds", description: "Bike, bed, Kommode, carpet & free stuff alerts" }] : []),
+  ];
+  const owner = [
+    { command: "status", description: "Is it running" },
+    ...(on.rooms ? [
+      { command: "review", description: "Decide on WG ads you haven't answered" },
+      { command: "scan", description: "Check for WG ads now" },
+      { command: "more", description: "Send more WG ads now" },
+      { command: "pause", description: "Stop the WG search, e.g. /pause 2h" },
+    ] : []),
+    { command: "start", description: "Start (also un-pauses)" },
+    ...(on.rooms ? [
+      { command: "filters", description: "Which WG ads qualify" },
+      { command: "settings", description: "Timing" },
+      { command: "stats", description: "Totals" },
+      { command: "retry", description: "Re-draft failed replies" },
+    ] : []),
+    ...group,
+    { command: "help", description: "All commands" },
+  ];
+  return { group, owner };
+}
+
+/** /start's and /help's list, for the modules that are on. */
+function helpLines(cfg: Config) {
+  const on = cfg.modules;
+  const first = cfg.jobs.people[0]?.id ?? "name";
+  const finds = on.finds ? "/finds — bikes, bed, Kommode, carpet & free stuff alerts" : "";
+  const jobs = on.jobs ? `/jobs — job board and where each application stands · /cv — the CVs · /skills ${first} · /jobreport` : "";
+  const start = on.rooms
+    ? `/status — is it running\n/review — decide on ads you haven't answered\n` +
+      `/pause [2h] — stop it\n` +
+      `/scan — check now\n/more [n] — send more now\n` +
+      `/filters — which ads qualify\n/settings — timing\n/stats — totals` + (finds ? `\n${finds}` : "")
+    : [`/status — is it running`, finds, jobs].filter(Boolean).join("\n");
+  const help = [
+    ...(on.rooms ? [
+      `/start — start it (also un-pauses)\n/status — is it running\n` +
+      `/review — decide on ads you haven't answered\n` +
+      `/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n` +
+      `/filters — which ads qualify\n/settings — timing\n` +
+      `/stats — totals\n/retry — re-draft failed`,
+    ] : [`/status — is it running`]),
+    ...(finds ? [`${finds} (anyone in the group)`] : []),
+    ...(jobs ? [jobs] : []),
+  ].join("\n");
+  return { start, help };
+}
 
 async function syncCommands(env: Env, store: Store, tg: Telegram): Promise<void> {
+  const cfg = await loadConfig(store);
+  if (!cfg) return;
+  const { group: GROUP_COMMANDS, owner: OWNER_COMMANDS } = commandMenus(cfg);
   const version = JSON.stringify([GROUP_COMMANDS, OWNER_COMMANDS]);
   if ((await store.kvGet("commands_sent")) === version) return;
   const group = env.TELEGRAM_CHAT_ID, owner = env.TELEGRAM_OWNER_ID || group;

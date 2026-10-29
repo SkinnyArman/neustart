@@ -3,6 +3,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
+import { CONFIG } from "./fixtures/config.mjs";
 
 const SRC = new URL("../src/", import.meta.url).pathname;
 const SCHEMA = readFileSync(new URL("../schema.sql", import.meta.url), "utf8").replace(/-- bike alerts[\s\S]*$/, "");
@@ -69,7 +70,8 @@ const worker = (await import(SRC + "index.ts")).default;
 let pass = 0;
 const ok = async (name, fn) => { await fn(); pass++; console.log("  ✓", name); };
 const DB = makeDB(); const st = new Store(DB);
-const E = { DB, TOPIC_CASUAL: "992", OPENAI_API_KEY: "k", TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100", TELEGRAM_OWNER_ID: "1", WEBHOOK_SECRET: "s" };
+const E = { DB, OPENAI_API_KEY: "k", TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100", TELEGRAM_OWNER_ID: "1", WEBHOOK_SECRET: "s" };
+await st.kvSet("config", JSON.stringify(CONFIG));                 // Cottbus, 25 km, topic 992
 const tg = new Telegram("T", "-100");
 const row = (id) => DB.raw.prepare("SELECT * FROM casual WHERE id=?").get(id);
 const cards = () => net.tg.filter((c) => c.method === "sendMessage");
