@@ -148,6 +148,26 @@ minimum rating, and check-now. Also `/finds bed 80`, `/finds kommode off`,
 `/finds min 5`, `/finds now`; `/bikes` still works for the bikes. It ignores
 `/pause`, which only stops the room search.
 
+### Jobs (for Diba and Arman)
+
+`src/jobs.ts` posts jobs to the Jobs topic as cards that double as an
+application tracker. Sources: the Bundesagentur's Jobbörse (keyword searches
+around Berlin and Cottbus, two per tick in rotation) and the Arbeitnow feed
+(Berlin, Cottbus, remote; every 2 h). Rules drop senior/lead roles,
+Ausbildung and off-topic titles; one cheap AI call per remaining job says who
+it's for, why, the gaps, German level, hours, start and deadline, and flags
+full-time roles a student permit doesn't cover.
+
+Buttons: ✍️ Cover letter (written on tap, from the CV, in the ad's language),
+✅ Applied, 🔁 Already applied, ⏭ Skip, then 🗓 Interview / ❌ Rejected / 🎉
+Offer. No answer after 10 days: one reminder. `/jobs` is the board,
+`/skills diba + Power BI` keeps the skills list current, `/jobreport` (and
+every Monday) shows what gets answers, what's due and the one skill most
+asked for. Open to everyone in the group.
+
+Profiles and CV text are personal: they live in the gitignored
+`jobs-people.json` and are loaded into D1 with `./seed-jobs.sh`.
+
 ## Tests
 
     npm test

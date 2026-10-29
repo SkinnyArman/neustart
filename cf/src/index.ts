@@ -16,6 +16,7 @@ import {
 import { compose } from "./writer.ts";
 import { Telegram, esc, inTopic, type Button } from "./telegram.ts";
 import { aiFailed, aiWorked, checkKey } from "./aikey.ts";
+import { JOBS_CRON, jobButton, jobsBoard, jobsLine, jobsStep, skillsCommand, weeklyReport } from "./jobs.ts";
 import {
   FINDS_CRON, findsKeyboard, findsLine, findsStatus, findsStep, loadFindSettings,
   parseItem, setFindSetting, setItemOn, ITEMS, type ItemKey,
@@ -37,6 +38,7 @@ export interface Env {
   TOPIC_KOMMODE?: string;
   TOPIC_CARPET?: string;
   TOPIC_FREE?: string;
+  TOPIC_JOBS?: string;
 }
 
 const wgTopic = (env: Env) => inTopic(Number(env.TOPIC_WG) || null);
@@ -291,6 +293,7 @@ export async function statusReport(env: Env, store: Store, profile: Profile): Pr
     `Searches:        ${(profile.searches ?? []).length}`,
     ...(stats.pending ? [`Waiting on you:  ${stats.pending}  → /review`] : []),
     await findsLine(store),
+    await jobsLine(store, env.DB),
     "",
     `Seen so far: ${seen}`,
   ].join("\n");
@@ -421,6 +424,18 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
   const bikeBtn = String(update.callback_query?.data ?? "").startsWith("bk:");
   if ((bikeCmd || bikeBtn) && (isOwner || inGroup))
     return handleFinds(update, env, tg, store);
+  // jobs are Diba's as much as Arman's: open to the group too
+  const jobCmd = /^\/(jobs|skills|jobreport)(@\w+)?(\s|$)/i.exec(text.trim());
+  const jobBtn = String(update.callback_query?.data ?? "").startsWith("jb:");
+  if ((jobCmd || jobBtn) && (isOwner || inGroup)) {
+    if (jobBtn) return jobButton(env, store, tg, update.callback_query);
+    const [, ...a] = text.trim().split(/\s+/);
+    const body = /skills/i.test(jobCmd![1]) ? await skillsCommand(store, a)
+      : /jobreport/i.test(jobCmd![1]) ? await weeklyReport(env.DB, store)
+      : await jobsBoard(env.DB, store);
+    await tg.send(body, sameTopic(update.message), String(update.message.chat.id));
+    return;
+  }
 
   const profile = await profileOf(env);
   const name = (profile.about as any)?.name ?? "its owner";
@@ -480,7 +495,8 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
         `/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n` +
         `/filters — which ads qualify\n/settings — timing\n` +
         `/stats — totals\n/retry — re-draft failed\n` +
-        `/finds — bikes, bed, Kommode, carpet & free stuff alerts (anyone in the group)`);
+        `/finds — bikes, bed, Kommode, carpet & free stuff alerts (anyone in the group)\n` +
+        `/jobs — job board for Diba & Arman · /skills diba · /jobreport`);
       return;
 
     case "/stats": {
@@ -757,7 +773,14 @@ export default {
     // trigger only ever fires on even minutes, the finds one on odd minutes -
     // dispatching on that, not just the exact cron text, keeps working while
     // a changed trigger is still rolling out (that takes Cloudflare minutes).
-    const odd = new Date(c.scheduledTime).getUTCMinutes() % 2 === 1;
+    // The jobs trigger fires at :03, :13, …; checked first, by its text or its minute.
+    const minute = new Date(c.scheduledTime).getUTCMinutes();
+    if (c.cron === JOBS_CRON || minute % 10 === 3) {
+      ctx.waitUntil(jobsStep(env, new Store(env.DB), tg).then(
+        (r) => console.log("step:", r), (e) => console.error("jobs failed:", e?.message ?? e)));
+      return;
+    }
+    const odd = minute % 2 === 1;
     const job = c.cron === FINDS_CRON || odd
       ? findsStep(env, new Store(env.DB), tg)
       : step(env, tg);
