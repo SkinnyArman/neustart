@@ -7,12 +7,17 @@
 // the hourly wage when the employer filled it in (about one ad in five) and
 // which times of day the job is for. Titles that need a trade or a licence
 // (Pflegefachkraft, Erzieher, Berufskraftfahrer, …) are left out by a word list.
+//
+// Where: the config's city and radius, or what /casual set since (kv
+// casual_city, casual_radius, casual_only_city - they win over the config).
+// "Only the city itself" drops the towns around it, and switching it on
+// takes down the cards already posted from them.
 
 import { loadConfig, NO_CONFIG, type Config } from "./config.ts";
 import { strip } from "./jobs.ts";
 import { fmtLeft } from "./settings.ts";
 import type { Store } from "./store.ts";
-import { esc, inTopic, type Telegram } from "./telegram.ts";
+import { esc, inTopic, type Button, type Telegram } from "./telegram.ts";
 import { topicOf } from "./topics.ts";
 
 export const CASUAL_CRON = "7,17,27,37,47,57 * * * *";
@@ -61,6 +66,24 @@ async function ensureTable(db: D1Database) {
 }
 interface Row { id: string; title: string; company: string; place: string; attempts: number }
 
+// ---------------------------------------------------------------- where
+export interface Where { city: string; radius: number; only: boolean }
+const RADIUS: [number, number] = [5, 100];
+
+export async function whereOf(store: Store, cfg: Config): Promise<Where> {
+  const r = Number(await store.kvGet("casual_radius"));
+  const only = await store.kvGet("casual_only_city");
+  return {
+    city: (await store.kvGet("casual_city")) || cfg.city,
+    radius: r > 0 ? r : cfg.casual_jobs.radius_km,
+    only: only === null ? cfg.casual_jobs.only_city : only === "1",
+  };
+}
+/** "Kolkwitz, Niederlausitz" is not in Cottbus; "Cottbus" and "Cottbus, Sandow" are. */
+export const inTown = (place: string, city: string) =>
+  place.split(",")[0].trim().toLowerCase() === city.trim().toLowerCase();
+const outside = (w: Where, place: string) => w.only && !inTown(place, w.city);
+
 // ---------------------------------------------------------------- one tick
 export async function casualStep(env: CasualEnv, store: Store, tg: Telegram): Promise<string> {
   const cfg = await loadConfig(store);
@@ -70,18 +93,25 @@ export async function casualStep(env: CasualEnv, store: Store, tg: Telegram): Pr
   const db = env.DB;
   await ensureTable(db);
   const did: string[] = [];
+  const w = await whereOf(store, cfg);
+  // kv casual_recheck=1: take down posted cards the current place leaves out
+  if ((await store.kvGet("casual_recheck")) === "1") {
+    await store.kvSet("casual_recheck", "0");
+    const gone = await takeDownOutside(db, tg, w);
+    if (gone) did.push(`${gone} cards outside ${w.city} taken down`);
+  }
   if (now() - Number((await store.kvGet("casual_searched_at")) ?? 0) >= SEARCH_EVERY) {
-    try { did.push(await search(db, cfg)); await store.kvSet("casual_searched_at", String(now())); }
+    try { did.push(await search(db, w)); await store.kvSet("casual_searched_at", String(now())); }
     catch (e: any) { did.push(`search: ${e?.message ?? e}`); }
   }
-  const n = await post(env, store, tg, cfg);
+  const n = await post(env, store, tg, cfg, w);
   if (n) did.push(`${n} posted`);
   return `casual: ${did.join(", ") || "nothing to do"}`;
 }
 
-async function search(db: D1Database, cfg: Config): Promise<string> {
+async function search(db: D1Database, w: Where): Promise<string> {
   const u = new URL(`${BA}/pc/v6/jobs`);
-  const place = { wo: cfg.city, umkreis: String(cfg.casual_jobs.radius_km) };
+  const place = { wo: w.city, umkreis: String(w.radius) };
   for (const [k, v] of Object.entries({ ...place, arbeitszeit: "mj", veroeffentlichtseit: "30", size: "100" }))
     u.searchParams.set(k, v);
   const r = await fetch(u, { headers: BA_KEY });
@@ -97,7 +127,7 @@ async function search(db: D1Database, cfg: Config): Promise<string> {
     const known = await db.prepare("SELECT 1 FROM casual WHERE id=? OR dkey=? LIMIT 1").bind(id, dkey).first();
     if (known) continue;
     fresh++;
-    const why = casualRejectReason(title);
+    const why = outside(w, place) ? `not in ${w.city}` : casualRejectReason(title);
     if (!why) keep++;
     await db.prepare(
       `INSERT OR IGNORE INTO casual (id,dkey,title,company,place,status,why,first_seen) VALUES (?,?,?,?,?,?,?,?)`)
@@ -164,12 +194,14 @@ export function casualCard(row: Row, d: any): string {
   ].filter(Boolean).join("\n\n");
 }
 
-async function post(env: CasualEnv, store: Store, tg: Telegram, cfg: Config): Promise<number> {
+async function post(env: CasualEnv, store: Store, tg: Telegram, cfg: Config, w: Where): Promise<number> {
   const db = env.DB;
   const { results } = await db.prepare(
     "SELECT * FROM casual WHERE status='new' ORDER BY first_seen, rowid LIMIT ?").bind(POST_PER_TICK).all<Row>();
   let n = 0;
   for (const row of results ?? []) {
+    // the place was narrowed since it was found
+    if (outside(w, row.place)) { await setRow(db, row.id, { status: "skipped", why: `not in ${w.city}` }); continue; }
     try {
       const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(row.id.slice(3))));
       const r = await fetch(`${BA}/pc/v4/jobdetails/${b64}`, { headers: BA_KEY });
@@ -195,6 +227,25 @@ const setRow = (db: D1Database, id: string, f: Record<string, unknown>) => {
     .bind(...keys.map((k) => f[k]), id).run();
 };
 
+/** Posted cards from outside the city, when only the city itself counts: deleted. */
+async function takeDownOutside(db: D1Database, tg: Telegram, w: Where): Promise<number> {
+  if (!w.only) return 0;
+  await ensureTable(db);
+  const { results } = await db.prepare("SELECT id, place, msg_id FROM casual WHERE status='posted'")
+    .all<{ id: string; place: string; msg_id: number | null }>();
+  let n = 0;
+  for (const r of results ?? []) {
+    if (inTown(r.place ?? "", w.city)) continue;
+    if (r.msg_id) try { await tg.deleteMessage(r.msg_id); } catch { /* already gone, or older than 48 h */ }
+    await setRow(db, r.id, { status: "skipped", why: `not in ${w.city}`, msg_id: null });
+    n++;
+  }
+  return n;
+}
+
+/** "within 25 km of Cottbus", "in Cottbus only" */
+const where = (w: Where) => (w.only ? `in ${w.city} only` : `within ${w.radius} km of ${w.city}`);
+
 /** One line for /status. */
 export async function casualLine(store: Store, db: D1Database): Promise<string> {
   if ((await store.kvGet("casual_on")) === "0") return "Casual jobs:     ⏸ paused";
@@ -202,6 +253,66 @@ export async function casualLine(store: Store, db: D1Database): Promise<string> 
   const r = await db.prepare("SELECT SUM(status='posted') posted, SUM(status='new') waiting FROM casual")
     .first<{ posted: number | null; waiting: number | null }>();
   const at = Number((await store.kvGet("casual_searched_at")) ?? 0);
-  return `Casual jobs:     ✅ ${r?.posted ?? 0} posted` + (r?.waiting ? `, ${r.waiting} to come` : "") +
+  const cfg = await loadConfig(store);
+  const place = cfg ? ` ${where(await whereOf(store, cfg))}` : "";
+  return `Casual jobs:     ✅ ${r?.posted ?? 0} posted${place}` + (r?.waiting ? `, ${r.waiting} to come` : "") +
     (at ? `, checked ${fmtLeft(Math.max(0, now() - at))} ago` : "");
+}
+
+// ---------------------------------------------------------------- /casual
+/** The /casual card: where it looks, and buttons to change it. */
+export async function casualSettings(store: Store, cfg: Config): Promise<[string, Button[][]]> {
+  const w = await whereOf(store, cfg);
+  const on = (await store.kvGet("casual_on")) !== "0";
+  const text = [
+    `🧺 <b>Minijobs</b> ${esc(where(w))}${on ? "" : " - ⏸ paused"}`,
+    "",
+    `Searched: ${esc(w.city)}, ${w.radius} km around`,
+    `Only ${esc(w.city)} itself: ${w.only ? "yes, the towns around it are left out" : "no, the towns around it too"}`,
+    "",
+    `<i>/casual 10 · /casual city Spremberg · /casual only on|off · /casual off · /casual now - anyone here can change it</i>`,
+  ].join("\n");
+  const kb: Button[][] = [
+    [{ text: "−5 km", callback_data: "cj:radius:-5" }, { text: `${w.radius} km`, callback_data: "cj:noop" },
+     { text: "+5 km", callback_data: "cj:radius:+5" }],
+    [{ text: `${w.only ? "✅" : "⬜"} only ${w.city} itself`, callback_data: `cj:only:${w.only ? "off" : "on"}` }],
+    [{ text: on ? "⏸ Pause" : "▶️ Resume", callback_data: `cj:${on ? "off" : "on"}` },
+     { text: "🔄 Check now", callback_data: "cj:now" }],
+  ];
+  return [text, kb];
+}
+
+/**
+ * A change from /casual or its buttons: radius ±n or n, city, only on/off,
+ * on/off. The answer to show; "only on" also takes down the cards from
+ * outside the city.
+ */
+export async function setCasual(db: D1Database, store: Store, tg: Telegram, cfg: Config, what: string, value = ""): Promise<string> {
+  const w = await whereOf(store, cfg);
+  const fresh = () => store.kvSet("casual_searched_at", "0");     // look again on the next tick
+  if (what === "radius") {
+    const v = Math.round(/^[+-]/.test(value) ? w.radius + Number(value) : Number(value));
+    if (!Number.isFinite(v) || !value) return "Try /casual 10 (km)";
+    const r = Math.min(RADIUS[1], Math.max(RADIUS[0], v));
+    await store.kvSet("casual_radius", String(r)); await fresh();
+    return `🧺 Minijobs: ${r} km around ${w.city}`;
+  }
+  if (what === "city") {
+    const city = value.trim();
+    if (!city) return "Try /casual city Spremberg";
+    await store.kvSet("casual_city", city === cfg.city ? "" : city); await fresh();
+    return `🧺 Minijobs: around ${city} from the next check`;
+  }
+  if (what === "only") {
+    const only = value === "on";
+    await store.kvSet("casual_only_city", only ? "1" : "0");
+    if (!only) return `🧺 Minijobs: ${w.city} and the towns around it`;
+    const gone = await takeDownOutside(db, tg, { ...w, only: true });
+    return `🧺 Minijobs: only ${w.city} itself` + (gone ? ` - took down ${gone} card${gone === 1 ? "" : "s"} from other towns` : "");
+  }
+  if (what === "on" || what === "off") {
+    await store.kvSet("casual_on", what === "on" ? "1" : "0");
+    return `🧺 Minijobs: ${what === "on" ? "on" : "paused"}`;
+  }
+  return "";
 }

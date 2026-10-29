@@ -18,7 +18,7 @@ import { Telegram, esc, inTopic, type Button } from "./telegram.ts";
 import { aiFailed, aiWorked, checkKey } from "./aikey.ts";
 import { loadConfig, NO_CONFIG, type Config } from "./config.ts";
 import { topicOf } from "./topics.ts";
-import { CASUAL_CRON, casualLine, casualStep } from "./casual.ts";
+import { CASUAL_CRON, casualLine, casualSettings, casualStep, setCasual } from "./casual.ts";
 import { JOBS_CRON, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, skillsCommand, weeklyReport } from "./jobs.ts";
 import {
   FINDS_CRON, findsKeyboard, findsLine, findsStatus, findsStep, loadFindSettings,
@@ -432,6 +432,11 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
     return;
   }
 
+  // where the Minijobs are looked for: open to the group too
+  const casualCmd = /^\/casual(@\w+)?(\s|$)/i.test(text.trim());
+  const casualBtn = String(update.callback_query?.data ?? "").startsWith("cj:");
+  if ((casualCmd || casualBtn) && (isOwner || inGroup)) return handleCasual(update, env, tg, store, cfg);
+
   const name = (cfg?.rooms.about as any)?.name ?? "its owner";
   if (!isOwner) {
     const deny = `Sorry, this bot was built for ${name}'s own flat search and only answers to them.` +
@@ -647,6 +652,50 @@ async function handleFinds(update: any, env: Env, tg: Telegram, store: Store): P
   await reply(text, tg.keyboard(kb));
 }
 
+/**
+ * /casual and its card's buttons - for anyone in the group. /casual 10 ·
+ * /casual city Spremberg · /casual only on · /casual off · /casual now
+ */
+async function handleCasual(update: any, env: Env, tg: Telegram, store: Store, cfg: Config | null): Promise<void> {
+  const cq = update.callback_query;
+  const chat = String(update.message?.chat?.id ?? cq?.message?.chat?.id);
+  const no = !cfg ? NO_CONFIG : !cfg.modules.casual_jobs ? "🧺 Minijobs are switched off in the config." : "";
+  if (no) {
+    if (cq) await tg.answerCallback(cq.id, no);
+    else await tg.send(no, sameTopic(update.message), chat);
+    return;
+  }
+  const checkNow = async () => {
+    await store.kvSet("casual_searched_at", "0");
+    return (await casualStep(env, store, tg)).replace(/^casual: /, "Checked: ");
+  };
+  if (cq) {
+    // cj:radius:<±n> · cj:only:on|off · cj:on · cj:off · cj:now · cj:noop
+    const [, act, val = ""] = String(cq.data).split(":");
+    const toast = act === "now" ? await checkNow()
+      : ["radius", "only", "on", "off"].includes(act) ? await setCasual(env.DB, store, tg, cfg!, act, val) : "";
+    await tg.answerCallback(cq.id, toast);
+    try {
+      const [t, kb] = await casualSettings(store, cfg!);
+      await tg.editText(chat, cq.message.message_id, t, kb);
+    } catch { /* unchanged */ }
+    return;
+  }
+  const reply = (t: string, o: Record<string, unknown> = {}) => tg.send(t, { ...sameTopic(update.message), ...o }, chat);
+  const [, sub = "", ...rest] = String(update.message.text ?? "").trim().split(/\s+/);
+  const l = sub.toLowerCase(), v = (rest[0] ?? "").toLowerCase();
+  const usage = "Try /casual, /casual 10 (km), /casual city Spremberg, /casual only on, /casual off, /casual now";
+  if (/^\d+$/.test(l)) await reply(await setCasual(env.DB, store, tg, cfg!, "radius", l));
+  else if (l === "radius" && /^\d+$/.test(v)) await reply(await setCasual(env.DB, store, tg, cfg!, "radius", v));
+  else if (l === "city" && rest.length) await reply(await setCasual(env.DB, store, tg, cfg!, "city", rest.join(" ")));
+  else if (l === "only" && (v === "on" || v === "off")) await reply(await setCasual(env.DB, store, tg, cfg!, "only", v));
+  else if (l === "on" || l === "off") await reply(await setCasual(env.DB, store, tg, cfg!, l));
+  else if (l === "now") await reply(await checkNow());
+  else if (l) return void (await reply(usage));
+  const [t, kb] = await casualSettings(store, cfg!);
+  await reply(t, tg.keyboard(kb));
+}
+
 async function handleButton(
   cq: any, env: Env, tg: Telegram, store: Store, cfg: Config,
 ): Promise<void> {
@@ -782,6 +831,7 @@ function commandMenus(cfg: Config) {
       { command: "skills", description: `Skills list, e.g. /skills ${first} + Power BI` },
     ] : []),
     ...(on.finds ? [{ command: "finds", description: "Bike, bed, Kommode, carpet & free stuff alerts" }] : []),
+    ...(on.casual_jobs ? [{ command: "casual", description: "Minijobs: which town, how far around it" }] : []),
   ];
   const owner = [
     { command: "status", description: "Is it running" },
@@ -810,12 +860,13 @@ function helpLines(cfg: Config) {
   const first = cfg.jobs.people[0]?.id ?? "name";
   const finds = on.finds ? "/finds — bikes, bed, Kommode, carpet & free stuff alerts" : "";
   const jobs = on.jobs ? `/jobs — job board and where each application stands · /cv — the CVs · /skills ${first} · /jobreport` : "";
+  const casual = on.casual_jobs ? "/casual — Minijobs: which town, how far around it (anyone in the group)" : "";
   const start = on.rooms
     ? `/status — is it running\n/review — decide on ads you haven't answered\n` +
       `/pause [2h] — stop it\n` +
       `/scan — check now\n/more [n] — send more now\n` +
       `/filters — which ads qualify\n/settings — timing\n/stats — totals` + (finds ? `\n${finds}` : "")
-    : [`/status — is it running`, finds, jobs].filter(Boolean).join("\n");
+    : [`/status — is it running`, finds, jobs, casual].filter(Boolean).join("\n");
   const help = [
     ...(on.rooms ? [
       `/start — start it (also un-pauses)\n/status — is it running\n` +
@@ -826,6 +877,7 @@ function helpLines(cfg: Config) {
     ] : [`/status — is it running`]),
     ...(finds ? [`${finds} (anyone in the group)`] : []),
     ...(jobs ? [jobs] : []),
+    ...(casual ? [casual] : []),
   ].join("\n");
   return { start, help };
 }

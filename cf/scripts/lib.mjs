@@ -40,7 +40,7 @@ export function summary(c) {
     L.push(`           in ${c.jobs.cities.map((x) => `${x.name} (${x.radius_km} km)`).join(", ")}${c.jobs.remote ? ", remote" : ""}` +
       (c.jobs.student_permit ? "; student permit: no full-time jobs" : ""));
   }
-  if (c.modules.casual_jobs) L.push(`Minijobs:  ${c.city}, ${c.casual_jobs.radius_km} km`);
+  if (c.modules.casual_jobs) L.push(`Minijobs:  ${c.casual_jobs.only_city ? `${c.city} itself` : `${c.city}, ${c.casual_jobs.radius_km} km`}`);
   if (c.modules.rooms) L.push(`Rooms:     ${c.rooms.searches.length} searches for ${c.rooms.about.name}`);
   const fixed = Object.entries(c.topics).map(([k, v]) => `${k} ${v}`).join(", ");
   L.push(`Topics:    ${c.topics_mode === "none" ? "none, everything in the main chat" : fixed ? `${fixed}; the rest created when needed` : "created when needed"}`);

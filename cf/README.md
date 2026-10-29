@@ -185,8 +185,15 @@ Reinigung, Zeitung austragen, …) to their own topic, from the Jobbörse's
 Minijob filter every 30 minutes. No AI and no buttons: each card is the job,
 the pay (the hourly wage field, else a euro amount the ad names, else "not
 stated"), the times of day, the start and the description. Titles that need
-a trade or a licence are left out by a word list. Pause with kv
-`casual_on` = `0`.
+a trade or a licence are left out by a word list.
+
+`/casual` (anyone in the group) shows where it looks and changes it: the
+radius (`/casual 10`), the town (`/casual city Spremberg`), only the city
+itself rather than the towns around it (`/casual only on`, or `only_city:
+true` in the config), pause (`/casual off`) and check now. Switching "only
+the city" on also takes down the cards already posted from other towns
+(kv `casual_recheck` = `1` does the same on the next tick). Changes made
+with `/casual` are kept in D1 and win over the config.
 
 ## Tests
 

@@ -165,10 +165,85 @@ await ok("after 30 min it searches again, but known ads aren't posted twice", ()
   assert.equal(cards().length, 0);
 });
 await ok("/status has a casual jobs line", async () => {
-  assert.match(await C.casualLine(st, DB), /Casual jobs: +✅ 5 posted, checked/);
+  assert.match(await C.casualLine(st, DB), /Casual jobs: +✅ 5 posted within 25 km of Cottbus, checked/);
 });
 await st.kvSet("casual_on", "0");
 net.tg = []; await st.kvSet("casual_searched_at", "0"); await tick(47);
 await ok("kv casual_on=0 pauses it", () => { assert.equal(net.search, 2); assert.equal(cards().length, 0); });
+
+console.log("\n3. /casual: which town, how far around it");
+await st.kvSet("casual_on", "1");
+const say = async (text, from = 7, chat = -100) => {
+  net.tg = [];
+  await worker.fetch(new Request("https://w/", { method: "POST",
+    headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" },
+    body: JSON.stringify({ message: { text, from: { id: from }, chat: { id: chat }, message_thread_id: 992, is_topic_message: true } }) }), E);
+  return net.tg;
+};
+const press = async (data) => {
+  net.tg = [];
+  await worker.fetch(new Request("https://w/", { method: "POST",
+    headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" },
+    body: JSON.stringify({ callback_query: { id: "q", data, from: { id: 7 }, message: { chat: { id: -100 }, message_id: 50 } } }) }), E);
+  return net.tg;
+};
+let c = await say("/casual");
+await ok("/casual (anyone in the group): where it looks, with buttons, in the Minijobs topic", () => {
+  const m = c.find((x) => x.method === "sendMessage");
+  assert.match(m.body.text, /^🧺 <b>Minijobs<\/b> within 25 km of Cottbus\n/);
+  assert.equal(m.body.message_thread_id, 992);
+  assert.deepEqual(m.body.reply_markup.inline_keyboard.flat().map((b) => b.text), ["−5 km", "25 km", "+5 km", "⬜ only Cottbus itself", "⏸ Pause", "🔄 Check now"]);
+});
+const spremberg = row("ba:20009");
+assert.equal(spremberg.status, "posted");
+c = await say("/casual only on");
+await ok("/casual only on: the card from Spremberg comes down; the Cottbus ones stay", () => {
+  assert.match(c.find((x) => x.method === "sendMessage").body.text, /only Cottbus itself - took down 1 card from other towns/);
+  assert.deepEqual(c.filter((x) => x.method === "deleteMessage").map((x) => x.body.message_id), [spremberg.msg_id]);
+  assert.equal(row("ba:20009").status, "skipped"); assert.equal(row("ba:20009").why, "not in Cottbus");
+  assert.equal(row("ba:20001").status, "posted");
+});
+LIST.push(ad("20011", "Aushilfe Bäckerei (m/w/d)", "Bäcker Lehmann", "Kolkwitz, Niederlausitz"), ad("20012", "Aushilfe Kino (m/w/d)", "Kino Cottbus", "Cottbus"));
+DETAILS["20012"] = { stellenangebotsBeschreibung: "Kasse im Kino.", verguetungsangabe: "KEINE_ANGABEN" };
+net.tg = []; await tick(57);
+await ok("…and new ads from the towns around it aren't posted", () => {
+  assert.equal(row("ba:20011").why, "not in Cottbus");
+  assert.ok(cards().some((x) => /Kino Cottbus/.test(x.body.text)));
+  assert.ok(!cards().some((x) => /Lehmann/.test(x.body.text)));
+});
+c = await say("/casual 10");
+await ok("/casual 10: 10 km, and it looks again on the next tick", async () => {
+  assert.match(c[0].body.text, /10 km around Cottbus/);
+  net.tg = []; const before = net.search; await tick(7);
+  assert.equal(net.search, before + 1); assert.equal(net.searchUrl.searchParams.get("umkreis"), "10");
+});
+c = await press("cj:radius:+5");
+await ok("the buttons: +5 km → 15, edited in place", () => {
+  assert.equal(c.find((x) => x.method === "answerCallbackQuery").body.text, "🧺 Minijobs: 15 km around Cottbus");
+  assert.match(c.find((x) => x.method === "editMessageText").body.text, /in Cottbus only/);
+});
+c = await press("cj:only:off");
+await ok("…only off: the towns around it again", async () => {
+  assert.equal(await st.kvGet("casual_only_city"), "0");
+  assert.match(c.find((x) => x.method === "editMessageText").body.text, /within 15 km of Cottbus/);
+});
+c = await say("/casual city Spremberg");
+await ok("/casual city Spremberg: searched there from the next tick", async () => {
+  net.tg = []; await tick(17);
+  assert.equal(net.searchUrl.searchParams.get("wo"), "Spremberg");
+  await say("/casual city Cottbus");
+  assert.equal(await st.kvGet("casual_city"), "");
+});
+c = await say("/casual banana");
+await ok("anything else gets the usage", () => assert.match(c[0].body.text, /^Try \/casual/));
+c = await say("/casual", 9, 9);
+await ok("not from a stranger in a private chat", () => assert.match(c[0].body.text, /only answers to them/));
+await ok("only_city in the config does the same without a command", async () => {
+  const { normalize } = await import(SRC + "config.ts");
+  const { whereOf } = await import(SRC + "casual.ts");
+  const DB2 = makeDB(); const st2 = new Store(DB2);
+  assert.deepEqual(await whereOf(st2, normalize({ ...CONFIG, casual_jobs: { radius_km: 20, only_city: true } })), { city: "Cottbus", radius: 20, only: true });
+  assert.equal(C.inTown("Cottbus, Sandow", "Cottbus"), true); assert.equal(C.inTown("Kolkwitz, Niederlausitz", "Cottbus"), false);
+});
 
 console.log(`\nall ${pass} casual checks passed`);

@@ -93,6 +93,8 @@ jobs:
 # ============================================================
 casual_jobs:
   radius_km: 25
+  only_city: false     # true: the city itself only, not the towns around it
+  # Both can be changed later from Telegram with /casual.
 
 # ============================================================
 #  ROOMS - the room search and the replies it drafts

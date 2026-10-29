@@ -341,7 +341,7 @@ await ok('the "/" menu: shared commands for the group, all of them for the owner
   const c = net.tg.filter((x) => x.method === "setMyCommands");
   assert.equal(c.length, 3);
   const group = c.find((x) => x.body.scope.type === "chat" && x.body.scope.chat_id === "-100");
-  assert.deepEqual(group.body.commands.map((x) => x.command), ["jobs", "cv", "jobreport", "skills", "finds"]);
+  assert.deepEqual(group.body.commands.map((x) => x.command), ["jobs", "cv", "jobreport", "skills", "finds", "casual"]);
   const mine = c.find((x) => x.body.scope.type === "chat_member");
   assert.equal(mine.body.scope.user_id, 1000001);
   assert.ok(mine.body.commands.some((x) => x.command === "review") && mine.body.commands.some((x) => x.command === "jobs"));

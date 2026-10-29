@@ -22,8 +22,8 @@ Switch off what you don't need. Nothing is ever sent to a landlord or an
 employer: the bot drafts, you send.
 
 Everyone in the group can use `/jobs` (job board and where each application
-stands), `/cv`, `/jobreport`, `/skills` and `/finds` (price caps, pause, check
-now). The room search's commands (`/status`, `/review`, `/scan`, `/pause`, …)
+stands), `/cv`, `/jobreport`, `/skills`, `/finds` (price caps, pause, check
+now) and `/casual` (which town, how far around it). The room search's commands (`/status`, `/review`, `/scan`, `/pause`, …)
 are for the owner. Type `/` in the chat to see them.
 
 ## Set it up

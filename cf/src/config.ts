@@ -59,7 +59,7 @@ export interface Config {
     arbeitnow: boolean;
     people: Person[];
   };
-  casual_jobs: { radius_km: number };
+  casual_jobs: { radius_km: number; only_city: boolean };
 }
 
 const ITEM_DEFAULTS: Record<ItemKey, { max_price: number; min_rating: number }> = {
@@ -192,7 +192,7 @@ export function normalize(raw: unknown): Config {
 
   return {
     city, ka, modules, problems, topics, topics_mode, rooms, finds, jobs,
-    casual_jobs: { radius_km: num(r.casual_jobs?.radius_km, 25) },
+    casual_jobs: { radius_km: num(r.casual_jobs?.radius_km, 25), only_city: bool(r.casual_jobs?.only_city, false) },
   };
 }
 

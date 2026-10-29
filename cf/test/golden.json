@@ -38,7 +38,7 @@
    "method": "POST",
    "body": {
     "chat_id": "1000001",
-    "text": "✅ <b>Running</b> — 2 busy searches every 15 min, 1 quiet one every 3 h.\n\nwg-gesucht     ✅ ok\nKleinanzeigen  ✅ ok\n\nSent this hour:  0 of 2\nWaiting to draft: 0\nLast ad sent:    nothing sent yet\nSearches:        3\nFinds:           ✅ 🚲 ≤ 30 € · 🛏 ≤ 100 € · 🗄 ≤ 35 € · 🧶 ≤ 30 € · 🎁 ⭐ ≥ 6\nJobs:            ✅ 0 open\nCasual jobs:     ✅ 0 posted\n\nSeen so far: nothing yet\n\n/status — is it running\n/review — decide on ads you haven't answered\n/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n/filters — which ads qualify\n/settings — timing\n/stats — totals\n/finds — bikes, bed, Kommode, carpet & free stuff alerts",
+    "text": "✅ <b>Running</b> — 2 busy searches every 15 min, 1 quiet one every 3 h.\n\nwg-gesucht     ✅ ok\nKleinanzeigen  ✅ ok\n\nSent this hour:  0 of 2\nWaiting to draft: 0\nLast ad sent:    nothing sent yet\nSearches:        3\nFinds:           ✅ 🚲 ≤ 30 € · 🛏 ≤ 100 € · 🗄 ≤ 35 € · 🧶 ≤ 30 € · 🎁 ⭐ ≥ 6\nJobs:            ✅ 0 open\nCasual jobs:     ✅ 0 posted within 25 km of Cottbus\n\nSeen so far: nothing yet\n\n/status — is it running\n/review — decide on ads you haven't answered\n/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n/filters — which ads qualify\n/settings — timing\n/stats — totals\n/finds — bikes, bed, Kommode, carpet & free stuff alerts",
     "parse_mode": "HTML",
     "disable_web_page_preview": true
    }
@@ -264,6 +264,10 @@
      {
       "command": "finds",
       "description": "Bike, bed, Kommode, carpet & free stuff alerts"
+     },
+     {
+      "command": "casual",
+      "description": "Minijobs: which town, how far around it"
      }
     ],
     "scope": {
@@ -336,6 +340,10 @@
      {
       "command": "finds",
       "description": "Bike, bed, Kommode, carpet & free stuff alerts"
+     },
+     {
+      "command": "casual",
+      "description": "Minijobs: which town, how far around it"
      },
      {
       "command": "help",
@@ -416,6 +424,10 @@
      {
       "command": "finds",
       "description": "Bike, bed, Kommode, carpet & free stuff alerts"
+     },
+     {
+      "command": "casual",
+      "description": "Minijobs: which town, how far around it"
      },
      {
       "command": "help",
@@ -6370,7 +6382,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "✅ <b>Running</b> — 2 busy searches every 15 min, 1 quiet one every 3 h.\n\nwg-gesucht     ✅ ok\nKleinanzeigen  ✅ ok\n\nSent this hour:  1 of 2\nWaiting to draft: 0\nLast ad sent:    1 min ago\nSearches:        3\nWaiting on you:  1  → /review\nFinds:           ✅ 🚲 ≤ 25 € · 🛏 ≤ 80 € · 🗄 ≤ 35 € · 🧶 ≤ 30 € · 🎁 ⭐ ≥ 7, checked 1 min ago\nJobs:            ✅ 4 open, last new one 2h 58m ago\nCasual jobs:     ✅ 3 posted, checked 24 min ago\n\nSeen so far: approved 2, filtered 1, pending 1, skipped 1",
+    "text": "✅ <b>Running</b> — 2 busy searches every 15 min, 1 quiet one every 3 h.\n\nwg-gesucht     ✅ ok\nKleinanzeigen  ✅ ok\n\nSent this hour:  1 of 2\nWaiting to draft: 0\nLast ad sent:    1 min ago\nSearches:        3\nWaiting on you:  1  → /review\nFinds:           ✅ 🚲 ≤ 25 € · 🛏 ≤ 80 € · 🗄 ≤ 35 € · 🧶 ≤ 30 € · 🎁 ⭐ ≥ 7, checked 1 min ago\nJobs:            ✅ 4 open, last new one 2h 58m ago\nCasual jobs:     ✅ 3 posted within 25 km of Cottbus, checked 24 min ago\n\nSeen so far: approved 2, filtered 1, pending 1, skipped 1",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "message_thread_id": 597
@@ -6390,7 +6402,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "/start — start it (also un-pauses)\n/status — is it running\n/review — decide on ads you haven't answered\n/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n/filters — which ads qualify\n/settings — timing\n/stats — totals\n/retry — re-draft failed\n/finds — bikes, bed, Kommode, carpet & free stuff alerts (anyone in the group)\n/jobs — job board and where each application stands · /cv — the CVs · /skills diba · /jobreport",
+    "text": "/start — start it (also un-pauses)\n/status — is it running\n/review — decide on ads you haven't answered\n/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n/filters — which ads qualify\n/settings — timing\n/stats — totals\n/retry — re-draft failed\n/finds — bikes, bed, Kommode, carpet & free stuff alerts (anyone in the group)\n/jobs — job board and where each application stands · /cv — the CVs · /skills diba · /jobreport\n/casual — Minijobs: which town, how far around it (anyone in the group)",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "message_thread_id": 597
@@ -6768,7 +6780,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "Started.\n\n✅ <b>Running</b> — 2 busy searches every 20 min, 1 quiet one every 3 h.\n\nwg-gesucht     ✅ ok\nKleinanzeigen  ✅ ok\n\nSent this hour:  1 of 2\nWaiting to draft: 0\nLast ad sent:    1 min ago\nSearches:        3\nWaiting on you:  1  → /review\nFinds:           ✅ 🚲 ≤ 25 € · 🛏 ≤ 80 € · 🗄 ≤ 35 € · 🧶 ≤ 30 € · 🎁 ⭐ ≥ 7, checked 1 min ago\nJobs:            ✅ 4 open, last new one 2h 58m ago\nCasual jobs:     ✅ 3 posted, checked 24 min ago\n\nSeen so far: approved 2, filtered 1, pending 1, skipped 1\n\n/status — is it running\n/review — decide on ads you haven't answered\n/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n/filters — which ads qualify\n/settings — timing\n/stats — totals\n/finds — bikes, bed, Kommode, carpet & free stuff alerts",
+    "text": "Started.\n\n✅ <b>Running</b> — 2 busy searches every 20 min, 1 quiet one every 3 h.\n\nwg-gesucht     ✅ ok\nKleinanzeigen  ✅ ok\n\nSent this hour:  1 of 2\nWaiting to draft: 0\nLast ad sent:    1 min ago\nSearches:        3\nWaiting on you:  1  → /review\nFinds:           ✅ 🚲 ≤ 25 € · 🛏 ≤ 80 € · 🗄 ≤ 35 € · 🧶 ≤ 30 € · 🎁 ⭐ ≥ 7, checked 1 min ago\nJobs:            ✅ 4 open, last new one 2h 58m ago\nCasual jobs:     ✅ 3 posted within 25 km of Cottbus, checked 24 min ago\n\nSeen so far: approved 2, filtered 1, pending 1, skipped 1\n\n/status — is it running\n/review — decide on ads you haven't answered\n/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n/filters — which ads qualify\n/settings — timing\n/stats — totals\n/finds — bikes, bed, Kommode, carpet & free stuff alerts",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "message_thread_id": 597
@@ -6839,7 +6851,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "✅ <b>Running</b> — 2 busy searches every 20 min, 1 quiet one every 3 h.\n\nwg-gesucht     ✅ ok\nKleinanzeigen  ✅ ok\n\nSent this hour:  1 of 2\nWaiting to draft: 0\nLast ad sent:    1 min ago\nSearches:        3\nWaiting on you:  1  → /review\nFinds:           ✅ 🚲 ≤ 25 € · 🛏 ≤ 80 € · 🗄 ≤ 35 € · 🧶 ≤ 30 € · 🎁 ⭐ ≥ 7, checked 1 min ago\nJobs:            ✅ 4 open, last new one 2h 58m ago\nCasual jobs:     ✅ 3 posted, checked 24 min ago\n\nSeen so far: approved 2, filtered 1, pending 1, skipped 1\n\n/status — is it running\n/review — decide on ads you haven't answered\n/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n/filters — which ads qualify\n/settings — timing\n/stats — totals\n/finds — bikes, bed, Kommode, carpet & free stuff alerts",
+    "text": "✅ <b>Running</b> — 2 busy searches every 20 min, 1 quiet one every 3 h.\n\nwg-gesucht     ✅ ok\nKleinanzeigen  ✅ ok\n\nSent this hour:  1 of 2\nWaiting to draft: 0\nLast ad sent:    1 min ago\nSearches:        3\nWaiting on you:  1  → /review\nFinds:           ✅ 🚲 ≤ 25 € · 🛏 ≤ 80 € · 🗄 ≤ 35 € · 🧶 ≤ 30 € · 🎁 ⭐ ≥ 7, checked 1 min ago\nJobs:            ✅ 4 open, last new one 2h 58m ago\nCasual jobs:     ✅ 3 posted within 25 km of Cottbus, checked 24 min ago\n\nSeen so far: approved 2, filtered 1, pending 1, skipped 1\n\n/status — is it running\n/review — decide on ads you haven't answered\n/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n/filters — which ads qualify\n/settings — timing\n/stats — totals\n/finds — bikes, bed, Kommode, carpet & free stuff alerts",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "message_thread_id": 597
@@ -9246,6 +9258,10 @@
      {
       "command": "finds",
       "description": "Bike, bed, Kommode, carpet & free stuff alerts"
+     },
+     {
+      "command": "casual",
+      "description": "Minijobs: which town, how far around it"
      }
     ],
     "scope": {
@@ -9318,6 +9334,10 @@
      {
       "command": "finds",
       "description": "Bike, bed, Kommode, carpet & free stuff alerts"
+     },
+     {
+      "command": "casual",
+      "description": "Minijobs: which town, how far around it"
      },
      {
       "command": "help",
@@ -9395,6 +9415,10 @@
      {
       "command": "finds",
       "description": "Bike, bed, Kommode, carpet & free stuff alerts"
+     },
+     {
+      "command": "casual",
+      "description": "Minijobs: which town, how far around it"
      },
      {
       "command": "help",
@@ -10751,6 +10775,10 @@
      {
       "command": "finds",
       "description": "Bike, bed, Kommode, carpet & free stuff alerts"
+     },
+     {
+      "command": "casual",
+      "description": "Minijobs: which town, how far around it"
      }
     ],
     "scope": {
@@ -10823,6 +10851,10 @@
      {
       "command": "finds",
       "description": "Bike, bed, Kommode, carpet & free stuff alerts"
+     },
+     {
+      "command": "casual",
+      "description": "Minijobs: which town, how far around it"
      },
      {
       "command": "help",
@@ -10900,6 +10932,10 @@
      {
       "command": "finds",
       "description": "Bike, bed, Kommode, carpet & free stuff alerts"
+     },
+     {
+      "command": "casual",
+      "description": "Minijobs: which town, how far around it"
      },
      {
       "command": "help",
@@ -12923,7 +12959,7 @@
    },
    {
     "k": "commands_sent",
-    "v": "[[{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"}],[{\"command\":\"status\",\"description\":\"Is it running\"},{\"command\":\"review\",\"description\":\"Decide on WG ads you haven't answered\"},{\"command\":\"scan\",\"description\":\"Check for WG ads now\"},{\"command\":\"more\",\"description\":\"Send more WG ads now\"},{\"command\":\"pause\",\"description\":\"Stop the WG search, e.g. /pause 2h\"},{\"command\":\"start\",\"description\":\"Start (also un-pauses)\"},{\"command\":\"filters\",\"description\":\"Which WG ads qualify\"},{\"command\":\"settings\",\"description\":\"Timing\"},{\"command\":\"stats\",\"description\":\"Totals\"},{\"command\":\"retry\",\"description\":\"Re-draft failed replies\"},{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"help\",\"description\":\"All commands\"}]]"
+    "v": "[[{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"}],[{\"command\":\"status\",\"description\":\"Is it running\"},{\"command\":\"review\",\"description\":\"Decide on WG ads you haven't answered\"},{\"command\":\"scan\",\"description\":\"Check for WG ads now\"},{\"command\":\"more\",\"description\":\"Send more WG ads now\"},{\"command\":\"pause\",\"description\":\"Stop the WG search, e.g. /pause 2h\"},{\"command\":\"start\",\"description\":\"Start (also un-pauses)\"},{\"command\":\"filters\",\"description\":\"Which WG ads qualify\"},{\"command\":\"settings\",\"description\":\"Timing\"},{\"command\":\"stats\",\"description\":\"Totals\"},{\"command\":\"retry\",\"description\":\"Re-draft failed replies\"},{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"},{\"command\":\"help\",\"description\":\"All commands\"}]]"
    },
    {
     "k": "cookies",
@@ -13854,7 +13890,7 @@
    },
    {
     "k": "commands_sent",
-    "v": "[[{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"}],[{\"command\":\"status\",\"description\":\"Is it running\"},{\"command\":\"review\",\"description\":\"Decide on WG ads you haven't answered\"},{\"command\":\"scan\",\"description\":\"Check for WG ads now\"},{\"command\":\"more\",\"description\":\"Send more WG ads now\"},{\"command\":\"pause\",\"description\":\"Stop the WG search, e.g. /pause 2h\"},{\"command\":\"start\",\"description\":\"Start (also un-pauses)\"},{\"command\":\"filters\",\"description\":\"Which WG ads qualify\"},{\"command\":\"settings\",\"description\":\"Timing\"},{\"command\":\"stats\",\"description\":\"Totals\"},{\"command\":\"retry\",\"description\":\"Re-draft failed replies\"},{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"help\",\"description\":\"All commands\"}]]"
+    "v": "[[{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"}],[{\"command\":\"status\",\"description\":\"Is it running\"},{\"command\":\"review\",\"description\":\"Decide on WG ads you haven't answered\"},{\"command\":\"scan\",\"description\":\"Check for WG ads now\"},{\"command\":\"more\",\"description\":\"Send more WG ads now\"},{\"command\":\"pause\",\"description\":\"Stop the WG search, e.g. /pause 2h\"},{\"command\":\"start\",\"description\":\"Start (also un-pauses)\"},{\"command\":\"filters\",\"description\":\"Which WG ads qualify\"},{\"command\":\"settings\",\"description\":\"Timing\"},{\"command\":\"stats\",\"description\":\"Totals\"},{\"command\":\"retry\",\"description\":\"Re-draft failed replies\"},{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"},{\"command\":\"help\",\"description\":\"All commands\"}]]"
    },
    {
     "k": "cookies",
@@ -14691,7 +14727,7 @@
    },
    {
     "k": "commands_sent",
-    "v": "[[{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"}],[{\"command\":\"status\",\"description\":\"Is it running\"},{\"command\":\"review\",\"description\":\"Decide on WG ads you haven't answered\"},{\"command\":\"scan\",\"description\":\"Check for WG ads now\"},{\"command\":\"more\",\"description\":\"Send more WG ads now\"},{\"command\":\"pause\",\"description\":\"Stop the WG search, e.g. /pause 2h\"},{\"command\":\"start\",\"description\":\"Start (also un-pauses)\"},{\"command\":\"filters\",\"description\":\"Which WG ads qualify\"},{\"command\":\"settings\",\"description\":\"Timing\"},{\"command\":\"stats\",\"description\":\"Totals\"},{\"command\":\"retry\",\"description\":\"Re-draft failed replies\"},{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"help\",\"description\":\"All commands\"}]]"
+    "v": "[[{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"}],[{\"command\":\"status\",\"description\":\"Is it running\"},{\"command\":\"review\",\"description\":\"Decide on WG ads you haven't answered\"},{\"command\":\"scan\",\"description\":\"Check for WG ads now\"},{\"command\":\"more\",\"description\":\"Send more WG ads now\"},{\"command\":\"pause\",\"description\":\"Stop the WG search, e.g. /pause 2h\"},{\"command\":\"start\",\"description\":\"Start (also un-pauses)\"},{\"command\":\"filters\",\"description\":\"Which WG ads qualify\"},{\"command\":\"settings\",\"description\":\"Timing\"},{\"command\":\"stats\",\"description\":\"Totals\"},{\"command\":\"retry\",\"description\":\"Re-draft failed replies\"},{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"},{\"command\":\"help\",\"description\":\"All commands\"}]]"
    },
    {
     "k": "cookies",
