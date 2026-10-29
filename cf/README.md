@@ -155,8 +155,9 @@ application tracker. Sources: the Bundesagentur's Jobbörse (keyword searches
 around Berlin and Cottbus, two per tick in rotation) and the Arbeitnow feed
 (Berlin, Cottbus, remote; every 2 h). Rules drop senior/lead roles,
 Ausbildung and off-topic titles; one cheap AI call per remaining job says who
-it's for, why, the gaps, German level, hours, start and deadline, and flags
-full-time roles a student permit doesn't cover.
+it's for, why, the gaps, German level, hours, start and deadline. Full-time
+roles are dropped (a student permit doesn't cover them): by the listed hours
+when the title isn't Werkstudent, intern, thesis or part-time, else by the AI.
 
 Buttons: ✍️ Cover letter (written on tap, from the CV, in the ad's language),
 ✅ Applied, 🔁 Already applied, ⏭ Skip, then 🗓 Interview / ❌ Rejected / 🎉
@@ -168,7 +169,8 @@ and the one skill most asked for. Open to everyone in the group.
 CVs: send the PDF in the chat and answer it with `/cv diba`; `/cv` sends it
 back, and it comes with every cover letter (Telegram keeps the file, D1 only
 its id). To re-post the cards nobody has pressed yet (say, after a layout
-change), set kv `jobs_repost` to `1`; the next jobs tick does it once.
+change), set kv `jobs_repost` to `1`; `recheck` also runs them through the
+rules and the AI again (after a rule change). The next jobs tick does it once.
 
 The "/" menu is sent to Telegram by the jobs tick whenever the command list
 in `src/index.ts` changes: the shared commands for the group, all of them for

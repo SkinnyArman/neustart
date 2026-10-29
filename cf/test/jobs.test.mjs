@@ -27,7 +27,10 @@ const BA_RESULTS = [
   baJob("10003", "Ausbildung Fachinformatiker Daten- und Prozessanalyse", "Stadtwerke Cottbus", "Cottbus", "AUSBILDUNG"),
   baJob("10004", "Werkstudent Frontend Entwicklung React (m/w/d)", "N26 GmbH", "Berlin", "PRAKTIKUM_TRAINEE"),
   baJob("10005", "Sachbearbeiter Buchhaltung (m/w/d)", "LEAG", "Cottbus"),
-  baJob("10006", "Data Engineer (m/w/d)", "Vattenfall GmbH", "Berlin", "ARBEIT", true),
+  baJob("10006", "Data Engineer (m/w/d) - Teilzeit", "Vattenfall GmbH", "Berlin", "ARBEIT", true),   // full-time listing, part-time title: kept
+  baJob("10008", "Junior Data Analyst (m/w/d)", "Siemens AG", "Berlin", "ARBEIT", true),                // full-time: dropped by rule
+  baJob("10009", "Data Scientist (m/w/d)", "Statista GmbH", "Berlin"),                                  // AI: full-time
+  baJob("10010", "Werkstudent Data Science (m/w/d)", "SAP SE", "Berlin", "ARBEIT", true),               // student title wins
   baJob("10007", "Werkstudent Marketing Analytics (m/w/d)", "HelloFresh SE", "Berlin", "PRAKTIKUM_TRAINEE"),   // AI: none
 ];
 const ARBEITNOW = [
@@ -69,7 +72,8 @@ globalThis.fetch = async (url, init = {}) => {
     assert.equal(body.model, "gpt-5.6-luna");
     const v = /Marketing/.test(title) ? { for: "none", reason: "marketing, not data science" }
       : /Frontend|React/.test(title) ? { for: "arman", kind: "werkstudent", why: "React Native work fits their React stack", gaps: [], german: "B2", hours: "20 h/week", start: "asap", deadline: "", lang: "de", skills: ["React", "TypeScript"] }
-      : /Data Engineer/.test(title) ? { for: "diba", kind: "full-time", why: "SQL pipelines from her last job", gaps: ["Airflow - mention the Python automation"], german: "C1", hours: "40 h", start: "", deadline: "30.11.", lang: "de", skills: ["Airflow", "SQL", "Tableau"] }
+      : /^Data Scientist/.test(title) ? { for: "diba", kind: "full-time", why: "fits her ML work", gaps: [], german: "C1", hours: "40 h", start: "", deadline: "", lang: "de", skills: ["Python"] }
+      : /Data Engineer/.test(title) ? { for: "diba", kind: "part-time", why: "SQL pipelines from her last job", gaps: ["Airflow - mention the Python automation"], german: "C1", hours: "20 h", start: "", deadline: "30.11.", lang: "de", skills: ["Airflow", "SQL", "Tableau"] }
       : { for: "diba", kind: "werkstudent", why: "Dashboards and SQL from her last job fit this analyst role", gaps: ["Tableau - mention Power BI and Metabase"], german: "B2", hours: "20 h/week", start: "asap", deadline: "15.11.", lang: /Working Student/.test(title) ? "en" : "de", skills: ["SQL", "Python", "Tableau"] };
     return Response.json({ choices: [{ message: { content: JSON.stringify(v) } }] });
   }
@@ -107,11 +111,18 @@ const row = (DB, id) => ({ ...DB.raw.prepare("SELECT * FROM jobs WHERE id=?").ge
 console.log("\n1. rules and dedupe (no AI)");
 await ok("senior, lead, Ausbildung, freelance and off-topic titles are dropped", () => {
   for (const t of ["Senior Data Scientist (m/w/d)", "Lead Frontend Engineer", "Head of Data", "Teamleiter BI",
-    "Ausbildung Fachinformatiker Daten- und Prozessanalyse", "Freelance React Developer", "Sachbearbeiter Buchhaltung (m/w/d)"])
+    "Ausbildung Fachinformatiker Daten- und Prozessanalyse", "Freelance React Developer", "Sachbearbeiter Buchhaltung (m/w/d)",
+    "Data Analyst (m/w/d) in Vollzeit"])
     assert.ok(J.jobRejectReason(t), t);
   for (const t of ["Werkstudent Data Analyst (m/w/d)", "Working Student Machine Learning", "Junior Data Engineer",
     "Werkstudent Frontend Entwicklung React (m/w/d)", "Business Intelligence Analyst", "Werkstudent Softwareentwicklung"])
     assert.equal(J.jobRejectReason(t), null, t);
+});
+await ok("full-time listings are dropped unless the title says Werkstudent, intern, thesis or part-time", () => {
+  assert.equal(J.jobRejectReason("Junior Data Engineer", undefined, "full-time"), "full-time");
+  assert.equal(J.jobRejectReason("Data Analyst", undefined, "Full Time"), "full-time");
+  for (const t of ["Werkstudent Data Analyst", "Working Student BI", "Praktikum Data Science", "Masterarbeit Machine Learning", "Data Analyst (Teilzeit)", "Data Engineer part-time"])
+    assert.equal(J.jobRejectReason(t, undefined, "full-time"), null, t);
 });
 await ok("the same job from two sources has the same key (legal form and (m/w/d) ignored)", () =>
   assert.equal(J.dedupeKey("Zalando SE", "Werkstudent Data Analyst (m/w/d)"), J.dedupeKey("Zalando", "Werkstudent Data Analyst")));
@@ -126,6 +137,7 @@ await ok("one tick: 2 Jobbörse searches + Arbeitnow; dupes across sources merge
   assert.equal(DB.raw.prepare("SELECT COUNT(*) n FROM jobs WHERE company='Zalando'").get().n, 0);   // Arbeitnow copy of the Zalando job
   assert.equal(row(DB, "ba:10002").why, "senior or lead role");
   assert.equal(row(DB, "ba:10005").why, "not data or frontend work");
+  assert.equal(row(DB, "ba:10008").why, "full-time");
   assert.equal(DB.raw.prepare("SELECT COUNT(*) n FROM jobs WHERE id='ba:10003'").get().n, 0);       // Ausbildung never stored
 });
 await ok("matching: Jobbörse jobs get their description fetched; Arbeitnow's comes with the feed", () => {
@@ -135,8 +147,10 @@ await ok("matching: Jobbörse jobs get their description fetched; Arbeitnow's co
 for (let i = 0; i < 3; i++) await J.jobsStep(E, st, tg);
 await ok("the AI's 'none' isn't posted; everything else is, in topic 965", () => {
   assert.equal(row(DB, "ba:10007").why, "ai: marketing, not data science");
+  assert.equal(row(DB, "ba:10009").why, "ai: full-time");
   const cards = sent().filter((c) => c.body.text.startsWith("💼"));
-  assert.equal(cards.length, 4);
+  assert.equal(cards.length, 5);
+  assert.ok(!cards.some((c) => /Statista|Siemens/.test(c.body.text)));
   assert.ok(cards.every((c) => c.body.message_thread_id === 965));
 });
 const cardOf = (t) => sent().find((c) => c.body.text.startsWith("💼") && c.body.text.includes(t));
@@ -148,8 +162,8 @@ await ok("card: who it's for, Werkstudent, why, gaps, German level, hours, deadl
   assert.match(c, /German: B2 · ⏱ 20 h\/week · 📅 start asap · ⏳ apply by 15\.11\./);
   assert.ok(!/⭐|\b\d+\/10\b/.test(c));
 });
-await ok("a full-time role is flagged for the student permit; Arman's React job is his", () => {
-  assert.match(cardOf("Data Engineer").body.text, /⚠️ Full-time - more than a student permit allows/);
+await ok("a part-time job says so; Arman's React job is his", () => {
+  assert.match(cardOf("Data Engineer").body.text, /⏱ Part-time/);
   assert.match(cardOf("Frontend").body.text, /🧑‍💻 For Arman/);
 });
 await ok("buttons on a new card: cover letter, applied, already applied, skip", () => {
@@ -302,6 +316,19 @@ await ok("kv jobs_repost=1: untouched cards are deleted and posted again, once; 
   assert.equal(await st.kvGet("jobs_repost"), "0");
   net.tg = []; await J.jobsStep(E, st, tg);
   assert.ok(!net.tg.some((c) => c.method === "deleteMessage"));
+});
+
+await ok("kv jobs_repost=recheck: full-time cards come down for good; the rest are matched again and re-posted", async () => {
+  const open = DB.raw.prepare("SELECT id FROM jobs WHERE status='posted'").all().map((r) => r.id);
+  const keep = open.find((id) => id !== "ba:10001");
+  DB.raw.prepare("UPDATE jobs SET kind='full-time', title='AI Engineer (m/w/d)' WHERE id=?").run(keep);   // posted before the rule
+  await st.kvSet("jobs_repost", "recheck");
+  net.calls = []; net.tg = []; await J.jobsStep(E, st, tg);
+  assert.equal(net.tg.filter((c) => c.method === "deleteMessage").length, open.length);
+  assert.equal(row(DB, keep).status, "skipped"); assert.equal(row(DB, keep).why, "full-time"); assert.equal(row(DB, keep).msg_id, null);
+  for (let i = 0; i < 3; i++) await J.jobsStep(E, st, tg);
+  assert.ok(net.calls.length > 0, "the others went back to the AI");
+  assert.equal(DB.raw.prepare("SELECT COUNT(*) n FROM jobs WHERE status='posted'").get().n, open.length - 1);
 });
 
 await ok('the "/" menu: shared commands for the group, all of them for the owner; sent once', async () => {

@@ -11,7 +11,7 @@
 // Rules drop the obvious misses for free (senior/lead roles, Ausbildung,
 // titles that aren't data or frontend work). One cheap AI call per remaining
 // job decides who it's for, why, what's missing, the German level, hours,
-// start, deadline - and flags full-time roles a student permit can't cover.
+// start, deadline. Full-time roles are dropped: a student permit can't cover them.
 // Cover letters are only written on request, with the better model.
 //
 // Personal data (profiles, CV text, skills) lives in D1 (kv jobs_people,
@@ -82,11 +82,16 @@ const ON_TOPIC: Record<Who, RegExp> = {
   arman: /frontend|front-end|react|javascript|typescript|web ?entwick|web ?develop|software|developer|entwickler|engineer|programm|backend|fullstack|full-stack|mobile|\bapp\b|ios|android/,
 };
 
-/** Why a job is clearly not for anyone searching, by title, or null. */
-export function jobRejectReason(title: string, active: Who[] = WHO): string | null {
+// a full-time listing is still fine when the title says it's for students or part-time
+const STUDENT = /werkstudent|working student|studentische|student job|praktik|intern|thesis|abschlussarbeit|masterarbeit|teilzeit|part[- ]?time/;
+const FULL_TIME = /full[- ]?time|vollzeit/;
+
+/** Why a job is clearly not for anyone searching, by title and listed hours, or null. */
+export function jobRejectReason(title: string, active: Who[] = WHO, kind = ""): string | null {
   const t = title.toLowerCase();
   if (SENIOR.test(t)) return "senior or lead role";
   if (NOT_A_JOB.test(t)) return "apprenticeship, freelance or similar";
+  if ((FULL_TIME.test(kind.toLowerCase()) || FULL_TIME.test(t)) && !STUDENT.test(t)) return "full-time";
   if (!active.some((w) => ON_TOPIC[w].test(t))) return `not ${active.map((w) => (w === "diba" ? "data" : "frontend")).join(" or ")} work`;
   return null;
 }
@@ -219,9 +224,9 @@ DIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analyti
 ARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.
 
 Return JSON only:
-{"for": "diba"|"arman"|"both"|"none", "reason": string, "kind": "werkstudent"|"internship"|"thesis"|"junior"|"full-time"|"other", "why": string, "gaps": [string], "german": string, "hours": string, "start": string, "deadline": string, "lang": "de"|"en", "skills": [string]}
+{"for": "diba"|"arman"|"both"|"none", "reason": string, "kind": "werkstudent"|"internship"|"thesis"|"part-time"|"other", "why": string, "gaps": [string], "german": string, "hours": string, "start": string, "deadline": string, "lang": "de"|"en", "skills": [string]}
 
-for: who should apply, from the profiles below. "none" only for senior roles, unrelated work, roles needing far more experience than they have, and roles requiring native German. A full-time junior or entry-level role is NOT "none": return it with kind "full-time" (it gets a warning, and companies sometimes offer such roles part-time). If "none", give reason (max 8 words) and leave the rest empty.
+for: who should apply, from the profiles below. "none" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If "none", give reason (max 8 words, "full-time" for full-time jobs) and leave the rest empty.
 why: one line, under 110 characters, why it fits that person - name the concrete overlap.
 gaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. "dbt - mention the SQL reporting pipelines from the last job").
 german: the German level the ad needs, short ("C1 / fluent", "basic", "not needed"). hours: hours a week if stated, else "". start/deadline: as stated, else "". lang: the ad's language.
@@ -254,6 +259,7 @@ async function match(env: JobsEnv, p: Record<Who, Person>, row: JobRow, text: st
   let who: Facts["for"] = ["diba", "arman", "both"].includes(d.for) ? d.for : "none";
   if (who === "both" && active.length === 1) who = active[0];
   if ((who === "diba" || who === "arman") && !active.includes(who)) who = "none";
+  if (d.kind === "full-time") { who = "none"; d.reason = "full-time"; }
   return {
     for: who,
     reason: String(d.reason ?? "").slice(0, 80), kind: String(d.kind ?? "other"),
@@ -320,7 +326,7 @@ async function collect(db: D1Database, store: Store): Promise<string> {
     if (known.has(f.id) || known.has(dkey)) continue;
     known.add(f.id); known.add(dkey);
     fresh++;
-    const why = jobRejectReason(f.title, active);
+    const why = jobRejectReason(f.title, active, f.kind);
     if (!why) keep++;
     await db.prepare(
       `INSERT OR IGNORE INTO jobs (id,dkey,source,title,company,place,url,remote,kind,text,status,why,first_seen)
@@ -360,7 +366,7 @@ async function assess(env: JobsEnv, store: Store, tg: Telegram): Promise<string>
 // ---------------------------------------------------------------- the card
 const KIND: Record<string, string> = {
   werkstudent: "🎓 Werkstudent", internship: "📝 Internship", thesis: "📚 Thesis",
-  junior: "💼 Junior", "full-time": "⚠️ Full-time - more than a student permit allows", other: "💼 Job",
+  "part-time": "⏱ Part-time", junior: "💼 Junior", other: "💼 Job",
 };
 const STATUS: Record<string, string> = {
   posted: "", applied: "✅ Applied", already: "🔁 Applied before", interview: "🗓 Interview",
@@ -438,15 +444,22 @@ async function post(env: JobsEnv, tg: Telegram): Promise<number> {
 
 /**
  * kv jobs_repost=1: delete the cards nobody has pressed a button on yet and
- * post them again (in the current layout). Runs once, then clears the flag.
+ * post them again (in the current layout). jobs_repost=recheck: the same, but
+ * they go through the rules and the AI again first (after a rule change).
+ * Runs once, then clears the flag.
  */
 async function repost(db: D1Database, store: Store, tg: Telegram): Promise<number> {
-  if ((await store.kvGet("jobs_repost")) !== "1") return 0;
+  const mode = await store.kvGet("jobs_repost");
+  if (mode !== "1" && mode !== "recheck") return 0;
   await store.kvSet("jobs_repost", "0");
-  const { results } = await db.prepare("SELECT id, msg_id FROM jobs WHERE status='posted'").all<{ id: string; msg_id: number | null }>();
+  const active = await activePeople(store);
+  const { results } = await db.prepare("SELECT id, msg_id, title, kind FROM jobs WHERE status='posted'")
+    .all<{ id: string; msg_id: number | null; title: string; kind: string | null }>();
   for (const r of results ?? []) {
     if (r.msg_id) try { await tg.deleteMessage(r.msg_id); } catch { /* already gone or too old */ }
-    await setJob(db, r.id, { status: "ready", msg_id: null });
+    const why = mode === "recheck" ? jobRejectReason(r.title, active, r.kind ?? "") : null;
+    await setJob(db, r.id, mode === "1" ? { status: "ready", msg_id: null }
+      : why ? { status: "skipped", why, msg_id: null } : { status: "new", attempts: 0, msg_id: null });
   }
   return results?.length ?? 0;
 }
