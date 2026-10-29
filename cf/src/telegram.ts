@@ -61,6 +61,12 @@ export class Telegram {
     });
   }
 
+  editMarkup(chatId: number | string, messageId: number, rows: Button[][]) {
+    return this.call("editMessageReplyMarkup", {
+      chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: rows },
+    });
+  }
+
   clearKeyboard(chatId: number | string, messageId: number) {
     return this.call("editMessageReplyMarkup", {
       chat_id: chatId, message_id: messageId,

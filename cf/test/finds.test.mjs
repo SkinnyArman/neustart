@@ -289,6 +289,15 @@ await ok("beds: wrong size, kids'/bunk/pet beds, mattress or slats alone → no"
   };
   for (const [t, why] of Object.entries(no)) assert.equal(B.bedRejectReason(t), why, t);
 });
+await ok("beds: the AI's most common 'no' last week is now caught by rules (size in the preview too)", () => {
+  const no = [["Bettgestell mit Lattenrost", "Verkaufe Bett 100x200 mit Lattenrost"], ["Boxspringbett", "Liegefläche 1,20 m"],
+    ["Bett, Einzelbett", ""], ["DDR Klappbett", ""], ["elektrisches Luftbett", ""], ["Schlafcouch", ""],
+    ["3 unbenutzte Gewichts/Entspannungsdecken", ""], ["2x Boxen grau mit Aufbewahrung", ""],
+    ["IKEA Malm 2 Schubladen fürs Bett neu in OVP weiß", ""]];
+  for (const [t, sn] of no) assert.ok(B.bedRejectReason(t, sn), t);
+  assert.equal(B.bedRejectReason("Massives Holzbett", "Bett 140x200, Eiche"), null);
+  assert.equal(B.bedRejectReason("Ikea Lyksele Bett / Couch 140x200", ""), null);
+});
 await ok("beds: 140 wide is a clear yes; no size stated → the AI reads the ad", () => {
   for (const t of ["IKEA Brimnes Bett 140x200 cm mit 4 Schubladen", "Boxspringbett 140 x 200 grau",
     "Bett 1,40 m mit Lattenrost", "Ikea Lyksele Bett / Couch 140x200", "Polsterbett 140er grau"]) {
@@ -689,10 +698,23 @@ console.log("\n4c. forum topics");
     await Promise.all(waits);
   }
   console.log = log;
-  await ok("a WG draft (card + text to copy) lands in the WG topic, 597", () => {
-    assert.ok(posts().length >= 2, JSON.stringify(net.tgCalls.map((c) => c.method)));
+  await ok("a new room goes out as a card in the WG topic, 597 - no draft, no AI call yet", () => {
+    assert.ok(posts().length >= 1, JSON.stringify(net.tgCalls.map((c) => c.method)));
     assert.ok(posts().every((p) => p.body.message_thread_id === 597));
-    assert.ok(posts().some((p) => /Hallo, ich bin Arman!/.test(p.body.text ?? "")));
+    assert.ok(!posts().some((p) => /Hallo, ich bin Arman!/.test(p.body.text ?? "")));
+    assert.equal(posts()[0].body.reply_markup.inline_keyboard[0][0].text, "✍️ Draft reply");
+  });
+  const card = posts()[0];
+  net.tgCalls = [];
+  await worker.fetch(new Request("https://w/", { method: "POST",
+    headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" },
+    body: JSON.stringify({ callback_query: { id: "q", data: card.body.reply_markup.inline_keyboard[0][0].callback_data,
+      from: { id: 1000001 }, message: { chat: { id: -100 }, message_id: 9, message_thread_id: 597 } } }) }), E);
+  await ok("tapping Draft reply writes it then, into the WG topic, with Approve / Rewrite / Skip", () => {
+    const d = posts().find((p) => /Hallo, ich bin Arman!/.test(p.body.text ?? ""));
+    assert.ok(d, JSON.stringify(net.tgCalls.map((c) => c.method)));
+    assert.equal(d.body.message_thread_id, 597);
+    assert.deepEqual(d.body.reply_markup.inline_keyboard[0].map((b) => b.text), ["Approve", "Rewrite", "Skip"]);
   });
   const post = async (u) => { net.tgCalls = []; await worker.fetch(new Request("https://w/", { method: "POST",
     headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" }, body: JSON.stringify(u) }), E);

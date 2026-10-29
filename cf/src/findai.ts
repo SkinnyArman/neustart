@@ -140,7 +140,7 @@ export async function assessItem(
   apiKey: string, model: string, item: ItemKey, ad: FoundAd,
 ): Promise<Assessment> {
   let text = ad.text.trim();
-  if (text.length > 2500) text = text.slice(0, 2500) + " […]";
+  if (text.length > 1200) text = text.slice(0, 1200) + " […]";
   const facts = Object.entries(ad.details).map(([k, v]) => `${k}: ${v}`).join("\n");
   const user =
     `Title: ${ad.title}\nPrice: ${ad.price || "not stated"}\nPlace: ${ad.place || "unknown"}\n` +

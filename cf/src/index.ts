@@ -208,35 +208,41 @@ async function draftOne(
   const flat = /^\d+$/.test(n) ? `WG · ${n} Mitbewohner` : row.flatmates;
   const ready: AdRow = { ...row, flatmates: flat };
 
-  // A failure here must count as an attempt. Otherwise the ad stays queued
-  // and every 2-minute tick re-fetches the same detail page - an outage at
-  // OpenAI would turn into 30 requests an hour against one listing.
-  let draft;
+  // No draft yet: most rooms get skipped at a glance, so the (pricier) draft
+  // is only written when you tap "Draft reply". The card goes out first;
+  // the ad text and listing facts are kept for the draft.
   try {
-    draft = await compose(env.OPENAI_API_KEY, env.OPENAI_MODEL, profile, {
-      title: row.title, rent: row.rent, size: row.size,
-      district: row.district, text, flatmates: flat, details,
-    });
-  } catch (e) {
-    await store.noteFailure(row.ad_id);
-    await aiFailed(store, tg, e);
-    throw e;
-  }
-  await aiWorked(store);
-
-  // Deliver FIRST, then mark it done. Marking first meant a failed send
-  // looked like a success: the ad showed as 'pending' with a pushed_at
-  // timestamp while nothing ever reached Telegram.
-  try {
-    await push(tg, ready, draft.language, draft.facts_used, draft.thin_ad, draft.message, wgTopic(env));
+    await pushCard(tg, ready, wgTopic(env));
   } catch (e: any) {
-    // keep the draft so we don't pay OpenAI twice, but leave it queued
-    await store.keepDraft(row.ad_id, draft.language, text, draft.message);
+    await store.noteFailure(row.ad_id);
     console.error(`delivery failed for ${row.ad_id}:`, e?.message ?? e);
     throw new Error(`Telegram delivery failed: ${e?.message ?? e}`);
   }
-  await store.saveDraft(row.ad_id, draft.language, text, draft.message, flat);
+  await store.saveDraft(row.ad_id, "", text, "", flat);
+  if (Object.keys(details).length) await store.kvSet(`details:${row.ad_id}`, JSON.stringify(details));
   return `sent ${row.ad_id}`;
+}
+
+/** Write the reply for one room, on request; returns false if OpenAI failed. */
+async function draftFor(
+  env: Env, tg: Telegram, store: Store, profile: Profile, row: AdRow, retryNote = "",
+): Promise<boolean> {
+  const raw = await store.kvGet(`details:${row.ad_id}`);
+  let draft;
+  try {
+    draft = await compose(env.OPENAI_API_KEY, env.OPENAI_MODEL, profile, {
+      title: row.title, rent: row.rent, size: row.size, district: row.district,
+      text: row.ad_text, flatmates: row.flatmates, details: raw ? JSON.parse(raw) : undefined,
+    }, retryNote);
+  } catch (e) {
+    await aiFailed(store, tg, e);
+    console.error(`draft failed for ${row.ad_id}:`, (e as any)?.message ?? e);
+    return false;
+  }
+  await aiWorked(store);
+  await store.saveDraft(row.ad_id, draft.language, row.ad_text ?? "", draft.message);
+  await tg.send(`<pre>${esc(draft.message)}</pre>`, { ...tg.keyboard(adKeyboard(row.ad_id)), ...wgTopic(env) });
+  return true;
 }
 
 /** One screen that answers "is this thing working?" */
@@ -291,20 +297,6 @@ export async function statusReport(env: Env, store: Store, profile: Profile): Pr
 }
 
 
-function header(row: AdRow, lang: string, used: string[], thin: boolean): string {
-  const flag = lang === "de" ? "DE" : "EN";
-  const site = SITE[sourceOfId(row.ad_id)];
-  const warn = thin ? " · <i>thin ad</i>" : "";
-  const extra = used.length ? `\n<i>used: ${esc(used.join(", "))}</i>` : "";
-  return (
-    `<b>${esc(row.title || "Untitled")}</b>\n` +
-    `${esc(row.rent || "?")} · ${esc(row.size || "?")} · ${esc(row.district || "?")}\n` +
-    (row.flatmates ? `${esc(row.flatmates)}\n` : "") +
-    `written in <b>${flag}</b> · via ${site}${warn}${extra}\n` +
-    `<a href="${esc(row.url)}">open the Anzeige</a>`
-  );
-}
-
 // ------------------------------------------------------------- review
 // /review walks through ads that were sent but never approved or skipped.
 
@@ -318,7 +310,7 @@ function sentAgo(ts: number | null): string {
 
 /** The ad and its draft as one message (the draft stays tap-to-copy). */
 function adBlock(row: AdRow): string {
-  const draft = (row.message ?? "(no draft stored)").slice(0, 3200);  // 4096 cap
+  const draft = (row.message || "(no draft yet — tap Draft reply on the room's card)").slice(0, 3200);  // 4096 cap
   return (
     `<b>${esc(row.title || "Untitled")}</b>\n` +
     `${esc(row.rent || "?")} · ${esc(row.size || "?")} · ${esc(row.district || "?")}\n` +
@@ -345,24 +337,30 @@ const reviewDone = (left: number) => left
   ? `Done for now — ${left} you put off with Later are still waiting. /review to go through them again.`
   : "✅ All caught up — nothing left to decide.";
 
+const cardKeyboard = (id: string): Button[][] => [[
+  { text: "✍️ Draft reply", callback_data: `dr:${id}` },
+  { text: "Skip", callback_data: `no:${id}` },
+]];
+
 const adKeyboard = (id: string): Button[][] => [[
   { text: "Approve", callback_data: `ok:${id}` },
   { text: "Rewrite", callback_data: `re:${id}` },
   { text: "Skip", callback_data: `no:${id}` },
 ]];
 
-async function push(
-  tg: Telegram, row: AdRow, lang: string, used: string[], thin: boolean, message: string,
-  topic: Record<string, unknown> = {},
-) {
-  const head = header(row, lang, used, thin);
+/** The room on its own, with "Draft reply" / "Skip". */
+async function pushCard(tg: Telegram, row: AdRow, topic: Record<string, unknown> = {}) {
+  const head =
+    `<b>${esc(row.title || "Untitled")}</b>\n` +
+    `${esc(row.rent || "?")} · ${esc(row.size || "?")} · ${esc(row.district || "?")}\n` +
+    (row.flatmates ? `${esc(row.flatmates)}\n` : "") +
+    `via ${SITE[sourceOfId(row.ad_id)]} · <a href="${esc(row.url)}">open the Anzeige</a>`;
+  const kb = { ...tg.keyboard(cardKeyboard(row.ad_id)), ...topic };
   if (row.image) {
-    try { await tg.sendPhoto(row.image, head, undefined, topic); }
-    catch { await tg.send(head, topic); }
-  } else {
-    await tg.send(head, topic);
+    try { await tg.sendPhoto(row.image, head, undefined, kb); return; }
+    catch { /* fall through to text */ }
   }
-  await tg.send(`<pre>${esc(message)}</pre>`, { ...tg.keyboard(adKeyboard(row.ad_id)), ...topic });
+  await tg.send(head, kb);
 }
 
 // ------------------------------------------------------------- webhook
@@ -732,17 +730,21 @@ async function handleButton(
     return;
   }
 
+  if (action === "dr") {
+    await tg.answerCallback(cq.id, "Drafting…");
+    // the card keeps only Skip while the draft is written
+    try { await tg.editMarkup(chat, msgId, [[{ text: "Skip", callback_data: `no:${adId}` }]]); } catch { /* old card */ }
+    if (!(await draftFor(env, tg, store, profile, row)))
+      await tg.send("Couldn't write the draft right now — tap Draft reply again in a bit.", wgTopic(env));
+    return;
+  }
+
   if (action === "re") {
     await tg.answerCallback(cq.id, "Rewriting…");
     await tg.clearKeyboard(chat, msgId);
-    const draft = await compose(
-      env.OPENAI_API_KEY, env.OPENAI_MODEL, profile,
-      { title: row.title, rent: row.rent, size: row.size,
-        district: row.district, text: row.ad_text, flatmates: row.flatmates },
+    await draftFor(env, tg, store, profile, row,
       "The previous draft was rejected. Take a noticeably different angle, " +
       "open with a different detail, and vary the rhythm.");
-    await store.saveDraft(adId, draft.language, row.ad_text ?? "", draft.message);
-    await push(tg, row, draft.language, draft.facts_used, draft.thin_ad, draft.message, wgTopic(env));
   }
 }
 

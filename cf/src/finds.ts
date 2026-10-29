@@ -161,6 +161,10 @@ const METRE = /\b([0-2])[,.](\d0?)\s*(?:m\b|meter|x)/g;
 const SAYS_140 = /(?<![\d.,])140(?:\s*(?:x|×|\*|cm|er|breit)|\b)|\b1[,.]40?\s*(?:m\b|meter|x)/;
 const BED_KIDS = /kinder|baby|beistellbett|reisebett|laufstall|hochbett|etagenbett|stockbett|puppen/;
 const BED_PET = /hunde|katzen|tierbett/;
+// one-person, folding or inflatable beds and sofas: never a 140×200 frame
+const BED_SMALL = /einzelbett|klappbett|gästebett|luftbett|jugendbett|feldbett|couch|sofa/;
+// not a bed at all: blankets, storage, drawers sold for under a bed
+const BED_NOT = /decken?\b|boxen|aufbewahrung|schubladen? f(ür|uers|ürs)/;
 const BEDDING = /bettwäsche|bettdecke|bettbezug|kissen|topper|laken|tagesdecke|bettkasten|kopfteil|tagesbett/;
 const IKEA_BEDS = /\b(malm|hemnes|brimnes|tarva|songesand|slattum|nordli|idanäs|gjöra|neiden|sagstua)\b/;
 const isBedWord = (w: string) =>
@@ -173,13 +177,22 @@ function bedWidth(t: string): number[] {
   return out;
 }
 
-export function bedRejectReason(title: string): string | null {
+/**
+ * The preview text counts too: sellers often put the size there rather than
+ * in the title ("Bettgestell mit Lattenrost" … "100x200"). Catching it here
+ * saves the AI call that would only have said "wrong size".
+ */
+export function bedRejectReason(title: string, snippet = ""): string | null {
   const t = lower(title);
+  const all = `${t} ${lower(snippet)}`;
   if (SEARCHING.test(t)) return "someone searching";
   if (BED_PET.test(t)) return "pet bed";
   if (BED_KIDS.test(t)) return "kids' or bunk bed";
-  const sizes = bedWidth(t);
-  if (sizes.length && !sizes.includes(140) && !SAYS_140.test(t)) return `size ${sizes[0]} wide`;
+  // a sofa bed that sleeps 140×200 (IKEA Lyksele) still counts
+  if (BED_SMALL.test(t) && !(/couch|sofa/.test(t) && SAYS_140.test(all))) return "single, folding or sofa bed";
+  if (BED_NOT.test(t)) return "not a bed";
+  const sizes = bedWidth(all);
+  if (sizes.length && !sizes.includes(140) && !SAYS_140.test(all)) return `size ${sizes[0]} wide`;
   const named = words(t).some(isBedWord) || IKEA_BEDS.test(t);
   if (!named && /matratze/.test(t)) return "mattress only";
   if (!named && /lattenrost/.test(t)) return "slatted base only";
@@ -348,7 +361,7 @@ export interface Item {
   defaultFloor: number;   // only post from this rating up
   step: number;           // € (or ⭐ for free stuff) per tap on the card
   searches: Search[];
-  reject: (title: string) => string | null;   // clearly not it, by title
+  reject: (title: string, snippet?: string) => string | null;   // clearly not it, by title (and preview)
   named: (title: string) => boolean;          // clearly it - may go out unrated without AI
   page?: (details: Record<string, string>) => string | null;  // the ad page disagrees
 }
@@ -649,7 +662,7 @@ async function checkListing(
       : km !== null && km > RADIUS_KM + 5 ? `too far (${km} km)`
       // no flood of old ads when a search starts, no pinned "TOP" ads
       : isStale(posted.get(ad.ad_id)) ? `old ad (${posted.get(ad.ad_id)})`
-      : it.reject(ad.title);
+      : it.reject(ad.title, ad.snippet ?? "");
     if (!why) maybe++;
     // vague free ads wait for the batched screen; wishlist titles skip it
     const status = why ? "skipped" : it.key === "free" && !namesFree(ad.title) ? "screen" : "new";
