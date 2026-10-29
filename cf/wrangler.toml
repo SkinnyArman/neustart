@@ -9,7 +9,7 @@ compatibility_date = "2026-09-01"
 # shares a tick with the WG job. Each tick checks the most overdue search and
 # rates up to two new ads (src/finds.ts).
 [triggers]
-crons = ["*/2 * * * *", "5,15,25,35,45,55 * * * *"]
+crons = ["*/2 * * * *", "5,15,25,35,45,55 * * * *", "3,13,23,33,43,53 * * * *"]
 
 [[d1_databases]]
 binding = "DB"
@@ -28,3 +28,4 @@ TOPIC_KOMMODE = "596"
 TOPIC_CARPET = "838"
 TOPIC_BED = "598"
 TOPIC_FREE = "610"
+TOPIC_JOBS = "965"
