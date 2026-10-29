@@ -1,5 +1,4 @@
 // Which ads are worth an OpenAI call. Shared by every source.
-// Port of wgfinder/filters.py - change both together.
 //
 // The title is a strong signal, so it gets the broad word lists. The
 // snippet / description is prose where a word like "weiblich" may just

@@ -1,4 +1,4 @@
-// Port of the Python regex extractor. No DOM: a 344KB listing page costs
+// WG-Gesucht parsing with regexes. No DOM: a 344KB listing page costs
 // ~1.5ms this way instead of ~54ms with a real parser.
 
 import { isBlocked as kaIsBlocked } from "./kleinanzeigen.ts";

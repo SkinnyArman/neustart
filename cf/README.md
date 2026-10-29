@@ -1,10 +1,13 @@
-# wg-finder on Cloudflare Workers
+# neustart on Cloudflare Workers
 
 The bot, running on Cloudflare's free plan. No card, no VM, no
-always-on process to babysit.
+always-on process to babysit. (The Worker and its D1 database are still
+called `wg-finder`, the project's first name; the commands below use it.)
 
-Each cron tick does **one** small thing — refresh one city's listing, or draft
-one queued ad — so no invocation comes near the free plan's 10 ms CPU limit.
+Four jobs, each on its own cron trigger: WG rooms (even minutes), finds
+(:05, :15, …), jobs (:03, :13, …) and casual jobs (:07, :17, …). Each tick does
+**one** small thing, such as refreshing one listing or rating two ads, so no
+invocation comes near the free plan's 10 ms CPU limit.
 
 ## Deploy
 
@@ -31,6 +34,13 @@ secrets once encoded — so it lives in D1 instead:
     npx wrangler d1 execute wg-finder --remote --file=profile.sql
 
 It is cached per isolate, so this costs nothing at runtime.
+
+For the Jobs topic, the job seekers' profiles and CV text go in the
+gitignored `jobs-people.json`, loaded with:
+
+    ./seed-jobs.sh
+
+The jobs and casual-jobs tables create themselves on first use.
 
 ### 4. Secrets
 
@@ -60,12 +70,13 @@ Send `/start` in Telegram. If it answers, you're done.
 ## Day to day
 
 Owner commands: `/status`, `/review`, `/scan`, `/more`, `/filters`,
-`/settings`, `/pause`, `/resume`, `/stats`, `/retry`.
+`/settings`, `/pause`, `/resume`, `/stats`, `/retry`. Open to everyone in
+the group: `/finds`, `/jobs`, `/cv`, `/skills`, `/jobreport`.
 
 **Forum topics.** If the group has topics, each kind of post goes to its own
-one: set `TOPIC_WG`, `TOPIC_BIKE`, `TOPIC_BED`, `TOPIC_KOMMODE`, `TOPIC_CARPET`, `TOPIC_FREE` in
-`wrangler.toml` to the number at the end of the topic's link
-(`t.me/c/<group>/<topic>`). Commands are answered in the topic they were
+one: set `TOPIC_WG`, `TOPIC_BIKE`, `TOPIC_BED`, `TOPIC_KOMMODE`, `TOPIC_CARPET`,
+`TOPIC_FREE`, `TOPIC_JOBS` and `TOPIC_CASUAL` in `wrangler.toml` to the number
+at the end of the topic's link (`t.me/c/<group>/<topic>`). Commands are answered in the topic they were
 typed in; anything without a topic (or with a deleted one) goes to General.
 
 **Is it healthy?** `curl 'https://wg-finder.<you>.workers.dev/health?ai'` answers
@@ -193,8 +204,11 @@ a trade or a licence are left out by a word list. Pause with kv
 
     npm test
 
-Offline tests for the finds job and its wiring (Node 22.6+): synthetic
-Kleinanzeigen pages, an in-memory D1, and recorded OpenAI/Telegram calls.
+Offline tests (Node 22.6+) in three suites: `finds.test.mjs` (finds, cron
+dispatch, commands, permissions), `jobs.test.mjs` (search, rules, matching,
+cards, the tracker, /cv, the "/" menu) and `casual.test.mjs`. They use
+synthetic Kleinanzeigen and Jobbörse answers, an in-memory D1 and recorded
+OpenAI and Telegram calls. Nothing touches the network.
 
 ## Local development
 
@@ -209,6 +223,8 @@ Fire a scan by hand:
 
 ## Costs
 
-Free plan: 100k requests/day, 5 cron triggers, D1 included. This uses 2
-triggers, roughly 870 cron invocations a day and a handful of webhook calls. The only thing you
-pay for is OpenAI, same as before.
+Free plan: 100k requests/day, 5 cron triggers, D1 included. This uses 4
+triggers, roughly 1,150 cron invocations a day, plus a handful of webhook
+calls. The only cost is OpenAI: the finds ratings and job matching on the
+cheap model, and the room drafts and cover letters (only on tap) on the
+better one.

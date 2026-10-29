@@ -1,4 +1,4 @@
-// Kleinanzeigen parsing. Port of wgfinder/kleinanzeigen.py - keep in step.
+// Kleinanzeigen parsing.
 //
 // Card markup is Tailwind utility classes, which change freely, so fields
 // are anchored on each card's JSON-LD blob and on content patterns rather
