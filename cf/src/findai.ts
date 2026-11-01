@@ -82,6 +82,16 @@ const specs = (c: FindContext): Record<ItemKey, Spec> => ({
     caps: `condition not described at all -> at most 6. Size not stated -> at most 5. 20 km or more away -> at most 6. Stains, smells or needs deep cleaning -> at most 4.`,
     notes: `dimensions, material, stains or smells, pets or smoking if stated, cleaning needed, pickup deadlines`,
   },
+  washer: {
+    what: "washing machine",
+    isMatch: `true if the ad sells a complete household washing machine or washer-dryer that works, freestanding or built-in, front or top loader. false for broken machines or ones sold for parts or repair, parts and accessories on their own (hoses, pumps, drums, door seals, stands, cabinets), tumble dryers without washing, dishwashers, small camping or portable tub washers, toys, repair or transport services, and posts searching for one.`,
+    kinds: `"Bosch Serie 4, 8 kg, front loader", "Siemens top loader, 6 kg", "Samsung washer-dryer, 8 kg"`,
+    factors: `- whether it works weighs most: seen running, recently used, no leaks or error codes; age and heavy wear lower the score
+- value: what you get for the price; capacity and energy class count
+- transport: it's very heavy - pickup needs a van and two people, so distance counts a lot, and upstairs without a lift is hard`,
+    caps: `condition not described at all -> at most 6. Doesn't say it works -> at most 6. 20 km or more away -> at most 5. Very old or heavily worn -> at most 5.`,
+    notes: `age, capacity in kg, energy class, whether it was seen working, floor and stairs for pickup, connection hoses included, pickup deadlines`,
+  },
   free: {
     what: "free giveaway",
     isMatch: `true if the ad gives away, for free, something useful or cool for ${c.for_whom}: ${FREE_USEFUL}. false for ${FREE_NOT}.`,

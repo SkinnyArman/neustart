@@ -878,5 +878,73 @@ console.log("\n6. existing data");
   });
 }
 
+// ---------------------------------------------------------------- 7. washing machine
+console.log("\n7. washing machine");
+await ok("real titles from the search: only whole, working machines get through", () => {
+  for (const t of ["Siemens Waschmaschine Toplader zu verkaufen", "Waschmaschine abzugeben", "Hanseatic Waschmaschine HWMB814B, 8 kg",
+    "Bosch Serie 4 Waschmaschine mit neuem Motor", "Waschmaschinen Bosch und Miele", "AEG Lavamat Waschvollautomat", "Samsung Waschtrockner 8kg", "Miele W1 8 kg"])
+    assert.equal(B.washerRejectReason(t), null, t);
+  for (const t of ["Bosch Maxx 7 Waschmaschine mit Lagerschaden", "Waschmaschinen-Erhöhung mit Schublade, weiß, 30x63x56,5 cm",
+    "Mobile Camping Waschmaschine", "Mobile  Waschmaschine", "AEG Waschmaschine defekt", "SIEMENS Siwamat 6125 Waschmaschine für Bastler",
+    "Zulaufschlauch Waschmaschine", "Ablaufschlauch Waschmaschine", "Transportsicherung Waschmaschine 4er Set",
+    "Waschmaschine Electrolux EWF 1644 Ersatzteile/Teilespender", "BEKO Waschmaschine Ersatzteil Einspülschale Waschmittelschub",
+    "Waschmaschinen Schlauch mit Wasserstop", "Einstellbare Waschmaschinen Untergestell Sockel mit Schwenkr", "Waschmaschine LG WD-146SFD nur Ersatzteile",
+    "Waschmaschine Bauknecht Laugenpumpe", "Waschmaschine Display/Bedienblende Bauknecht", "Waschmaschinen-Erhöhung, Untergestell, Sockel, Maschinensock",
+    "Türmanschette LG  MDS64212802 Waschmaschine", "Waschmaschine Motor  85358844 148/WHE28 365W", "WEI 86CPS Gorenje Waschmaschine Ersatzteile Platienen",
+    "Weichspülerkapsel für Miele Waschmaschine W1", "Waschmaschine Verriegler",
+    "Suche Waschmaschine", "Wäschetrockner Bosch", "Geschirrspüler Siemens", "Waschmaschinenschrank weiß"])
+    assert.ok(B.washerRejectReason(t), t);
+});
+await ok("a title that names the machine may go out without AI; a bare model number may not", () => {
+  assert.ok(B.namesWasher("Waschmaschine abzugeben")); assert.ok(B.namesWasher("Samsung Waschtrockner 8kg"));
+  assert.ok(!B.namesWasher("Miele W1 8 kg")); assert.ok(!B.namesWasher("Waschmaschine defekt"));
+});
+await ok("names: washer, waschmaschine, washing", () => {
+  for (const w of ["washer", "waschmaschine", "Waschmaschinen", "washing"]) assert.equal(B.parseItem(w), "washer", w);
+});
+await ok("a free machine goes to its own topic, not the free-stuff junk pile; a free hose doesn't", () => {
+  assert.equal(B.routeFree("Waschmaschine zu verschenken"), "washer");
+  assert.equal(B.routeFree("Waschmaschine defekt zu verschenken"), null);
+  assert.equal(B.routeFree("Zulaufschlauch Waschmaschine"), null);
+});
+{
+  const WASH = page([
+    [901, "Waschmaschine abzugeben", "40 €", "03046 Cottbus", 3, "Heute, 10:00"],
+    [902, "Zulaufschlauch Waschmaschine", "5 €", "03046 Cottbus", 1, "Heute, 09:00"],
+  ]);
+  const f0 = globalThis.fetch;
+  globalThis.fetch = (u, i) => (String(u).includes("/waschmaschine/") ? (net.kaHits.push({ url: String(u) }), Promise.resolve(new Response(WASH))) : f0(u, i));
+  const on = { finds: { ...CONFIG.finds, items: { ...CONFIG.finds.items, bike: { on: false }, bed: { on: false }, kommode: { on: false }, carpet: { on: false }, free: { on: false }, washer: { on: true, max_price: 50 } } }, topics: { washer: 1137 } };
+  const [DB, st, E] = fresh(on); reset();
+  await B.findsStep(E, st, tg); await B.findsStep(E, st, tg);
+  await ok("switched on: searches the appliance category up to 50 €, within the radius", () => {
+    assert.ok(listings().some((h) => h.url === "https://www.kleinanzeigen.de/s-haushaltsgeraete/cottbus/anzeige:angebote/preis::50/waschmaschine/k0c176l7743r30"), JSON.stringify(listings()));
+  });
+  await ok("the AI is asked about a washing machine, and the card lands in its topic", () => {
+    assert.ok(net.aiTitles.includes("Waschmaschine abzugeben"));
+    assert.ok(!net.aiTitles.includes("Zulaufschlauch Waschmaschine"));
+    const c = posts().find((p) => /Waschmaschine abzugeben/.test(p.body.caption ?? p.body.text));
+    assert.ok(c); assert.equal(c.body.message_thread_id, 1137);
+    assert.match(c.body.caption ?? c.body.text, /^🧼 /);
+  });
+  await ok("/finds shows it, with its cap", async () => {
+    const t = await B.findsStatus(DB, st);
+    assert.match(t, /🧼 <b>Washing machine<\/b> \(.*\): up to <b>50 €<\/b> or free/);
+    assert.ok(B.findsKeyboard(await B.loadFindSettings(st, (await import(SRC + "config.ts")).normalize({ ...CONFIG, ...on }))).flat().some((b) => b.callback_data === "bk:price:washer:+10"));
+  });
+  globalThis.fetch = f0;
+  const [DB2, st2, E2] = fresh(); reset();
+  for (let i = 0; i < 8; i++) await B.findsStep(E2, st2, tg);
+  await ok("not asked for in the config: never searched, not on the /finds card", async () => {
+    assert.ok(!listings().some((h) => h.url.includes("waschmaschine")));
+    assert.ok(!/Washing machine/.test(await B.findsStatus(DB2, st2)));
+  });
+  await B.setItemOn(st2, "washer", true);
+  await ok("…until /finds washer on: on the card, and searched", async () => {
+    assert.match(await B.findsStatus(DB2, st2), /🧼 <b>Washing machine<\/b>.*up to <b>50 €<\/b>/);
+    assert.ok((await B.loadFindSettings(st2)).items.washer.on);
+  });
+}
+
 console.error = quiet;
 console.log(`\nall ${pass} checks passed`);

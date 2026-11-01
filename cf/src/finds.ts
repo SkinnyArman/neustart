@@ -277,6 +277,33 @@ export const namesCarpet = (title: string) => {
   return !carpetRejectReason(title) && words(t).some(isCarpetWord) && carpetSizes(t).some(roomRug);
 };
 
+// ================================================================ washing machine
+// A keyword search in the appliance category, which is mostly spare parts:
+// hoses, pumps, stands, "für Bastler". Parts are judged on the title up to
+// "mit" ("Waschmaschine mit neuem Motor" is a machine); broken and toy-sized
+// machines anywhere in it. A bare model ("Miele W1 8 kg") goes to the AI.
+
+const WASHER_NOT = /suche|gesucht|spielzeug|kinder|puppen/;
+const WASHER_BROKEN = /defekt|kaputt|bastler|lagerschaden|nicht funktion|ausschlacht|für teile/;
+const WASHER_SMALL = /camping|\bmobile?\b|\bmini\b|tragbar|reisewasch|handwasch/;
+const WASHER_OTHER = /geschirrspüler|spülmaschine|kühlschrank|(?<!wasch)trockner/;
+const WASHER_PART = /schlauch|pumpe|\bmotor|ersatzteil|teilespender|platien|platine|display|blende|verriegl|manschette|dichtung|einspül|waschmittel|weichspül|kapsel|transportsicherung|untergestell|sockel|erhöhung|podest|unterbau|überbau|schrank|abdeckung|trommel|stoßdämpfer|kohlebürste|heizstab|aquastop|wasserstop|bullauge|\bfilter|reparatur|ankauf|transport|anschluss/;
+const isWasherWord = (w: string) => /(waschmaschinen?|waschvollautomat|waschtrockner)$/.test(w);
+
+export function washerRejectReason(title: string): string | null {
+  const t = lower(title);
+  if (WASHER_NOT.test(t)) return "someone searching, or a toy";
+  if (WASHER_BROKEN.test(t)) return "broken or for parts";
+  if (WASHER_SMALL.test(t)) return "camping or mini washer";
+  if (WASHER_OTHER.test(t)) return "another appliance";
+  const head = t.split(/\s+(?:mit|inkl\.?|inklusive)\s+/)[0];
+  const part = WASHER_PART.exec(head);
+  return part ? `part or accessory (${part[0].trim()})` : null;
+}
+
+/** Names the machine and passes the rules: may go out unrated if the AI is down. */
+export const namesWasher = (title: string) => !washerRejectReason(title) && words(lower(title)).some(isWasherWord);
+
 // ================================================================ free stuff
 // The free category ("Zu verschenken") is mostly junk with the odd gem. Three
 // tiers keep the AI bill small:
@@ -355,6 +382,7 @@ export function routeFree(title: string, width = 140): ItemKey | null {
   if (namesBike(title) && !rejectReason(title)) return "bike";
   // Even a wrong-sized rug goes through the carpet rules, not the free wishlist.
   if (words(t).some(isCarpetWord)) return "carpet";
+  if (namesWasher(title)) return "washer";
   return null;
 }
 
@@ -368,6 +396,7 @@ export interface Item {
   label: string;          // on the /finds card
   kv: string;             // settings keys: <kv>_on, <kv>_max_price, <kv>_floor
   priced: boolean;        // has a price cap; free stuff has a rating floor instead
+  optional?: boolean;     // off unless the config or /finds asks for it
   defaultMax: number;
   defaultFloor: number;   // only post from this rating up
   step: number;           // € (or ⭐ for free stuff) per tap on the card
@@ -425,6 +454,15 @@ export const ITEMS: Item[] = [
     reject: (t) => carpetRejectReason(t), named: (t) => namesCarpet(t),
   },
   {
+    key: "washer", emoji: "🧼", label: "Washing machine", kv: "washer", priced: true, optional: true, defaultMax: 50, defaultFloor: 0, step: 10,
+    searches: [{
+      id: "washer", every: 60,
+      url: (max, at) => `https://www.kleinanzeigen.de/s-haushaltsgeraete/${at.slug}/anzeige:angebote/` +
+        `preis::${max}/waschmaschine/k0c176l${at.id}r${at.r}`,
+    }],
+    reject: (t) => washerRejectReason(t), named: (t) => namesWasher(t),
+  },
+  {
     // a lot comes in and most of it is junk: only the well-rated ones go out
     key: "free", emoji: "🎁", label: "Free stuff", kv: "free", priced: false, defaultMax: 0, defaultFloor: 6, step: 1,
     searches: [{
@@ -447,6 +485,7 @@ export function parseItem(word: string): ItemKey | null {
   if (/^(beds?|bett(en)?)$/.test(w)) return "bed";
   if (/^(kommoden?|dressers?|drawers?)$/.test(w)) return "kommode";
   if (/^(carpets?|rugs?|teppiche?)$/.test(w)) return "carpet";
+  if (/^(washers?|washing|waschmaschinen?)$/.test(w)) return "washer";
   if (/^(free|gratis|umsonst|verschenken)$/.test(w)) return "free";
   return null;
 }
@@ -454,7 +493,8 @@ export function parseItem(word: string): ItemKey | null {
 // ---------------------------------------------------------------- settings
 export interface FindSettings {
   min_score: number;
-  items: Record<ItemKey, { on: boolean; max: number; floor: number }>;
+  // listed: on the /finds card. Not an item the config leaves off, until someone switches it on
+  items: Record<ItemKey, { on: boolean; max: number; floor: number; listed: boolean }>;
 }
 
 /** Changed from Telegram: kv. Otherwise what the config says, else the built-in defaults. */
@@ -468,8 +508,10 @@ export async function loadFindSettings(store: Store, cfg?: Config | null): Promi
   for (const i of ITEMS) {
     const c = cfg?.finds.items[i.key];
     const on = await store.kvGet(`${i.kv}_on`);
+    const start = c?.on ?? !i.optional;
     items[i.key] = {
-      on: on === null ? c?.on ?? true : on !== "0",
+      on: on === null ? start : on !== "0",
+      listed: on !== null || start,
       max: await num(`${i.kv}_max_price`, c?.max_price ?? i.defaultMax),
       floor: await num(`${i.kv}_floor`, c?.min_rating ?? i.defaultFloor),
     };
@@ -549,7 +591,7 @@ const COLUMNS: Record<string, string> = {
   first_seen: "INTEGER NOT NULL", sent_at: "INTEGER",
   score: "INTEGER", kind: "TEXT", notes: "TEXT",
   rating_why: "TEXT",         // the score explained in one line
-  item: "TEXT",               // bike | bed | kommode | carpet | free (empty: bike, from before)
+  item: "TEXT",               // bike | bed | kommode | carpet | washer | free (empty: bike, from before)
 };
 const tableReady = new WeakSet<D1Database>();
 
@@ -898,6 +940,7 @@ const WHAT = (cfg: Config): Record<ItemKey, string> => ({
   bed: "frame, with or without slats",
   kommode: "chest of drawers",
   carpet: `area rug for a ~${cfg.finds.items.carpet.room_m2} m² room, not fitted carpet`,
+  washer: "a whole, working machine, no parts",
   free: "anything a new student can use",
 });
 
@@ -914,7 +957,8 @@ export async function findsStatus(db: D1Database, store: Store): Promise<string>
       .bind(...args).first<{ n: number }>())?.n ?? 0;
 
   const day: string[] = [];
-  for (const i of ITEMS)
+  const shown = ITEMS.filter((i) => s.items[i.key].listed);
+  for (const i of shown)
     day.push(`${i.emoji} ${await count("status='sent' AND sent_at > ? AND coalesce(item,'bike') = ?", now() - 86400, i.key)}`);
   const total = await count("status='sent'");
   const skipped = await count("status='skipped'");
@@ -924,7 +968,7 @@ export async function findsStatus(db: D1Database, store: Store): Promise<string>
   return [
     `🔎 <b>Finds on Kleinanzeigen</b>, ${cfg.finds.radius_km} km around ${cfg.city}`,
     "",
-    ...ITEMS.map((i) => {
+    ...shown.map((i) => {
       const it = s.items[i.key];
       return `${i.emoji} <b>${labelOf(i, cfg)}</b> (${WHAT(cfg)[i.key]}): ` +
         (!it.on ? "⏸ paused" : i.priced ? `up to <b>${it.max} €</b> or free` : `free, rated <b>${it.floor}/10</b> or better`);
@@ -944,7 +988,7 @@ export async function findsStatus(db: D1Database, store: Store): Promise<string>
 }
 
 export const findsKeyboard = (s: FindSettings): Button[][] => [
-  ...ITEMS.map((i) => {
+  ...ITEMS.filter((i) => s.items[i.key].listed).map((i) => {
     const it = s.items[i.key];
     const what = !it.on ? "paused" : i.priced ? `≤ ${it.max} €` : `⭐ ≥ ${it.floor}`;
     return [

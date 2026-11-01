@@ -82,6 +82,7 @@ default), each with its own price cap:
 | 🛏 | a bed frame for a 140×200 mattress (category Betten; `width_cm` for another) | 100 € |
 | 🗄 | a Kommode / chest of drawers (keyword search) | 35 € |
 | 🧶 | a normal area rug for a ~25 m² room (keyword Teppich; `room_m2`) | 30 € |
+| 🧼 | a whole, working washing machine (appliance category, keyword; off unless `on: true`) | 50 € |
 | 🎁 | anything free that's useful for the room (category Zu verschenken; `for_whom` says for whom) | rated 6/10+ |
 
 The config sets the starting caps and which items are on; changes made from

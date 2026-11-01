@@ -627,7 +627,7 @@ async function handleFinds(update: any, env: Env, tg: Telegram, store: Store): P
     tg.send(t, { ...sameTopic(update.message), ...o }, chat);
   const [cmdRaw, sub = "", val = ""] = update.message.text.trim().split(/\s+/);
   const isBikes = /^\/bikes/i.test(cmdRaw);
-  const usage = "Try /finds, /finds bed 80, /finds kommode 40, /finds carpet 30, /finds free 7 (min rating), /finds bike off, /finds min 5, /finds now";
+  const usage = "Try /finds, /finds bed 80, /finds kommode 40, /finds carpet 30, /finds washer 60, /finds free 7 (min rating), /finds bike off, /finds min 5, /finds now";
   const lsub = sub.toLowerCase();
   const item = parseItem(lsub);
 

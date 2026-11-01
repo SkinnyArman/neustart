@@ -81,6 +81,10 @@ globalThis.fetch = async (url, init = {}) => {
   if (url.includes("api.telegram.org")) {
     const method = url.split("/").pop();
     const body = JSON.parse(init.body);
+    // like the real one: a button's data is 64 bytes at most
+    for (const b of (body.reply_markup?.inline_keyboard ?? []).flat())
+      if (new TextEncoder().encode(b.callback_data).length > 64)
+        return new Response('{"ok":false,"description":"Bad Request: BUTTON_DATA_INVALID"}', { status: 400 });
     net.tg.push({ method, body });
     return Response.json({ ok: true, result: { message_id: ++msgId } });
   }
@@ -377,6 +381,44 @@ console.log("\n5. only Diba searching (arman: active: false)");
     const t = net.tg[0].body.text;
     assert.match(t, /Diba/); assert.ok(!/Arman<\/b>/.test(t));
   });
+}
+
+console.log("\n6. a job with a very long id");
+{
+  const [DB3, st3, E3] = await fresh();
+  const slug = "working-student-ai-solutions-architect-generative-ai-data-platforms-berlin-283450";
+  ARBEITNOW.push({ slug, company_name: "AgentixLake GmbH", title: "Working Student Data Platforms", description: "<p>Python, SQL</p>", remote: false, url: "https://arbeitnow.example/long", location: "Berlin", job_types: ["Student"] });
+  net.tg = [];
+  for (let i = 0; i < 6; i++) await J.jobsStep(E3, st3, tg);
+  const id = "an:" + slug;
+  const m = sent().find((c) => /AgentixLake/.test(c.body.text));
+  await ok("the card goes out: every button fits Telegram's 64 bytes", () => {
+    assert.ok(m, DB3.raw.prepare("SELECT status, why FROM jobs WHERE id=?").get(id)?.why ?? "not found");
+    assert.equal(row(DB3, id).status, "posted");
+    for (const b of m.body.reply_markup.inline_keyboard.flat()) assert.ok(new TextEncoder().encode(b.callback_data).length <= 64, b.callback_data);
+  });
+  const btn = (label) => m.body.reply_markup.inline_keyboard.flat().find((b) => b.text.startsWith(label)).callback_data;
+  const tap = async (data) => { net.tg = []; await worker.fetch(new Request("https://w/", { method: "POST",
+    headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" },
+    body: JSON.stringify({ callback_query: { id: "q", data, from: { id: 555 }, message: { chat: { id: -100 }, message_id: 7 } } }) }), E3); return net.tg; };
+  let c = await tap(btn("✍️ Cover letter"));
+  await ok("its cover letter button finds the job", () => assert.match(c.find((x) => x.method === "sendMessage").body.text, /Cover letter for Diba<\/b> - AgentixLake/));
+  c = await tap(btn("✅ Applied"));
+  await ok("Applied updates that job, and the next buttons fit too", () => {
+    assert.equal(row(DB3, id).status, "applied");
+    const e = c.find((x) => x.method === "editMessageText");
+    assert.match(e.body.text, /Applied by Diba/);
+    assert.ok(e.body.reply_markup.inline_keyboard.flat().every((b) => new TextEncoder().encode(b.callback_data).length <= 64));
+  });
+  c = await tap("jb:skip:-:~no-such-job-ends-like-this");
+  await ok("a shortened id that matches nothing is just unknown", () => assert.equal(c[0].body.text, "Unknown job"));
+  // a card Telegram refuses: the reason is kept
+  const f0 = globalThis.fetch;
+  globalThis.fetch = (u, i) => (String(u).endsWith("/sendMessage") ? new Response('{"ok":false,"description":"Bad Request: something else"}', { status: 400 }) : f0(u, i));
+  DB3.raw.prepare("UPDATE jobs SET status='ready', attempts=2 WHERE id='ba:10001'").run();
+  await J.jobsStep(E3, st3, tg);
+  globalThis.fetch = f0;
+  await ok("when a card can't be posted, why is kept", () => assert.match(row(DB3, "ba:10001").why, /^could not post: .*something else/));
 }
 
 console.log(`\nall ${pass} jobs checks passed`);

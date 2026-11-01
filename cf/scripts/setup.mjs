@@ -98,7 +98,12 @@ if (!DRY) {
   if (!chat.ok) fail(`The bot can't see the chat ${env.TELEGRAM_CHAT_ID} (${chat.description}). Is it in the group?`);
   if (chat.result.type !== "private" && cfg.topics_mode === "auto") {
     const mem = await tgApi(env.TELEGRAM_BOT_TOKEN, "getChatMember", { chat_id: env.TELEGRAM_CHAT_ID, user_id: Number(env.BOT_ID) });
-    const missing = Object.entries(cfg.topics).length === 8 ? [] : [
+    // only the topics this config will post to and doesn't name itself
+    const wanted = [
+      ...(cfg.modules.rooms ? ["rooms"] : []), ...(cfg.modules.jobs ? ["jobs"] : []), ...(cfg.modules.casual_jobs ? ["casual_jobs"] : []),
+      ...(cfg.modules.finds ? Object.keys(cfg.finds.items).filter((k) => cfg.finds.items[k].on) : []),
+    ];
+    const missing = wanted.every((k) => cfg.topics[k]) ? [] : [
       ...(chat.result.is_forum ? [] : ["turn on Topics in the group's settings"]),
       ...(mem.result?.status === "administrator" && mem.result.can_manage_topics ? [] : ["make the bot an admin who may manage topics"]),
     ];

@@ -11,8 +11,8 @@ import type { Store } from "./store.ts";
 
 export type ModuleKey = "rooms" | "finds" | "jobs" | "casual_jobs";
 export const MODULES: ModuleKey[] = ["rooms", "finds", "jobs", "casual_jobs"];
-export type ItemKey = "bike" | "bed" | "kommode" | "carpet" | "free";
-export const ITEM_KEYS: ItemKey[] = ["bike", "bed", "kommode", "carpet", "free"];
+export type ItemKey = "bike" | "bed" | "kommode" | "carpet" | "washer" | "free";
+export const ITEM_KEYS: ItemKey[] = ["bike", "bed", "kommode", "carpet", "washer", "free"];
 /** Where each kind of post goes: one forum topic per module, and per find. */
 export type TopicKey = "rooms" | ItemKey | "jobs" | "casual_jobs";
 export const TOPIC_KEYS: TopicKey[] = ["rooms", ...ITEM_KEYS, "jobs", "casual_jobs"];
@@ -62,9 +62,10 @@ export interface Config {
   casual_jobs: { radius_km: number; only_city: boolean };
 }
 
-const ITEM_DEFAULTS: Record<ItemKey, { max_price: number; min_rating: number }> = {
-  bike: { max_price: 30, min_rating: 0 }, bed: { max_price: 100, min_rating: 0 }, kommode: { max_price: 35, min_rating: 0 },
-  carpet: { max_price: 30, min_rating: 0 }, free: { max_price: 0, min_rating: 6 },
+// a washing machine is off unless asked for: most shared flats already have one
+const ITEM_DEFAULTS: Record<ItemKey, { max_price: number; min_rating: number; on: boolean }> = {
+  bike: { max_price: 30, min_rating: 0, on: true }, bed: { max_price: 100, min_rating: 0, on: true }, kommode: { max_price: 35, min_rating: 0, on: true },
+  carpet: { max_price: 30, min_rating: 0, on: true }, washer: { max_price: 50, min_rating: 0, on: false }, free: { max_price: 0, min_rating: 6, on: true },
 };
 const ICONS = ["🧑‍💻", "👩‍💻", "👨‍💻", "🧑‍🔬", "🧑‍🎓"];
 // words in a search that say nothing about the work itself
@@ -135,7 +136,7 @@ export function normalize(raw: unknown): Config {
   for (const k of ITEM_KEYS) {
     const it = f.items?.[k] ?? {};
     items[k] = {
-      on: bool(it.on, true),
+      on: bool(it.on, ITEM_DEFAULTS[k].on),
       max_price: num(it.max_price, ITEM_DEFAULTS[k].max_price),
       min_rating: num(it.min_rating, ITEM_DEFAULTS[k].min_rating),
       width_cm: num(it.width_cm, 140),

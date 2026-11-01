@@ -11,7 +11,7 @@ import type { Telegram } from "./telegram.ts";
 
 export const TOPIC_NAMES: Record<TopicKey, string> = {
   rooms: "🏠 Rooms", bike: "🚲 Bikes", bed: "🛏 Bed", kommode: "🗄 Kommode", carpet: "🧶 Carpet",
-  free: "🎁 Free stuff", jobs: "💼 Jobs", casual_jobs: "🧺 Casual jobs",
+  washer: "🧼 Washing machine", free: "🎁 Free stuff", jobs: "💼 Jobs", casual_jobs: "🧺 Casual jobs",
 };
 const RETRY_AFTER = 6 * 3600;
 

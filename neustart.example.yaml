@@ -47,6 +47,7 @@ finds:
     bed:     { on: true, max_price: 100, width_cm: 140 }    # 140 for a 140×200 mattress
     kommode: { on: true, max_price: 35 }
     carpet:  { on: true, max_price: 30, room_m2: 25 }       # the room it's for
+    washer:  { on: false, max_price: 50 }                   # a washing machine: off unless you need one
     free:    { on: true, min_rating: 6 }                    # only giveaways rated 6/10 or better
   # Prices and on/off can be changed later from Telegram with /finds.
 
@@ -72,7 +73,7 @@ jobs:
       wants: "Data Analyst and BI roles - Werkstudent first, then internships and junior roles."
       # A job title has to contain one of these to be looked at (they're
       # patterns: \bbi\b is the whole word "bi"). Left out: the words of the searches.
-      title_words: [data, daten, analyst, analytics, "\\bbi\\b", business intelligence, reporting, sql]
+      title_words: [data, daten, analys, analytics, "\\bbi\\b", business intelligence, reporting, sql]
       field: data          # "not data work", when a title is left out
       summary: "M.Sc. student in Leipzig. Two years as a data analyst: SQL, Python, Power BI. German B2, English C1."
       skills: [SQL, Python, pandas, Power BI, Excel, Statistics]

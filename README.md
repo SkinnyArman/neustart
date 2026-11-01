@@ -13,7 +13,7 @@ Fork it, fill in one config file, run one command.
 | Topic | What it finds | Where from | AI |
 |---|---|---|---|
 | 🏠 **Rooms** | New WG room ads. Each card has a "Draft reply" button that writes a reply in the ad's language from your profile. | WG-Gesucht, Kleinanzeigen | Only when you tap Draft |
-| 🚲 🛏 🗄 🧶 **Finds** | Cheap bikes, a bed (140×200 or your size), a Kommode and a rug within your radius, each under its own price cap. | Kleinanzeigen | Rates what the rules let through, 1–10 |
+| 🚲 🛏 🗄 🧶 🧼 **Finds** | Cheap bikes, a bed (140×200 or your size), a Kommode, a rug and, if you need one, a washing machine within your radius, each under its own price cap. | Kleinanzeigen | Rates what the rules let through, 1–10 |
 | 🎁 **Free stuff** | Giveaways worth picking up for a new room. | Kleinanzeigen, "Zu verschenken" | Screens vague titles, rates the rest |
 | 💼 **Jobs** | Jobs for each person in the config, from their own searches, in the cities you list or remote. Each card says who it fits, why, the gaps, the German level, the hours and the deadline. Buttons track each application from Applied to Offer; cover letters on tap. On a student permit: Werkstudent jobs first, no full-time. | Jobbörse (Arbeitsagentur), Arbeitnow | Matching; cover letters on tap |
 | 🧺 **Casual jobs** | Minijobs (Aushilfe, Verkauf, Reinigung…) with the pay, the hours and the description. | Jobbörse, Minijob filter | None |

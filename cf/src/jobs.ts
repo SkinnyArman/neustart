@@ -425,23 +425,33 @@ export function card(row: JobRow, j: Jobs): string {
   return blocks.filter(Boolean).join("\n\n");
 }
 
+// Telegram allows 64 bytes of data on a button, and Arbeitnow's ids can be
+// longer. Such a job goes by the end of its id ("~…-283450", which is what
+// makes it unique), and jobButton looks it up that way.
+const BUTTON_BYTES = 64;
+const buttonData = (act: string, who: string | null, id: string) => {
+  const head = `jb:${act}:${who}:`;
+  const room = BUTTON_BYTES - new TextEncoder().encode(head).length;
+  return id.length <= room ? head + id : `${head}~${id.slice(-(room - 1))}`;
+};
+
 /** The buttons for where the application is now. */
 export function jobKeyboard(row: JobRow, j: Jobs): Button[][] {
   const id = row.id;
   // a card for several people gets one button each
   const many = single(j, row.person) ? [] : peopleOf(j, row.person);
   const each = (a: string, label: string) => many.length
-    ? many.map((w) => ({ text: `${label} (${nameOf(j, w)})`, callback_data: `jb:${a}:${w}:${id}` }))
-    : [{ text: label, callback_data: `jb:${a}:${row.person}:${id}` }];
+    ? many.map((w) => ({ text: `${label} (${nameOf(j, w)})`, callback_data: buttonData(a, w, id) }))
+    : [{ text: label, callback_data: buttonData(a, row.person, id) }];
   switch (row.status) {
     case "posted":
       return [each("letter", "✍️ Cover letter"), each("applied", "✅ Applied"),
-        [...each("already", "🔁 Already applied"), { text: "⏭ Skip", callback_data: `jb:skip:-:${id}` }]];
+        [...each("already", "🔁 Already applied"), { text: "⏭ Skip", callback_data: buttonData("skip", "-", id) }]];
     case "applied": case "already":
-      return [[{ text: "🗓 Interview", callback_data: `jb:interview:-:${id}` },
-        { text: "❌ Rejected", callback_data: `jb:rejected:-:${id}` }, { text: "🎉 Offer", callback_data: `jb:offer:-:${id}` }]];
+      return [[{ text: "🗓 Interview", callback_data: buttonData("interview", "-", id) },
+        { text: "❌ Rejected", callback_data: buttonData("rejected", "-", id) }, { text: "🎉 Offer", callback_data: buttonData("offer", "-", id) }]];
     case "interview":
-      return [[{ text: "❌ Rejected", callback_data: `jb:rejected:-:${id}` }, { text: "🎉 Offer", callback_data: `jb:offer:-:${id}` }]];
+      return [[{ text: "❌ Rejected", callback_data: buttonData("rejected", "-", id) }, { text: "🎉 Offer", callback_data: buttonData("offer", "-", id) }]];
     default:
       return [];
   }
@@ -463,7 +473,9 @@ async function post(env: JobsEnv, store: Store, tg: Telegram, cfg: Config): Prom
     } catch (e: any) {
       if (String(e?.message).includes(" 429")) break;
       const tries = row.attempts + 1;
-      await setJob(db, row.id, tries >= MAX_ATTEMPTS ? { attempts: tries, status: "skipped", why: "could not post" } : { attempts: tries });
+      await setJob(db, row.id, tries >= MAX_ATTEMPTS
+        ? { attempts: tries, status: "skipped", why: `could not post: ${String(e?.message ?? e).slice(0, 120)}` } : { attempts: tries });
+      console.error(`job post failed for ${row.id}:`, e?.message ?? e);
     }
   }
   return n;
@@ -516,9 +528,13 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
   const j = cfg.jobs;
   await ensureTable(db);
   const [, act, who, ...rest] = String(cq.data).split(":");
-  const id = rest.join(":");
-  const row = await db.prepare("SELECT * FROM jobs WHERE id=?").bind(id).first<JobRow>();
+  const ref = rest.join(":");
+  // "~…": the end of a long id (see buttonData)
+  const row = ref.startsWith("~")
+    ? await db.prepare("SELECT * FROM jobs WHERE substr(id, -?) = ?").bind(ref.length - 1, ref.slice(1)).first<JobRow>()
+    : await db.prepare("SELECT * FROM jobs WHERE id=?").bind(ref).first<JobRow>();
   if (!row) { await tg.answerCallback(cq.id, "Unknown job"); return; }
+  const id = row.id;
 
   if (act === "letter") {
     await tg.answerCallback(cq.id, "Writing the cover letter…");

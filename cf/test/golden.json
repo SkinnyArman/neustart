@@ -5195,7 +5195,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "Try /finds, /finds bed 80, /finds kommode 40, /finds carpet 30, /finds free 7 (min rating), /finds bike off, /finds min 5, /finds now",
+    "text": "Try /finds, /finds bed 80, /finds kommode 40, /finds carpet 30, /finds washer 60, /finds free 7 (min rating), /finds bike off, /finds min 5, /finds now",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "message_thread_id": 595
