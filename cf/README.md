@@ -181,6 +181,31 @@ commands for the group, all of them for the owner.
 Profiles and CV text are personal: they're in the gitignored `neustart.yaml`
 (or a `cv_file` next to it) and in D1, never in the repo.
 
+### LinkedIn, from your own computer
+
+LinkedIn refuses requests from Cloudflare (429 on the first one), but
+answers a home connection. `scripts/linkedin.mjs` runs on a Mac:
+
+    npm run linkedin -- on       # twice a day via launchd (9:00 and 18:00)
+    npm run linkedin -- off
+    npm run linkedin -- status   # on/off, the last run, the last log lines
+    npm run linkedin -- run      # once, now
+
+Each run searches LinkedIn's public guest pages - no login, no cookies, no
+account involved - with each active person's searches (a few terms per
+query) in the config's cities, last 24 hours. It asks the Worker which jobs
+are new (`POST /ingest/jobs`, with the `INGEST_SECRET` header), opens only
+the new ones that pass the rules, and hands them in; the Worker matches and
+posts them like any other job, "via LinkedIn". At most 10 LinkedIn requests
+a run, 20-40 s apart; if LinkedIn says no (429, 999, a login wall) the run
+stops and the next day is skipped. Nothing stays running between runs; a
+time missed while the Mac sleeps runs when it wakes.
+
+Needs `NEUSTART_URL` (the Worker's address) and `INGEST_SECRET` in `../.env`,
+and the same `INGEST_SECRET` as a Worker secret. Optional in the config:
+`jobs.linkedin.times` (default `["09:00", "18:00"]`) and
+`jobs.linkedin.searches` (default: the people's own searches).
+
 ### Casual jobs
 
 `src/casual.ts` posts casual jobs within `casual_jobs.radius_km` of the city

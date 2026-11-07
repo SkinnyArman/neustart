@@ -19,7 +19,7 @@ import { aiFailed, aiWorked, checkKey } from "./aikey.ts";
 import { loadConfig, NO_CONFIG, type Config } from "./config.ts";
 import { introduce, topicOf } from "./topics.ts";
 import { CASUAL_CRON, casualLine, casualSettings, casualStep, setCasual } from "./casual.ts";
-import { JOBS_CRON, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, skillsCommand, weeklyReport } from "./jobs.ts";
+import { JOBS_CRON, ingestJobs, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, skillsCommand, weeklyReport } from "./jobs.ts";
 import {
   FINDS_CRON, findsKeyboard, findsLine, findsStatus, findsStep, loadFindSettings,
   parseItem, setFindSetting, setItemOn, ITEMS, type ItemKey,
@@ -34,6 +34,7 @@ export interface Env {
   TELEGRAM_OWNER_ID: string;
   WEBHOOK_SECRET: string;
   FINDS_MODEL?: string;
+  INGEST_SECRET?: string;   // for jobs handed in from outside (scripts/linkedin.mjs)
 }
 
 /** The room search's topic. */
@@ -942,6 +943,16 @@ export default {
       return Response.json({ ok: true, openai: ai });
     }
     if (req.method !== "POST") return new Response("wg-finder", { status: 200 });
+
+    // jobs found where the Worker can't look (LinkedIn), handed in by a script
+    if (url.pathname === "/ingest/jobs") {
+      if (!env.INGEST_SECRET || req.headers.get("X-Ingest-Secret") !== env.INGEST_SECRET)
+        return new Response("forbidden", { status: 403 });
+      let body: unknown;
+      try { body = await req.json(); } catch { return Response.json({ error: "not JSON" }, { status: 400 }); }
+      const r = await ingestJobs(env.DB, new Store(env.DB), body);
+      return Response.json(r.json, { status: r.status });
+    }
 
     // Telegram signs every webhook call with the secret we registered.
     if (req.headers.get("X-Telegram-Bot-Api-Secret-Token") !== env.WEBHOOK_SECRET)

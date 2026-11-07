@@ -337,7 +337,12 @@ async function collect(db: D1Database, store: Store, j: Jobs): Promise<string> {
     catch (e: any) { out.push(`Arbeitnow: ${e?.message ?? e}`); }
   }
   if (!found.length) return out.join(" + ") + ": nothing";
+  const { fresh, keep } = await saveFound(db, j, active, found);
+  return `${out.join(" + ")}: ${found.length} found, ${fresh} new, ${keep} to match`;
+}
 
+/** The ids and same-job keys among these that are stored already. */
+async function knownOf(db: D1Database, found: { id: string; company: string; title: string }[]): Promise<Set<string>> {
   const ids = [...new Set(found.map((f) => f.id))];
   const keys = [...new Set(found.map((f) => dedupeKey(f.company, f.title)))];
   const known = new Set<string>();
@@ -348,6 +353,12 @@ async function collect(db: D1Database, store: Store, j: Jobs): Promise<string> {
       .bind(...a, ...b).all<{ id: string; dkey: string }>();
     for (const r of results ?? []) { known.add(r.id); known.add(r.dkey); }
   }
+  return known;
+}
+
+/** Store the jobs not seen before: "new" to be matched, or "skipped" with the rule that left it out. */
+async function saveFound(db: D1Database, j: Jobs, active: string[], found: Found[]): Promise<{ fresh: number; keep: number }> {
+  const known = await knownOf(db, found);
   let fresh = 0, keep = 0;
   for (const f of found) {
     const dkey = dedupeKey(f.company, f.title);
@@ -362,7 +373,36 @@ async function collect(db: D1Database, store: Store, j: Jobs): Promise<string> {
       .bind(f.id, dkey, f.source, f.title, f.company, f.place, f.url, f.remote ? 1 : 0, f.kind,
             f.text ? f.text.slice(0, 6000) : null, why ? "skipped" : "new", why, now()).run();
   }
-  return `${out.join(" + ")}: ${found.length} found, ${fresh} new, ${keep} to match`;
+  return { fresh, keep };
+}
+
+// ---------------------------------------------------------------- jobs from outside
+/**
+ * Jobs found somewhere the Worker can't fetch itself - LinkedIn refuses
+ * Cloudflare, so a script on a home computer searches it
+ * (scripts/linkedin.mjs) and hands the jobs in here:
+ *   {op: "known", jobs: [{id, company, title}]}  -> {unknown: [id]}
+ *   {op: "add", jobs: [Found]}                    -> {fresh, keep}
+ * Added jobs go through the same rules, matching and cards as the rest.
+ */
+export async function ingestJobs(db: D1Database, store: Store, body: any): Promise<{ status: number; json: unknown }> {
+  const cfg = await loadConfig(store);
+  if (!cfg?.modules.jobs) return { status: 409, json: { error: "jobs are switched off" } };
+  const list = Array.isArray(body?.jobs) ? body.jobs : null;
+  const str = (x: unknown) => typeof x === "string";
+  const ok = list && list.length <= 200 && list.every((f: any) => str(f?.id) && /^[a-z]{2}:/.test(f.id) && str(f.title) && str(f.company));
+  if (!ok || !["known", "add"].includes(body?.op)) return { status: 400, json: { error: "expected {op: known|add, jobs: [{id, title, company, …}]}" } };
+  await ensureTable(db);
+  if (body.op === "known") {
+    const known = await knownOf(db, list);
+    return { status: 200, json: { unknown: list.filter((f: any) => !known.has(f.id) && !known.has(dedupeKey(f.company, f.title))).map((f: any) => f.id) } };
+  }
+  const found: Found[] = list.map((f: any) => ({
+    id: f.id, source: String(f.source ?? "outside").slice(0, 30), title: f.title.slice(0, 300), company: f.company.slice(0, 200),
+    place: String(f.place ?? "").slice(0, 200), url: String(f.url ?? "").slice(0, 500), remote: !!f.remote,
+    kind: String(f.kind ?? "").slice(0, 100), text: f.text ? String(f.text).slice(0, 6000) : undefined,
+  }));
+  return { status: 200, json: await saveFound(db, cfg.jobs, await activePeople(store, cfg.jobs), found) };
 }
 
 async function assess(env: JobsEnv, store: Store, tg: Telegram, j: Jobs): Promise<string> {

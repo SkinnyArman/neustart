@@ -422,4 +422,42 @@ console.log("\n6. a job with a very long id");
   await ok("when a card can't be posted, why is kept", () => assert.match(row(DB3, "ba:10001").why, /^could not post: .*something else/));
 }
 
+console.log("\n7. jobs handed in from outside (LinkedIn, via the Mac)");
+{
+  const [DB4, st4, E0] = await fresh();
+  const E4 = { ...E0, INGEST_SECRET: "in-secret" };
+  const hand = (body, secret = "in-secret") => worker.fetch(new Request("https://w/ingest/jobs", { method: "POST",
+    headers: { "X-Ingest-Secret": secret, "Content-Type": "application/json" }, body: JSON.stringify(body) }), E4);
+  const li = (id, title, company, kind = "", text = "SQL, Python, Dashboards. 20 Stunden pro Woche.") =>
+    ({ id: "li:" + id, source: "LinkedIn", title, company, place: "Berlin, Berlin, Germany", url: `https://www.linkedin.com/jobs/view/${id}`, remote: false, kind, text });
+  await ok("without the secret: refused", async () => {
+    assert.equal((await hand({ op: "known", jobs: [] }, "wrong")).status, 403);
+    const [D, s2, E5] = await fresh();
+    assert.equal((await worker.fetch(new Request("https://w/ingest/jobs", { method: "POST", body: "{}" }), E5)).status, 403);
+  });
+  // one LinkedIn job is a job the Jobbörse already brought (same company and title)
+  await J.jobsStep(E4, st4, tg);
+  const known = await (await hand({ op: "known", jobs: [li("1", "Werkstudent Data Analyst (m/w/d)", "Zalando SE"), li("2", "Working Student Analytics", "Acme Berlin")] })).json();
+  await ok("'which of these are new?': a job already found elsewhere isn't", () => assert.deepEqual(known.unknown, ["li:2"]));
+  const added = await (await hand({ op: "add", jobs: [li("2", "Working Student Analytics", "Acme Berlin"),
+    li("3", "Junior Data Engineer", "Big Corp", "Full-time"), li("4", "Senior Data Scientist", "X")] })).json();
+  await ok("'add these': the same rules as every other job - full-time and senior stay out", () => {
+    assert.deepEqual(added, { fresh: 3, keep: 1 });
+    assert.equal(row(DB4, "li:2").status, "new");
+    assert.equal(row(DB4, "li:3").why, "full-time"); assert.equal(row(DB4, "li:4").why, "senior or lead role");
+    assert.match(row(DB4, "li:2").text, /SQL, Python/);
+  });
+  net.tg = [];
+  for (let i = 0; i < 4; i++) await J.jobsStep(E4, st4, tg);
+  await ok("…then matched and posted like the rest, via LinkedIn", () => {
+    const c = sent().find((x) => /Working Student Analytics/.test(x.body.text));
+    assert.ok(c); assert.match(c.body.text, /Acme Berlin · Berlin, Berlin, Germany · via LinkedIn/);
+    assert.match(c.body.text, /href="https:\/\/www\.linkedin\.com\/jobs\/view\/2"/);
+  });
+  await ok("nonsense is refused, not stored", async () => {
+    assert.equal((await hand({ op: "add", jobs: [{ id: "x", title: 5 }] })).status, 400);
+    assert.equal((await hand({ op: "nope" })).status, 400);
+  });
+}
+
 console.log(`\nall ${pass} jobs checks passed`);
