@@ -22,7 +22,7 @@ import { parseListing, parseAd } from "./kleinanzeigen.ts";
 import { assessItem, screenFree, type FindContext, type ItemKey } from "./findai.ts";
 import { aiFailed, aiWorked } from "./aikey.ts";
 import { loadConfig, NO_CONFIG, type Config } from "./config.ts";
-import { topicOf } from "./topics.ts";
+import { introduce, topicOf } from "./topics.ts";
 import {
   blockSecondsLeft, dueOutageNotice, endOutage, fmtLeft, noteBlock, outageHours,
 } from "./settings.ts";
@@ -304,6 +304,28 @@ export function washerRejectReason(title: string): string | null {
 /** Names the machine and passes the rules: may go out unrated if the AI is down. */
 export const namesWasher = (title: string) => !washerRejectReason(title) && words(lower(title)).some(isWasherWord);
 
+// ================================================================ desk chair
+// A keyword search ("bürostuhl" finds Schreibtisch-, Dreh- and Gamingstühle
+// too). Clear misses by title: parts, kids' chairs, dining, garden and
+// folding chairs, stools, armchairs, broken ones. The AI judges the rest on
+// how well it suits studying at a desk.
+
+const CHAIR_NOT = /suche|gesucht|kinder|baby|hochstuhl|rollstuhl|barhocker|hocker|esszimmer|küchenst|gartenst|campingst|klappst|schulst|sessel(?<!bürosessel|chefsessel|gamingsessel)|schaukelst|defekt|kaputt/;
+const CHAIR_PART = /rollen|gasdruck|gaslift|armlehne|sitzkissen|kissen|bezug|matte|unterlage|ersatz|mechanik|fußkreuz/;
+const isChairWord = (w: string) => /(stuhl|stühle|sessel|chair)$/.test(w);
+
+export function chairRejectReason(title: string): string | null {
+  const t = lower(title);
+  const bad = CHAIR_NOT.exec(t);
+  if (bad) return `not a desk chair (${bad[0]})`;
+  const head = t.split(/\s+(?:mit|inkl\.?|inklusive)\s+/)[0];
+  const part = CHAIR_PART.exec(head);
+  return part ? `part or accessory (${part[0]})` : null;
+}
+
+/** Names a chair and passes the rules: may go out unrated if the AI is down. */
+export const namesChair = (title: string) => !chairRejectReason(title) && words(lower(title)).some(isChairWord);
+
 // ================================================================ free stuff
 // The free category ("Zu verschenken") is mostly junk with the odd gem. Three
 // tiers keep the AI bill small:
@@ -383,6 +405,7 @@ export function routeFree(title: string, width = 140): ItemKey | null {
   // Even a wrong-sized rug goes through the carpet rules, not the free wishlist.
   if (words(t).some(isCarpetWord)) return "carpet";
   if (namesWasher(title)) return "washer";
+  if (/(büro|schreibtisch|dreh|gaming)st(uhl|ühle)|chefsessel|bürosessel/.test(t) && !chairRejectReason(title)) return "chair";
   return null;
 }
 
@@ -463,6 +486,14 @@ export const ITEMS: Item[] = [
     reject: (t) => washerRejectReason(t), named: (t) => namesWasher(t),
   },
   {
+    key: "chair", emoji: "🪑", label: "Desk chairs", kv: "chair", priced: true, optional: true, defaultMax: 30, defaultFloor: 0, step: 5,
+    searches: [{
+      id: "chair", every: 60,
+      url: (max, at) => `https://www.kleinanzeigen.de/s-${at.slug}/anzeige:angebote/preis::${max}/buerostuhl/k0l${at.id}r${at.r}`,
+    }],
+    reject: (t) => chairRejectReason(t), named: (t) => namesChair(t),
+  },
+  {
     // a lot comes in and most of it is junk: only the well-rated ones go out
     key: "free", emoji: "🎁", label: "Free stuff", kv: "free", priced: false, defaultMax: 0, defaultFloor: 6, step: 1,
     searches: [{
@@ -486,6 +517,7 @@ export function parseItem(word: string): ItemKey | null {
   if (/^(kommoden?|dressers?|drawers?)$/.test(w)) return "kommode";
   if (/^(carpets?|rugs?|teppiche?)$/.test(w)) return "carpet";
   if (/^(washers?|washing|waschmaschinen?)$/.test(w)) return "washer";
+  if (/^(chairs?|stuhl|stühle|bürostuhl|schreibtischstuhl|drehstuhl)$/.test(w)) return "chair";
   if (/^(free|gratis|umsonst|verschenken)$/.test(w)) return "free";
   return null;
 }
@@ -591,7 +623,7 @@ const COLUMNS: Record<string, string> = {
   first_seen: "INTEGER NOT NULL", sent_at: "INTEGER",
   score: "INTEGER", kind: "TEXT", notes: "TEXT",
   rating_why: "TEXT",         // the score explained in one line
-  item: "TEXT",               // bike | bed | kommode | carpet | washer | free (empty: bike, from before)
+  item: "TEXT",               // bike | bed | kommode | carpet | washer | chair | free (empty: bike, from before)
 };
 const tableReady = new WeakSet<D1Database>();
 
@@ -663,6 +695,8 @@ export async function findsStep(
   if (!(await takeLock(db))) return "finds: another run is still going";
   try {
     await ensureTable(db);
+    const said = await store.kvPrefix("intro:");
+    for (const i of live) await introduce(cfg, store, tg, i.key, hello(i, cfg, s), said);
     const did: string[] = [];
     try {
       // the most overdue search, if one is due ("Check now": the most overdue anyway)
@@ -717,8 +751,10 @@ async function checkListing(
     const ad = !raw.rent && search.id === "free" ? { ...raw, rent: "Zu verschenken" } : raw;
     const price = priceEur(ad.rent);
     const km = distanceKm(ad.district);
-    // a free ad that's really one of our other items joins it
-    const routed = item.key === "free" ? routeFree(ad.title, width) : null;
+    // a free ad that's really one of our other items joins it - an optional
+    // item only when it's on, or it would be lost to free stuff
+    const route = item.key === "free" ? routeFree(ad.title, width) : null;
+    const routed = route && (s.items[route].on || !ITEM[route].optional) ? route : null;
     const it = routed ? ITEM[routed] : item;
     const why =
       routed && !s.items[routed].on ? "paused"
@@ -941,6 +977,7 @@ const WHAT = (cfg: Config): Record<ItemKey, string> => ({
   kommode: "chest of drawers",
   carpet: `area rug for a ~${cfg.finds.items.carpet.room_m2} m² room, not fitted carpet`,
   washer: "a whole, working machine, no parts",
+  chair: "comfy, for studying at a desk",
   free: "anything a new student can use",
 });
 
@@ -1003,6 +1040,17 @@ export const findsKeyboard = (s: FindSettings): Button[][] => [
    { text: "+1", callback_data: "bk:min:+1" }],
   [{ text: "🔄 Check now", callback_data: "bk:now" }],
 ];
+
+/** What a new topic is for, its budget, and how to change it. */
+function hello(i: Item, cfg: Config, s: FindSettings): string {
+  const it = s.items[i.key];
+  const cmd = i.key === "kommode" ? "kommode" : i.key;
+  return `${i.emoji} <b>${labelOf(i, cfg)}</b> will be posted here: ${WHAT(cfg)[i.key]}, ` +
+    (i.priced ? `up to ${it.max} € or free, within ${cfg.finds.radius_km} km. ` : `rated ${it.floor}/10 or better, within ${cfg.finds.radius_km} km. `) +
+    `Each one is read and rated by AI first.\n\n` +
+    (i.priced ? `/finds ${cmd} ${it.max + 10} - another budget · ` : `/finds free 7 - pickier · `) +
+    `/finds ${cmd} off - pause · /finds - all settings`;
+}
 
 /** One line for /status. */
 export async function findsLine(store: Store): Promise<string> {

@@ -233,8 +233,11 @@ const LEIPZIG = {
     assert.match(m[1].content, /^Searching right now: SAM only/);
   });
   await ok("the card is for Sam, in a Jobs topic of its own", () => {
-    const c = tgCalls("sendMessage").find((x) => /^💼/.test(x.body.text));
+    const c = tgCalls("sendMessage").find((x) => /^💼/.test(x.body.text) && /open the job/.test(x.body.text));
     assert.match(c.body.text, /\n\n🧑‍💻 For Sam\n/);
+    const hello = tgCalls("sendMessage").find((x) => /will be posted here/.test(x.body.text) && /Jobs for Sam/.test(x.body.text));
+    assert.match(hello.body.text, /^💼 <b>Jobs for Sam<\/b> will be posted here: jobs in Leipzig, .*\n\n\/jobs - the board · \/skills sam/);
+    assert.equal(hello.body.message_thread_id, c.body.message_thread_id);
     assert.equal(String(c.body.message_thread_id), DB.raw.prepare("SELECT v FROM kv WHERE k='topic:jobs'").get().v);
   });
   net.calls = [];

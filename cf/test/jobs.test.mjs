@@ -107,6 +107,7 @@ const JOBS = normalize(CONFIG).jobs;
 const fresh = async (config = CONFIG) => {
   const DB = makeDB(); const st = new Store(DB);
   await st.kvSet("config", JSON.stringify(config));
+  for (const k of ["rooms", "jobs", "casual_jobs"]) await st.kvSet("intro:" + k, "1");     // said hello already
   await st.kvSet("jobs_people", JSON.stringify(PEOPLE));
   await st.kvSet("jobs_active", "diba,arman");
   await st.kvSet("profile", JSON.stringify({ about: { name: "Arman" }, style: {}, searches: [], filters: {} }));

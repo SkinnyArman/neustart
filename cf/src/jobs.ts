@@ -22,7 +22,7 @@ import { loadConfig, NO_CONFIG, type Config, type Person } from "./config.ts";
 import { fmtLeft } from "./settings.ts";
 import type { Store } from "./store.ts";
 import { esc, inTopic, type Button, type Telegram } from "./telegram.ts";
-import { topicOf } from "./topics.ts";
+import { introduce, topicOf } from "./topics.ts";
 
 export const JOBS_CRON = "3,13,23,33,43,53 * * * *";
 const QUERIES_PER_TICK = 2;
@@ -298,6 +298,12 @@ export async function jobsStep(env: JobsEnv, store: Store, tg: Telegram): Promis
   if (!(await takeLock(db))) return "jobs: another run is still going";
   try {
     await ensureTable(db);
+    const j = cfg.jobs;
+    const names = (await activePeople(store, j)).map((w) => nameOf(j, w)).join(" & ");
+    await introduce(cfg, store, tg, "jobs",
+      `💼 <b>Jobs for ${esc(names)}</b> will be posted here: ${j.student_permit ? "Werkstudent jobs, internships and thesis positions" : "jobs"} ` +
+      `in ${esc(where(j))}, each with who it fits, the gaps, and buttons to track the application.\n\n` +
+      `/jobs - the board · /skills ${ids(j)[0]} - what it matches against · /cv - the CVs`);
     const did: string[] = [];
     did.push(await collect(db, store, cfg.jobs));
     did.push(await assess(env, store, tg, cfg.jobs));

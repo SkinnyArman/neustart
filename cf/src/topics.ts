@@ -11,9 +11,26 @@ import type { Telegram } from "./telegram.ts";
 
 export const TOPIC_NAMES: Record<TopicKey, string> = {
   rooms: "🏠 Rooms", bike: "🚲 Bikes", bed: "🛏 Bed", kommode: "🗄 Kommode", carpet: "🧶 Carpet",
-  washer: "🧼 Washing machine", free: "🎁 Free stuff", jobs: "💼 Jobs", casual_jobs: "🧺 Casual jobs",
+  washer: "🧼 Washing machine", chair: "🪑 Desk chair", free: "🎁 Free stuff", jobs: "💼 Jobs", casual_jobs: "🧺 Casual jobs",
 };
 const RETRY_AFTER = 6 * 3600;
+
+/**
+ * Once per topic, before its first post: what will come here and how to
+ * change it. Only in a topic of its own - in the main chat it would just be
+ * noise. kv intro:<key> remembers it was said.
+ */
+export async function introduce(cfg: Config, store: Store, tg: Telegram, key: TopicKey, text: string, said?: Record<string, string>): Promise<void> {
+  if ((said ? said[`intro:${key}`] : await store.kvGet(`intro:${key}`))) return;
+  const topic = await topicOf(cfg, store, tg, key);
+  if (!topic) return;
+  try {
+    await tg.send(text, { message_thread_id: topic });
+    await store.kvSet(`intro:${key}`, "1");
+  } catch (e: any) {
+    console.error(`hello in ${key} failed:`, e?.message ?? e);
+  }
+}
 
 /** The topic's thread id, or null for the main chat. */
 export async function topicOf(cfg: Config, store: Store, tg: Telegram, key: TopicKey): Promise<number | null> {

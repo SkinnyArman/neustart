@@ -11,8 +11,8 @@ import type { Store } from "./store.ts";
 
 export type ModuleKey = "rooms" | "finds" | "jobs" | "casual_jobs";
 export const MODULES: ModuleKey[] = ["rooms", "finds", "jobs", "casual_jobs"];
-export type ItemKey = "bike" | "bed" | "kommode" | "carpet" | "washer" | "free";
-export const ITEM_KEYS: ItemKey[] = ["bike", "bed", "kommode", "carpet", "washer", "free"];
+export type ItemKey = "bike" | "bed" | "kommode" | "carpet" | "washer" | "chair" | "free";
+export const ITEM_KEYS: ItemKey[] = ["bike", "bed", "kommode", "carpet", "washer", "chair", "free"];
 /** Where each kind of post goes: one forum topic per module, and per find. */
 export type TopicKey = "rooms" | ItemKey | "jobs" | "casual_jobs";
 export const TOPIC_KEYS: TopicKey[] = ["rooms", ...ITEM_KEYS, "jobs", "casual_jobs"];
@@ -62,10 +62,11 @@ export interface Config {
   casual_jobs: { radius_km: number; only_city: boolean };
 }
 
-// a washing machine is off unless asked for: most shared flats already have one
+// a washing machine and a desk chair are off unless asked for
 const ITEM_DEFAULTS: Record<ItemKey, { max_price: number; min_rating: number; on: boolean }> = {
   bike: { max_price: 30, min_rating: 0, on: true }, bed: { max_price: 100, min_rating: 0, on: true }, kommode: { max_price: 35, min_rating: 0, on: true },
-  carpet: { max_price: 30, min_rating: 0, on: true }, washer: { max_price: 50, min_rating: 0, on: false }, free: { max_price: 0, min_rating: 6, on: true },
+  carpet: { max_price: 30, min_rating: 0, on: true }, washer: { max_price: 50, min_rating: 0, on: false },
+  chair: { max_price: 30, min_rating: 0, on: false }, free: { max_price: 0, min_rating: 6, on: true },
 };
 const ICONS = ["🧑‍💻", "👩‍💻", "👨‍💻", "🧑‍🔬", "🧑‍🎓"];
 // words in a search that say nothing about the work itself

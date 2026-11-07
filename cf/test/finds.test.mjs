@@ -228,7 +228,9 @@ const tg = new Telegram("T", "-100");
 // the fixture setup, without topics (everything in General) and without a room search
 const setup = (DB, over = {}) => DB.raw.prepare("INSERT OR REPLACE INTO kv (k,v) VALUES ('config', ?)")
   .run(JSON.stringify({ ...CONFIG, topics: "none", rooms: { about: { name: "Arman" }, style: {}, filters: {}, searches: [] }, ...over }));
-const fresh = (over) => { const DB = makeDB(); setup(DB, over); return [DB, new Store(DB), env(DB)]; };
+// every topic here has said hello already (section 9 tests the hello itself)
+const greeted = (DB) => { for (const k of ["rooms", "bike", "bed", "kommode", "carpet", "washer", "chair", "free", "jobs", "casual_jobs"]) DB.raw.prepare("INSERT OR REPLACE INTO kv (k,v) VALUES (?, '1')").run("intro:" + k); };
+const fresh = (over) => { const DB = makeDB(); setup(DB, over); greeted(DB); return [DB, new Store(DB), env(DB)]; };
 const status = (DB) => Object.fromEntries(DB.raw.prepare(
   "SELECT status, COUNT(*) n FROM bikes GROUP BY status").all().map((x) => [x.status, x.n]));
 const why = (DB, title) => DB.raw.prepare("SELECT why FROM bikes WHERE title = ?").get(title)?.why;
@@ -944,6 +946,69 @@ await ok("a free machine goes to its own topic, not the free-stuff junk pile; a 
     assert.match(await B.findsStatus(DB2, st2), /🧼 <b>Washing machine<\/b>.*up to <b>50 €<\/b>/);
     assert.ok((await B.loadFindSettings(st2)).items.washer.on);
   });
+}
+
+// ---------------------------------------------------------------- 8. desk chair
+console.log("\n8. desk chair");
+await ok("real titles: desk, office and swivel chairs get through; parts, kids', garden and dining chairs don't", () => {
+  for (const t of ["Bürostuhl !", "Bürostuhl Drehstuhl in Grau mit Chromgestell", "IKEA Flintan Bürostuhl schwarz", "Schwarzer Bürostuhl mit Armlehnen",
+    "DREHSTUHL / BÜROSTUHL", "Bürostuhl schwarz, höhenverstellbar mit Rollen", "neuwertiger weißer höhenverstellbarer Drehstuhl",
+    "IKEA Drehstuhl Bürostuhl SNILLE Stuhl blau - nur Abholung", "Gaming Stuhl DXRacer", "Chefsessel Leder", "Schreibtischstuhl ergonomisch"])
+    assert.equal(B.chairRejectReason(t), null, t);
+  for (const t of ["7 Rollen für Bürostuhl Ersatzrollen", "Kinder Bürostuhl Drehstuhl schwarz-rot", "Schulstühle, Stühle für Party o.  Gartenstühle , 15 St. vorhanden",
+    "Gasdruckfeder für Bürostuhl", "Bodenschutzmatte Bürostuhl", "Bürostuhl defekt", "Barhocker 2 Stück", "Esszimmerstühle 4er Set", "Klappstuhl Holz",
+    "Campingstuhl", "Rollstuhl faltbar", "Suche Bürostuhl", "Sitzkissen für Bürostuhl", "Armlehnen Bürostuhl Ersatz", "Hochstuhl Baby", "Ohrensessel"])
+    assert.ok(B.chairRejectReason(t), t);
+});
+await ok("named chairs may go out without AI; names: chair, stuhl, bürostuhl", () => {
+  assert.ok(B.namesChair("IKEA Flintan Bürostuhl schwarz")); assert.ok(!B.namesChair("IKEA Markus"));
+  for (const w of ["chair", "chairs", "stuhl", "bürostuhl", "Schreibtischstuhl"]) assert.equal(B.parseItem(w), "chair", w);
+});
+{
+  const CHAIRS = page([
+    [951, "Schwarzer Bürostuhl mit Armlehnen", "20 €", "03046 Cottbus", 2, "Heute, 10:00"],
+    [952, "7 Rollen für Bürostuhl Ersatzrollen", "5 €", "03046 Cottbus", 1, "Heute, 09:00"],
+  ]);
+  const f0 = globalThis.fetch;
+  globalThis.fetch = (u, i) => (String(u).includes("/buerostuhl/") ? (net.kaHits.push({ url: String(u) }), Promise.resolve(new Response(CHAIRS))) : f0(u, i));
+  const items = Object.fromEntries(["bike", "bed", "kommode", "carpet", "free"].map((k) => [k, { on: false }]));
+  const on = { finds: { ...CONFIG.finds, items: { ...items, chair: { on: true, max_price: 30 } } }, topics: { chair: 1326 } };
+  const [DB, st, E] = fresh(on); reset();
+  await B.findsStep(E, st, tg); await B.findsStep(E, st, tg);
+  await ok("switched on: a keyword search up to 30 €; the AI rates it for studying at a desk; its own topic", () => {
+    assert.ok(listings().some((h) => h.url === "https://www.kleinanzeigen.de/s-cottbus/anzeige:angebote/preis::30/buerostuhl/k0l7743r30"), JSON.stringify(listings()));
+    assert.ok(net.aiTitles.includes("Schwarzer Bürostuhl mit Armlehnen")); assert.ok(!net.aiTitles.includes("7 Rollen für Bürostuhl Ersatzrollen"));
+    const c = posts().find((p) => /Schwarzer Bürostuhl/.test(p.body.caption ?? p.body.text ?? ""));
+    assert.ok(c); assert.equal(c.body.message_thread_id, 1326); assert.match(c.body.caption ?? c.body.text, /^🪑 /);
+  });
+  globalThis.fetch = f0;
+}
+await ok("a free desk chair: to its topic when chairs are on, else still free stuff", async () => {
+  assert.equal(B.routeFree("Bürostuhl zu verschenken"), "chair");
+  const [DB, st, E] = fresh(); reset();             // chairs not asked for
+  await drain(E, st);
+  assert.ok(!listings().some((h) => h.url.includes("buerostuhl")));
+});
+
+// ---------------------------------------------------------------- 9. hello in a new topic
+console.log("\n9. a new topic says what it's for");
+{
+  const [DB, st, E] = fresh({ topics: { chair: 1326, bed: 598 }, finds: { ...CONFIG.finds, items: { ...CONFIG.finds.items, chair: { on: true, max_price: 30 } } } });
+  DB.raw.prepare("DELETE FROM kv WHERE k LIKE 'intro:%'").run();
+  DB.raw.prepare("INSERT INTO kv (k,v) VALUES ('intro:bed','1')").run();     // an older topic: no hello
+  reset();
+  await B.findsStep(E, st, tg);
+  const hello = posts().filter((p) => /will be posted here/.test(p.body.text ?? ""));
+  await ok("once per topic, before its first find: what comes, the budget, how to change it - short", () => {
+    const chair = hello.find((p) => p.body.message_thread_id === 1326);
+    assert.ok(chair, JSON.stringify(hello.map((h) => h.body.text)));
+    assert.match(chair.body.text, /^🪑 <b>Desk chairs<\/b> will be posted here: .*up to 30 €/);
+    assert.match(chair.body.text, /\/finds chair 40/); assert.match(chair.body.text, /\/finds chair off/);
+    assert.ok(chair.body.text.length < 400, String(chair.body.text.length));
+    assert.ok(!hello.some((p) => p.body.message_thread_id === 598));
+  });
+  reset(); await B.findsStep(E, st, tg);
+  await ok("…and only once", () => assert.ok(!posts().some((p) => /will be posted here/.test(p.body.text ?? ""))));
 }
 
 console.error = quiet;

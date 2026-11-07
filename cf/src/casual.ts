@@ -18,7 +18,7 @@ import { strip } from "./jobs.ts";
 import { fmtLeft } from "./settings.ts";
 import type { Store } from "./store.ts";
 import { esc, inTopic, type Button, type Telegram } from "./telegram.ts";
-import { topicOf } from "./topics.ts";
+import { introduce, topicOf } from "./topics.ts";
 
 export const CASUAL_CRON = "7,17,27,37,47,57 * * * *";
 const SEARCH_EVERY = 30 * 60;
@@ -94,6 +94,8 @@ export async function casualStep(env: CasualEnv, store: Store, tg: Telegram): Pr
   await ensureTable(db);
   const did: string[] = [];
   const w = await whereOf(store, cfg);
+  await introduce(cfg, store, tg, "casual_jobs",
+    `🧺 <b>Minijobs</b> ${esc(where(w))} will be posted here, with the pay and the hours.\n\n/casual - change the town or radius, or pause`);
   // kv casual_recheck=1: take down posted cards the current place leaves out
   if ((await store.kvGet("casual_recheck")) === "1") {
     await store.kvSet("casual_recheck", "0");

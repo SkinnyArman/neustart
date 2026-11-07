@@ -17,7 +17,7 @@ import { compose } from "./writer.ts";
 import { Telegram, esc, inTopic, type Button } from "./telegram.ts";
 import { aiFailed, aiWorked, checkKey } from "./aikey.ts";
 import { loadConfig, NO_CONFIG, type Config } from "./config.ts";
-import { topicOf } from "./topics.ts";
+import { introduce, topicOf } from "./topics.ts";
 import { CASUAL_CRON, casualLine, casualSettings, casualStep, setCasual } from "./casual.ts";
 import { JOBS_CRON, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, skillsCommand, weeklyReport } from "./jobs.ts";
 import {
@@ -73,6 +73,9 @@ async function step(env: Env, tg: Telegram, force = false): Promise<string> {
 
   const [paused] = await pauseState(store);
   if (paused) return "paused";
+  await introduce(cfg, store, tg, "rooms",
+    `🏠 <b>New WG rooms</b> from your ${profile.searches.length} searches will be posted here, each with a Draft reply button.\n\n` +
+    `/filters - rent and filters · /settings - how often · /pause - stop`);
 
   const b = await blocks(store);
   if (SOURCES.every((x) => b[x] > 0))
@@ -627,7 +630,7 @@ async function handleFinds(update: any, env: Env, tg: Telegram, store: Store): P
     tg.send(t, { ...sameTopic(update.message), ...o }, chat);
   const [cmdRaw, sub = "", val = ""] = update.message.text.trim().split(/\s+/);
   const isBikes = /^\/bikes/i.test(cmdRaw);
-  const usage = "Try /finds, /finds bed 80, /finds kommode 40, /finds carpet 30, /finds washer 60, /finds free 7 (min rating), /finds bike off, /finds min 5, /finds now";
+  const usage = "Try /finds, /finds bed 80, /finds kommode 40, /finds carpet 30, /finds washer 60, /finds chair 40, /finds free 7 (min rating), /finds bike off, /finds min 5, /finds now";
   const lsub = sub.toLowerCase();
   const item = parseItem(lsub);
 

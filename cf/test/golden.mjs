@@ -223,6 +223,8 @@ async function seed(DB, active) {
   await st.kvSet("profile", JSON.stringify(P.PROFILE));             // old: the room profile
   await st.kvSet("jobs_people", JSON.stringify(P.PEOPLE));          // old: the job seekers
   await st.kvSet("config", JSON.stringify(P.CONFIG));               // new: everything
+  // topics that exist already have said hello (new code); the old code ignores it
+  for (const k of ["rooms", "bike", "bed", "kommode", "carpet", "washer", "chair", "free", "jobs", "casual_jobs"]) await st.kvSet("intro:" + k, "1");
   if (active) await st.kvSet("jobs_active", active);
   return st;
 }
@@ -260,7 +262,7 @@ function dump(DB) {
   for (const { name } of rows(DB, "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")) {
     const r = rows(DB, `SELECT * FROM ${name}`);
     const key = name === "kv" ? "k" : name === "ads" || name === "bikes" ? "ad_id" : "id";
-    out[name] = r.filter((x) => !(name === "kv" && ["config", "profile", "jobs_people"].includes(x.k)))
+    out[name] = r.filter((x) => !(name === "kv" && (["config", "profile", "jobs_people"].includes(x.k) || x.k.startsWith("intro:"))))
       .sort((a, b) => String(a[key]).localeCompare(String(b[key])));
   }
   return out;

@@ -92,6 +92,17 @@ const specs = (c: FindContext): Record<ItemKey, Spec> => ({
     caps: `condition not described at all -> at most 6. Doesn't say it works -> at most 6. 20 km or more away -> at most 5. Very old or heavily worn -> at most 5.`,
     notes: `age, capacity in kg, energy class, whether it was seen working, floor and stairs for pickup, connection hoses included, pickup deadlines`,
   },
+  chair: {
+    what: "desk chair",
+    isMatch: `true if the ad sells a chair made for sitting at a desk for hours - an office, desk, swivel or gaming chair; several of them are fine too. false for dining or kitchen chairs, stools and bar stools, armchairs and lounge chairs, folding, garden and camping chairs, kids' and baby chairs, wheelchairs, parts on their own (casters, gas lifts, armrests, cushions, floor mats), broken chairs, and posts searching for one.`,
+    kinds: `"IKEA Markus office chair", "Swivel desk chair with armrests", "Ergonomic office chair, mesh back"`,
+    factors: `- comfort for long study sessions weighs most: back support, padding, adjustable height, armrests; ergonomic or known office brands score higher
+- condition: no tears, wobble or sinking gas lift
+- value: what you get for the price
+- transport: fits in a car, or can be carried a short way`,
+    caps: `condition not described at all -> at most 6. No back support or no height adjustment -> at most 5. 20 km or more away -> at most 6. Worn padding or a sinking seat -> at most 4.`,
+    notes: `adjustable parts (height, armrests, backrest, tilt), padding or mesh, damage, pickup deadlines`,
+  },
   free: {
     what: "free giveaway",
     isMatch: `true if the ad gives away, for free, something useful or cool for ${c.for_whom}: ${FREE_USEFUL}. false for ${FREE_NOT}.`,

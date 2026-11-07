@@ -56,7 +56,8 @@ chat and it tries again every 6 hours. Topics you made yourself go in the
 config's `topics:` (the number at the end of a topic's link,
 `t.me/c/<group>/<topic>`); `topics: none` keeps everything in the main chat.
 Commands are answered in the topic they were typed in; a deleted topic's
-posts go to the main chat.
+posts go to the main chat. A new topic first gets a short note: what will be
+posted there, the budget, and how to change it (once; kv `intro:<topic>`).
 
 **Is it healthy?** `curl 'https://<worker>.workers.dev/health?ai'` answers
 `{"ok":true,"openai":"ok"}` when the deployed OpenAI key works. A rejected key
@@ -83,6 +84,7 @@ default), each with its own price cap:
 | 🗄 | a Kommode / chest of drawers (keyword search) | 35 € |
 | 🧶 | a normal area rug for a ~25 m² room (keyword Teppich; `room_m2`) | 30 € |
 | 🧼 | a whole, working washing machine (appliance category, keyword; off unless `on: true`) | 50 € |
+| 🪑 | a desk chair, comfy enough for studying (keyword Bürostuhl; off unless `on: true`) | 30 € |
 | 🎁 | anything free that's useful for the room (category Zu verschenken; `for_whom` says for whom) | rated 6/10+ |
 
 The config sets the starting caps and which items are on; changes made from

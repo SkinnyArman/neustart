@@ -25,7 +25,8 @@ modules:
   jobs: true           # jobs for the people below, with an application tracker
   casual_jobs: true    # Minijobs around the city, with the pay
 
-# Forum topics. Make the Telegram group a forum ("Topics" on) and the bot an
+# Forum topics. Each new topic starts with a short note on what comes there,
+# the budget, and how to change it. Make the Telegram group a forum ("Topics" on) and the bot an
 # admin who may manage topics: it creates one topic per module the first
 # time it posts there. To use topics you made yourself, give their ids (the
 # number at the end of a topic's link, t.me/c/<group>/<id>):
@@ -48,6 +49,7 @@ finds:
     kommode: { on: true, max_price: 35 }
     carpet:  { on: true, max_price: 30, room_m2: 25 }       # the room it's for
     washer:  { on: false, max_price: 50 }                   # a washing machine: off unless you need one
+    chair:   { on: false, max_price: 30 }                   # a desk chair, comfy enough for studying
     free:    { on: true, min_rating: 6 }                    # only giveaways rated 6/10 or better
   # Prices and on/off can be changed later from Telegram with /finds.
 
