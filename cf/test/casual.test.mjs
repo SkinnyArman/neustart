@@ -247,4 +247,168 @@ await ok("only_city in the config does the same without a command", async () => 
   assert.equal(C.inTown("Cottbus, Sandow", "Cottbus"), true); assert.equal(C.inTown("Kolkwitz, Niederlausitz", "Cottbus"), false);
 });
 
+console.log("\n4. more sources: part-time jobs and Kleinanzeigen Nebenjobs");
+await ok("part-time titles: casual work only - trades, office and teaching jobs stay out", () => {
+  for (const t of ["Verkäufer Teilzeit (m/w/d)", "Reinigungskraft (m/w/d) – Büroreinigung | 20,25 Std./Woche", "Mitarbeiter Warenverräumung Backwaren (m/w/d)",
+    "Service- und Reinigungshilfe (m/w/d) in Cottbus", "Studentenjob im Verkauf Teilzeit (m/w/d)", "Sicherheitsdienst / Revierfahrer / Security m/w/d"])
+    assert.equal(C.partTimeRejectReason(t), null, t);
+  for (const t of ["Mitarbeiter (m/w/d) Team Steuern im Finanz- und Rechnungswesen", "Lehrkraft (m/w/d) für Ersthelfer- und Breitenausbildung",
+    "Vertriebsmitarbeiter im Innendienst (m/w/d) SHK Branche", "Mitarbeiter (m/w/d) im qualifizierten Patiententransport", "Pflegefachkraft Teilzeit"])
+    assert.ok(C.partTimeRejectReason(t), t);
+});
+await ok("Kleinanzeigen titles: portal ads and sales schemes stay out", () => {
+  for (const t of ["⭐ Job / Arbeit ⭐ Aushilfe (m/w/d) - Netto", "Nebenjob/ Minijob Nachhilfelehrer*in gesucht Cottbus (~15-20€)",
+    "☎️ NEBENJOB: Rezeption im Hotel - SPREMBERG - 16,50 €/h", "Winterdienstmitarbeiter (m/w/d) Minijob in Cottbus"])
+    assert.equal(C.kaJobRejectReason(t), null, t);
+  for (const t of ["Babysitter finden in Cottbus (ab 14 €/h) – kostenlose Suche", "Reinigungskraft vor Ort ab 14 €/Std finden (Cottbus)",
+    "Ernährungsberater für Hunde und Katzen - Homeoffice", "Baugeräteführer (m/w/d) zur sofortigen Einstellung"])
+    assert.ok(C.kaJobRejectReason(t), t);
+});
+await ok("a town with its postcode is still that town", () => {
+  assert.equal(C.inTown("03046 Cottbus", "Cottbus"), true); assert.equal(C.inTown("03130 Spremberg", "Cottbus"), false);
+});
+{
+  const tz = (ref, title, ort = "Cottbus") => ({ referenznummer: ref, stellenangebotsTitel: title, firma: "Firma " + ref, stellenangebotsart: "ARBEIT", stellenlokationen: [{ adresse: { ort } }] });
+  const TZ = [tz("30001", "Verkäufer Teilzeit (m/w/d)"), tz("30002", "Mitarbeiter (m/w/d) Team Steuern im Finanz- und Rechnungswesen"),
+    tz("30003", "Reinigungskraft (m/w/d) – Büroreinigung | 20,25 Std./Woche"), { ...LIST[0] }];       // the last one is a Minijob too
+  const kaCard = ([id, title, place, km, date]) =>
+    `<article class="aditem" data-adid="${id}" data-href="/s-anzeige/x-${id}/${id}-107-7743"><div><svg></svg><span>${place}</span><span class="k">(${km} km)</span></div>` +
+    `<div><svg></svg><span>${date}</span></div><h3><a class="t" href="/s-anzeige/x-${id}/${id}-107-7743">${title}</a></h3><p class="mb-xsmall">Kurz</p></article>`;
+  const KA = `<html>${[
+    [701, "⭐ Job / Arbeit ⭐ Aushilfe (m/w/d) - Netto", "03046 Cottbus", 2, "Gestern"],
+    [702, "Nebenjob/ Minijob Nachhilfelehrer*in gesucht Cottbus (~15-20€)", "03044 Cottbus", 1, "Heute"],
+    [703, "Babysitter finden in Cottbus (ab 14 €/h) – kostenlose Suche", "03046 Cottbus", 1, "Heute"],
+    [704, "Zeitung austragen, Teilzeitjob, Nebenjob, Minijob in Spremberg", "03130 Spremberg", 20, "Heute"],
+    [705, "Aushilfe Getränkemarkt", "03046 Cottbus", 1, "01.09.2026"],
+  ].map(kaCard).join("")}${" ".repeat(3000)}</html>`;
+  const seen = { tz: 0, ka: [], kaAd: [] };
+  const f0 = globalThis.fetch;
+  globalThis.fetch = async (u, i) => {
+    u = String(u);
+    if (u.includes("/pc/v6/jobs") && new URL(u).searchParams.get("arbeitszeit") === "tz") { seen.tz++; net.searchUrl = new URL(u); return Response.json({ ergebnisliste: TZ }); }
+    if (u.includes("/jobdetails/") && /^3000/.test(new TextDecoder().decode(Uint8Array.from(atob(u.split("/").pop()), (c) => c.charCodeAt(0)))))
+      return Response.json({ stellenangebotsBeschreibung: "Kasse, Regale. 20 Stunden pro Woche.", verguetungsangabe: "KEINE_ANGABEN" });
+    if (u.includes("kleinanzeigen.de/s-anzeige/")) { seen.kaAd.push(u); return new Response(`<html><p id="viewad-description-text">Wir suchen Unterstützung an der Kasse, 12 € pro Stunde.</p></html>`); }
+    if (u.includes("kleinanzeigen.de")) { seen.ka.push(u); return new Response(KA); }
+    return f0(u, i);
+  };
+  const DB2 = makeDB(); const st2 = new Store(DB2);
+  await st2.kvSet("config", JSON.stringify({ ...CONFIG, casual_jobs: { radius_km: 25, only_city: true, sources: ["minijobs", "part_time", "kleinanzeigen"] } }));
+  await st2.kvSet("intro:casual_jobs", "1");
+  const E2 = { ...E, DB: DB2 };
+  const row2 = (id) => DB2.raw.prepare("SELECT * FROM casual WHERE id=?").get(id);
+  const tick2 = async (minute) => { const t = Date.UTC(2026, 9, 29, 10, minute); Date.now = () => t;
+    const w = []; await worker.scheduled({ cron: C.CASUAL_CRON, scheduledTime: t }, E2, { waitUntil: (p) => w.push(p) }); await Promise.all(w); };
+  net.tg = []; await tick2(7);
+  await ok("part-time: a Jobbörse search with arbeitszeit=tz around Cottbus; only casual work kept; a job found as both isn't doubled", () => {
+    assert.equal(seen.tz, 1); assert.equal(net.searchUrl.searchParams.get("wo"), "Cottbus");
+    assert.equal(row2("bt:30002").why, "not casual work");
+    assert.ok(row2("bt:30001")); assert.equal(row2("bt:" + LIST[0].referenznummer), undefined);
+  });
+  await ok("Kleinanzeigen: the Mini- & Nebenjobs category around Cottbus; spam, other towns and old ads stay out", () => {
+    assert.ok(seen.ka.some((u) => u === "https://www.kleinanzeigen.de/s-jobs/mini-nebenjobs/cottbus/anzeige:angebote/c107l7743r25"), seen.ka.join("\n"));
+    const r = (n) => DB2.raw.prepare("SELECT * FROM casual WHERE id LIKE ?").get(`kj:%/${n}-107-7743`);
+    assert.equal(r(703).status, "skipped"); assert.equal(r(704).why, "not in Cottbus"); assert.match(r(705).why, /old ad/);
+    assert.notEqual(r(701).status, "skipped"); assert.notEqual(r(702).status, "skipped");
+  });
+  for (const m of [17, 27, 37]) await tick2(m);
+  await ok("cards: a part-time one says so; a Kleinanzeigen one links there, with the pay from the title", () => {
+    const vk = cards().find((c) => /Verkäufer Teilzeit/.test(c.body.text));
+    assert.ok(vk); assert.match(vk.body.text, /⏱ part-time - check the hours/);
+    const nh = cards().find((c) => /Nachhilfelehrer/.test(c.body.text));
+    assert.ok(nh, cards().map((c) => c.body.text.split("\n")[0]).join(" | "));
+    assert.match(nh.body.text, /💶 €15-20 \(from the ad\)|💶 €20 \(from the ad\)|💶 €15/);
+    assert.match(nh.body.text, /<a href="https:\/\/www\.kleinanzeigen\.de\/s-anzeige\/x-702\/702-107-7743">open on Kleinanzeigen<\/a>/);
+    assert.ok(cards().every((c) => c.body.message_thread_id === 992));
+  });
+  globalThis.fetch = f0;
+  await ok("without sources in the config: Minijobs only, as before", async () => {
+    const { normalize } = await import(SRC + "config.ts");
+    assert.deepEqual(normalize(CONFIG).casual_jobs.sources, ["minijobs"]);
+    assert.deepEqual(normalize({ ...CONFIG, casual_jobs: { sources: ["kleinanzeigen", "bogus"] } }).casual_jobs.sources, ["kleinanzeigen"]);
+  });
+}
+
+console.log("\n5. what the cards show");
+{
+  const { unescapeHtml } = await import(SRC + "scraper.ts");
+  await ok("hex and decimal HTML codes are decoded: Student&#x2F;-in is Student/-in", () => {
+    assert.equal(unescapeHtml("Student&#x2F;-in, Rentner&#x2F;-in &#x27;ja&#39; &amp; mehr"), "Student/-in, Rentner/-in 'ja' & mehr");
+  });
+  await ok("a pay range stays a range", () => {
+    assert.equal(C.payOf({}, "Nachhilfelehrer*in gesucht Cottbus (~15-20€)"), "€15-20 (from the ad)");
+    assert.equal(C.payOf({}, "zwischen 15 - 20 € pro Stunde"), "€15-20/h (from the ad)");
+    assert.equal(C.payOf({}, "16,50 €/h"), "€16,50/h (from the ad)");
+  });
+  await ok("a Kleinanzeigen card: no decoration lines, the link is readable", () => {
+    const text = "✨ WIR SUCHEN: ✨\n► Aushilfe (m/w/d)\n➖➖➖➖➖➖➖➖\n➡️ BEWERBUNG direkt über den Button, ODER öffne diesen Link:\nhttps://jobino.jobs/3UOufMh\n━━━━━━━━\nFür unsere Filialen suchen wir Sie.";
+    const c = C.kaJobCard({ id: "kj:/s-anzeige/x/1-107-7743", title: "Aushilfe - Netto", company: "", place: "03048 Cottbus", attempts: 0 }, text);
+    assert.ok(!/➖|━/.test(c), c);
+    assert.match(c, /https:\/\/jobino\.jobs\/3UOufMh/);
+  });
+}
+
+console.log("\n6. worth it or not");
+{
+  const ai = { calls: [], verdict: { verdict: "worth", why: "€15.33/h for light office cleaning, close by" }, down: false };
+  const f0 = globalThis.fetch;
+  globalThis.fetch = async (u, i) => {
+    u = String(u);
+    if (u.includes("api.openai.com")) {
+      const body = JSON.parse(i.body); ai.calls.push(body);
+      if (ai.down) return new Response('{"error":"overloaded"}', { status: 503 });
+      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(ai.verdict) } }] }));
+    }
+    return f0(u, i);
+  };
+  const DB3 = makeDB(); const st3 = new Store(DB3);
+  await st3.kvSet("config", JSON.stringify({ ...CONFIG, casual_jobs: { radius_km: 25, worth_it: true } }));
+  await st3.kvSet("intro:casual_jobs", "1");
+  const E3 = { ...E, DB: DB3, OPENAI_API_KEY: "k", FINDS_MODEL: "gpt-5.6-luna" };
+  const run3 = async (minute) => { const t = Date.UTC(2026, 9, 29, 11, minute); Date.now = () => t;
+    const w = []; await worker.scheduled({ cron: C.CASUAL_CRON, scheduledTime: t }, E3, { waitUntil: (p) => w.push(p) }); await Promise.all(w); };
+  net.tg = []; await run3(7);
+  const first = cards()[0];
+  await ok("each card gets a verdict from the cheap model, weighing the work against the pay", () => {
+    assert.ok(ai.calls.length >= 1);
+    assert.equal(ai.calls[0].model, "gpt-5.6-luna");
+    assert.match(ai.calls[0].messages[0].content, /worth[\s\S]*minimum wage/);
+    assert.match(ai.calls[0].messages[1].content, /Title: Aushilfe im Verkauf/);
+  });
+  await ok("the verdict is the first thing under the title, easy to read", () => {
+    const lines = first.body.text.split("\n");
+    assert.match(lines[0], /^🧺 <b>/);
+    assert.equal(lines[2], "");
+    assert.equal(lines[3], "✅ <b>Worth it</b>");
+    assert.equal(lines[4], "<i>€15.33/h for light office cleaning, close by</i>");
+  });
+  ai.verdict = { verdict: "not", why: "Night shifts lifting crates for minimum wage" };
+  net.tg = []; await run3(17);
+  await ok("…not worth it says so too", () => assert.ok(cards().some((c) => /\n\n❌ <b>Not worth it<\/b>\n<i>Night shifts/.test(c.body.text))));
+  ai.down = true;
+  DB3.raw.prepare("UPDATE casual SET status='new' WHERE id='ba:20010'").run();
+  net.tg = []; await run3(27);
+  await ok("the AI down: the card still goes out, without a verdict", () => {
+    const c = cards().find((x) => /Hausmeister/.test(x.body.text));
+    assert.ok(c); assert.ok(!/Worth it|worth it/.test(c.body.text));
+  });
+  ai.down = false;
+  // re-post: cards posted from a time on come down and go out again
+  const before = DB3.raw.prepare("SELECT id, msg_id FROM casual WHERE status='posted' ORDER BY id").all();
+  await st3.kvSet("casual_repost", String(Math.floor(Date.UTC(2026, 9, 29, 11, 15) / 1000)));
+  net.tg = []; await run3(37);
+  await ok("kv casual_repost=<time>: the cards posted since then are deleted and posted again; older ones stay", async () => {
+    const del = net.tg.filter((c) => c.method === "deleteMessage").map((c) => c.body.message_id);
+    assert.ok(del.length >= 1);
+    assert.ok(!del.includes(DB3.raw.prepare("SELECT msg_id FROM casual WHERE id='ba:20001'").get().msg_id), "the first card (11:07) stays");
+    assert.equal(await st3.kvGet("casual_repost"), "0");
+    assert.ok(cards().length >= 1);
+  });
+  globalThis.fetch = f0;
+  await ok("without worth_it in the config: no AI at all, as before", async () => {
+    const { normalize } = await import(SRC + "config.ts");
+    assert.equal(normalize(CONFIG).casual_jobs.worth_it, false);
+  });
+}
+
 console.log(`\nall ${pass} casual checks passed`);

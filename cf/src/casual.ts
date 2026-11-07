@@ -3,7 +3,13 @@
 // No AI and no buttons: each card is the job, the pay, the hours and the
 // description.
 //
-// Source: the Jobbörse's Minijob filter, every 30 minutes. Its details give
+// Sources (casual_jobs.sources in the config; Minijobs alone by default):
+//   - minijobs: the Jobbörse's Minijob filter, every 30 minutes
+//   - part_time: its part-time filter too, kept to casual work by title
+//     (Verkauf, Reinigung, Service, Lager…), not office or teaching jobs
+//   - kleinanzeigen: its Mini- & Nebenjobs category, hourly, without the
+//     job portals' own ads and sales schemes
+// For the Jobbörse: Its details give
 // the hourly wage when the employer filled it in (about one ad in five) and
 // which times of day the job is for. Titles that need a trade or a licence
 // (Pflegefachkraft, Erzieher, Berufskraftfahrer, …) are left out by a word list.
@@ -13,29 +19,34 @@
 // "Only the city itself" drops the towns around it, and switching it on
 // takes down the cards already posted from them.
 
+import { aiFailed, aiWorked } from "./aikey.ts";
 import { loadConfig, NO_CONFIG, type Config } from "./config.ts";
 import { strip } from "./jobs.ts";
-import { fmtLeft } from "./settings.ts";
+import { KA_BASE, parseAd as kaParseAd, parseListing as kaParseListing } from "./kleinanzeigen.ts";
+import { Blocked, get, type CookieJar } from "./scraper.ts";
+import { blockSecondsLeft, fmtLeft } from "./settings.ts";
 import type { Store } from "./store.ts";
 import { esc, inTopic, type Button, type Telegram } from "./telegram.ts";
 import { introduce, topicOf } from "./topics.ts";
 
 export const CASUAL_CRON = "7,17,27,37,47,57 * * * *";
 const SEARCH_EVERY = 30 * 60;
+const KA_EVERY = 60 * 60;
+const KA_MAX_AGE_DAYS = 14;              // a job ad a week or two old is often still open
 const POST_PER_TICK = 5;
 const MAX_ATTEMPTS = 3;
 
 const BA = "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service";
 const BA_KEY = { "X-API-Key": "jobboerse-jobsuche" };   // the Jobbörse's public client key
 
-export interface CasualEnv { DB: D1Database }
+export interface CasualEnv { DB: D1Database; OPENAI_API_KEY?: string; FINDS_MODEL?: string }
 
 const now = () => Math.floor(Date.now() / 1000);
 const date = (iso?: string) => (iso ? iso.slice(0, 10).split("-").reverse().slice(0, 2).join(".") + "." : "");
 
 // ---------------------------------------------------------------- rules
 // needs a qualification or a licence nobody gets on the side
-const QUALIFIED = /fachkraft|pflegekraft|pflegefach|altenpfleg|krankenpfleg|therapeut|physio|logopäd|erzieher|lehrer|ausbilder|dozent|arzt|ärzt|apothek|hebamme|sozialpäd|psycholog|berufskraftfahrer|\blkw\b|bus ?fahrer|baumaschin|kranführer|elektri|mechani|mechatron|(?<!haus)meister|ingenieur|steuerfach|buchhalt|bilanz|medizinische|zahnmed|nageldesign|wimpern|kosmetik|friseur|anwalt|jurist/;
+const QUALIFIED = /fachkraft|pflegekraft|pflegefach|altenpfleg|krankenpfleg|therapeut|physio|logopäd|erzieher|(?<!nachhilfe)lehrer|ausbilder|dozent|arzt|ärzt|apothek|hebamme|sozialpäd|psycholog|berufskraftfahrer|\blkw\b|bus ?fahrer|baumaschin|baugerät|geräteführer|kranführer|elektri|mechani|mechatron|(?<!haus)meister|ingenieur|steuerfach|buchhalt|bilanz|medizinische|zahnmed|nageldesign|wimpern|kosmetik|friseur|anwalt|jurist/;
 const FULL_TIME = /vollzeit|full[- ]?time/;
 const CASUAL = /mini-?job|aushilf|teilzeit|nebenjob|werkstudent/;
 
@@ -46,6 +57,24 @@ export function casualRejectReason(title: string): string | null {
   if (/\b(ausbildung|azubi|duales studium)\b/.test(t)) return "apprenticeship";
   if (FULL_TIME.test(t) && !CASUAL.test(t)) return "full-time";
   return null;
+}
+
+// part-time jobs have to be casual work by their title
+const CASUAL_WORK = /aushilf|verkäuf|verkauf|kasse|kassier|service|kellner|küchenhilfe|spülkraft|reinigung|lager|kommission|(?<!erst)helfer|zusteller|austräger|hausmeister|empfang|rezeption|kundenservice|call ?center|promot|nebenjob|minijob|studentenjob|werkstudent|barista|bäckerei|backwaren|gastro|housekeep|zimmer|warenverräum|regal|kurier|security|sicherheitsdienst|alltagshilfe/;
+
+/** Why a part-time job is left out, by its title, or null. */
+export function partTimeRejectReason(title: string): string | null {
+  return casualRejectReason(title) ?? (CASUAL_WORK.test(title.toLowerCase()) ? null : "not casual work");
+}
+
+// Kleinanzeigen's job category carries the job portals' own ads ("Babysitter
+// finden… kostenlose Suche") and work-from-home sales schemes
+const KA_SPAM = /\bfinden\b|kostenlose suche|ernährungsberater|von zu ?hause|network|provision|selbstständig|freiberuf|krypto|trading|forex/;
+
+/** Why a Kleinanzeigen job ad is left out, by its title, or null. */
+export function kaJobRejectReason(title: string): string | null {
+  const t = title.toLowerCase();
+  return KA_SPAM.test(t) ? "portal ad or sales scheme" : casualRejectReason(title);
 }
 
 /** The same ad posted twice (or per branch with the same town): one card. */
@@ -79,9 +108,9 @@ export async function whereOf(store: Store, cfg: Config): Promise<Where> {
     only: only === null ? cfg.casual_jobs.only_city : only === "1",
   };
 }
-/** "Kolkwitz, Niederlausitz" is not in Cottbus; "Cottbus" and "Cottbus, Sandow" are. */
+/** "Kolkwitz, Niederlausitz" is not in Cottbus; "Cottbus", "Cottbus, Sandow" and "03046 Cottbus" are. */
 export const inTown = (place: string, city: string) =>
-  place.split(",")[0].trim().toLowerCase() === city.trim().toLowerCase();
+  place.replace(/^\d{5}\s+/, "").split(",")[0].trim().toLowerCase() === city.trim().toLowerCase();
 const outside = (w: Where, place: string) => w.only && !inTown(place, w.city);
 
 // ---------------------------------------------------------------- one tick
@@ -96,16 +125,33 @@ export async function casualStep(env: CasualEnv, store: Store, tg: Telegram): Pr
   const w = await whereOf(store, cfg);
   await introduce(cfg, store, tg, "casual_jobs",
     `🧺 <b>Minijobs</b> ${esc(where(w))} will be posted here, with the pay and the hours.\n\n/casual - change the town or radius, or pause`);
+  // kv casual_repost=<unix time>: the cards posted since then come down and go out again
+  const since = Number((await store.kvGet("casual_repost")) ?? 0);
+  if (since > 0) {
+    await store.kvSet("casual_repost", "0");
+    const { results } = await db.prepare("SELECT id, msg_id FROM casual WHERE status='posted' AND posted_at >= ?").bind(since).all<{ id: string; msg_id: number | null }>();
+    for (const r of results ?? []) {
+      if (r.msg_id) try { await tg.deleteMessage(r.msg_id); } catch { /* gone, or older than 48 h */ }
+      await setRow(db, r.id, { status: "new", attempts: 0, msg_id: null, posted_at: null });
+    }
+    if (results?.length) did.push(`${results.length} taken down to re-post`);
+  }
   // kv casual_recheck=1: take down posted cards the current place leaves out
   if ((await store.kvGet("casual_recheck")) === "1") {
     await store.kvSet("casual_recheck", "0");
     const gone = await takeDownOutside(db, tg, w);
     if (gone) did.push(`${gone} cards outside ${w.city} taken down`);
   }
+  const src = cfg.casual_jobs.sources;
   if (now() - Number((await store.kvGet("casual_searched_at")) ?? 0) >= SEARCH_EVERY) {
-    try { did.push(await search(db, w)); await store.kvSet("casual_searched_at", String(now())); }
-    catch (e: any) { did.push(`search: ${e?.message ?? e}`); }
+    try {
+      if (src.includes("minijobs")) did.push(await search(db, w));
+      if (src.includes("part_time")) did.push(await searchPartTime(db, w));
+      await store.kvSet("casual_searched_at", String(now()));
+    } catch (e: any) { did.push(`search: ${e?.message ?? e}`); }
   }
+  if (src.includes("kleinanzeigen") && now() - Number((await store.kvGet("casual_ka_at")) ?? 0) >= KA_EVERY)
+    did.push(await searchKleinanzeigen(db, store, w, cfg));
   const n = await post(env, store, tg, cfg, w);
   if (n) did.push(`${n} posted`);
   return `casual: ${did.join(", ") || "nothing to do"}`;
@@ -138,6 +184,139 @@ async function search(db: D1Database, w: Where): Promise<string> {
   return `${list.length} Minijobs, ${fresh} new, ${keep} to post`;
 }
 
+/** The Jobbörse's part-time jobs of the last week, casual work only. */
+async function searchPartTime(db: D1Database, w: Where): Promise<string> {
+  const u = new URL(`${BA}/pc/v6/jobs`);
+  for (const [k, v] of Object.entries({ wo: w.city, umkreis: String(w.radius), arbeitszeit: "tz", veroeffentlichtseit: "7", size: "100" }))
+    u.searchParams.set(k, v);
+  const r = await fetch(u, { headers: BA_KEY });
+  if (!r.ok) throw new Error(`Jobbörse ${r.status}`);
+  const list = (((await r.json()) as any).ergebnisliste ?? [])
+    .filter((j: any) => !["AUSBILDUNG", "SELBSTAENDIGKEIT"].includes(j.stellenangebotsart));
+  let fresh = 0, keep = 0;
+  for (const j of list) {
+    const title = j.stellenangebotsTitel ?? "", company = j.firma ?? "";
+    const place = j.stellenlokationen?.[0]?.adresse?.ort ?? "";
+    const dkey = dedupeKey(company, title, place);
+    // a Minijob found by the other search has the same reference number
+    const known = await db.prepare("SELECT 1 FROM casual WHERE id IN (?, ?) OR dkey=? LIMIT 1")
+      .bind("bt:" + j.referenznummer, "ba:" + j.referenznummer, dkey).first();
+    if (known) continue;
+    fresh++;
+    const why = outside(w, place) ? `not in ${w.city}` : partTimeRejectReason(title);
+    if (!why) keep++;
+    await db.prepare(
+      `INSERT OR IGNORE INTO casual (id,dkey,title,company,place,status,why,first_seen) VALUES (?,?,?,?,?,?,?,?)`)
+      .bind("bt:" + j.referenznummer, dkey, title, company, place, why ? "skipped" : "new", why, now()).run();
+  }
+  return `${list.length} part-time, ${fresh} new, ${keep} to post`;
+}
+
+const kaJar = (store: Store): CookieJar => ({
+  read: () => store.kvGet("cookies_casual"),
+  write: (c: string) => store.kvSet("cookies_casual", c),
+});
+
+/** "Heute", "Gestern" or "dd.mm.yyyy", by ad id, from the listing's cards. */
+function kaDates(html: string): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const blk of html.split(/<article class="[^"]*" data-adid=/).slice(1)) {
+    const id = /^"(\d+)"/.exec(blk)?.[1];
+    const d = /(Heute|Gestern|\d{2}\.\d{2}\.\d{4})/.exec(blk.split("</article>", 1)[0])?.[1];
+    if (id && d) out.set(id, d);
+  }
+  return out;
+}
+const daysOld = (posted?: string) => {
+  const m = posted && /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(posted);
+  return m ? (Date.now() - Date.UTC(Number(m[3]), Number(m[2]) - 1, Number(m[1]))) / 86400_000 : 0;
+};
+
+/**
+ * Kleinanzeigen's Mini- & Nebenjobs, hourly. Sits out while Kleinanzeigen is
+ * limiting the room search or the finds, and for an hour after it refuses this.
+ */
+async function searchKleinanzeigen(db: D1Database, store: Store, w: Where, cfg?: Config): Promise<string> {
+  const c = cfg ?? (await loadConfig(store))!;
+  if (!c.ka) return "Kleinanzeigen: no place for the city";
+  const t = now();
+  if ((await blockSecondsLeft(store, "ka")) > 0 || Number((await store.kvGet("bikes_blocked_until")) ?? 0) > t
+      || Number((await store.kvGet("casual_ka_blocked_until")) ?? 0) > t) return "Kleinanzeigen: waiting";
+  let html: string;
+  try {
+    html = await get(`${KA_BASE}/s-jobs/mini-nebenjobs/${c.ka.slug}/anzeige:angebote/c107l${c.ka.id}r${w.radius}`, kaJar(store));
+  } catch (e) {
+    if (!(e instanceof Blocked)) throw e;
+    await store.kvSet("casual_ka_blocked_until", String(t + 3600));
+    await store.kvSet("cookies_casual", "");
+    return "Kleinanzeigen: refused, trying again in an hour";
+  }
+  await store.kvSet("casual_ka_at", String(t));
+  const ads = kaParseListing(html);
+  const dates = kaDates(html);
+  let fresh = 0, keep = 0;
+  for (const ad of ads) {
+    const id = "kj:" + ad.url.replace(KA_BASE, "");
+    const place = ad.district.split(" · ")[0];
+    const dkey = dedupeKey("", ad.title, place);
+    if (await db.prepare("SELECT 1 FROM casual WHERE id=? OR dkey=? LIMIT 1").bind(id, dkey).first()) continue;
+    fresh++;
+    const posted = dates.get(ad.ad_id.replace(/^ka-/, ""));
+    const why = outside(w, place) ? `not in ${w.city}`
+      : daysOld(posted) > KA_MAX_AGE_DAYS ? `old ad (${posted})` : kaJobRejectReason(ad.title);
+    if (!why) keep++;
+    await db.prepare(
+      `INSERT OR IGNORE INTO casual (id,dkey,title,company,place,status,why,first_seen) VALUES (?,?,?,?,?,?,?,?)`)
+      .bind(id, dkey, ad.title, "", place, why ? "skipped" : "new", why, t).run();
+  }
+  return `Kleinanzeigen ${ads.length} Nebenjobs, ${fresh} new, ${keep} to post`;
+}
+
+// ---------------------------------------------------------------- worth it?
+// Optional (casual_jobs.worth_it): the cheap model weighs how hard the work
+// is against what it pays. Without an answer the card just goes out without it.
+export type Verdict = { verdict: "worth" | "maybe" | "not"; why: string };
+const VERDICT: Record<Verdict["verdict"], string> = { worth: "✅ <b>Worth it</b>", maybe: "🤔 <b>Could be worth it</b>", not: "❌ <b>Not worth it</b>" };
+
+const WORTH = (city: string) => `You judge casual jobs - Minijobs, part-time and side jobs - for a student in ${city} who wants to earn some money next to their studies. Decide whether applying is worth it, weighing how hard or unpleasant the work is (physical strain, early, night or weekend hours, stress, travel, needing a car or a licence) against what it pays (German minimum wage in 2026 is 13.90 €/h; no pay stated means minimum wage) and how well it fits around studying.
+
+Return JSON only: {"verdict": "worth"|"maybe"|"not", "why": string}
+worth: fair or good pay for easy, pleasant or flexible work.
+maybe: fine but with a catch - only minimum wage, odd hours, more effort than the pay suggests, or unclear.
+not: hard or unpleasant for the money, impractical for a student, or a sales scheme.
+why: one line under 90 characters naming the main reason, e.g. "15.33 €/h for light office cleaning, evenings" or "Night shifts lifting crates for minimum wage". Only what the ad says.`;
+
+async function worthIt(env: CasualEnv, city: string, ad: { title: string; company: string; place: string; pay: string; times: string; text: string }): Promise<Verdict> {
+  const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: env.FINDS_MODEL || "gpt-5.6-luna", response_format: { type: "json_object" },
+      messages: [{ role: "system", content: WORTH(city) }, { role: "user", content:
+        `Title: ${ad.title}\nEmployer: ${ad.company || "not stated"}\nPlace: ${ad.place}\nPay: ${ad.pay || "not stated"}\nTimes: ${ad.times || "not stated"}\n\n${ad.text.slice(0, 1500)}` }],
+    }),
+  });
+  if (!r.ok) throw new Error(`OpenAI ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  const d = JSON.parse((((await r.json()) as any)?.choices?.[0]?.message?.content) || "{}");
+  if (!["worth", "maybe", "not"].includes(d.verdict)) throw new Error("no verdict");
+  return { verdict: d.verdict, why: String(d.why ?? "").trim().slice(0, 110) };
+}
+
+/** The verdict, or null when it's switched off or the AI didn't answer. */
+async function verdictFor(env: CasualEnv, store: Store, tg: Telegram, cfg: Config, ad: Parameters<typeof worthIt>[2]): Promise<Verdict | null> {
+  if (!cfg.casual_jobs.worth_it || !env.OPENAI_API_KEY) return null;
+  try {
+    const v = await worthIt(env, cfg.city, ad);
+    await aiWorked(store);
+    return v;
+  } catch (e) {
+    await aiFailed(store, tg, e);
+    console.error("casual verdict failed:", (e as any)?.message ?? e);
+    return null;
+  }
+}
+const verdictBlock = (v: Verdict | null) => (v ? `${VERDICT[v.verdict]}${v.why ? `\n<i>${esc(v.why)}</i>` : ""}` : "");
+
 // ---------------------------------------------------------------- the card
 const TIMES: [string, string][] = [
   ["arbeitszeitTeilzeitVormittag", "mornings"], ["arbeitszeitTeilzeitNachmittag", "afternoons"],
@@ -152,8 +331,9 @@ export function payOf(d: any, text: string): string {
     const eur = n.toLocaleString("de-DE", { maximumFractionDigits: 2 });
     return d.verguetungsangabe === "STUNDENLOHN" || n < 60 ? `€${eur}/h` : `€${eur}/month`;
   }
-  const m = /(\d{1,4}(?:[.,]\d{1,2})?)\s?(?:€|euro\b|eur\b)(\s?(?:\/|pro|je)\s?(?:std\.?|stunde|h)\b)?/i.exec(text);
-  return m ? `€${m[1]}${m[2] ? "/h" : ""} (from the ad)` : "";
+  // "15 €", "15-20€", "16,50 €/h", "15 - 20 € pro Stunde"
+  const m = /(?:(\d{1,4}(?:[.,]\d{1,2})?)\s?[-–]\s?)?(\d{1,4}(?:[.,]\d{1,2})?)\s?(?:€|euro\b|eur\b)(\s?(?:\/|pro|je)\s?(?:std\.?|stunde|h)\b)?/i.exec(text);
+  return m ? `€${m[1] ? `${m[1]}-` : ""}${m[2]}${m[3] ? "/h" : ""} (from the ad)` : "";
 }
 
 /**
@@ -176,7 +356,21 @@ const short = (text: string, max = 600) => {
   return (end > max / 2 ? cut.slice(0, end + 1) : cut).trim() + " …";
 };
 
-export function casualCard(row: Row, d: any): string {
+/** A Kleinanzeigen job: the ad's own text, the pay it names. */
+export function kaJobCard(row: Row, raw: string, v: Verdict | null = null): string {
+  // the posting services' decoration: lines of ➖ or ━
+  const text = raw.split("\n").filter((l) => !/^[\s➖━─—=_*~.-]{3,}$/u.test(l)).join("\n");
+  const pay = payOf({}, `${row.title}\n${text}`);
+  return [
+    `🧺 <b>${esc(row.title)}</b>\nKleinanzeigen${row.place ? ` · ${esc(row.place)}` : ""}`,
+    verdictBlock(v),
+    pay ? `💶 ${pay}` : "💶 pay not stated (at least minimum wage)",
+    text ? esc(short(text)) : "",
+    `<a href="${esc(KA_BASE + row.id.slice(3))}">open on Kleinanzeigen</a>`,
+  ].filter(Boolean).join("\n\n");
+}
+
+export function casualCard(row: Row, d: any, v: Verdict | null = null): string {
   const text = describe(d?.stellenangebotsBeschreibung ?? "");
   const pay = payOf(d, text);
   const times = TIMES.filter(([k]) => d?.[k]).map(([, v]) => v);
@@ -186,10 +380,12 @@ export function casualCard(row: Row, d: any): string {
     pay ? `💶 ${pay}` : "💶 pay not stated (at least minimum wage)",
     times.length ? `🕐 ${times.join(" · ")}` : "",
     start ? `📅 from ${date(start)}` : "",
+    row.id.startsWith("bt:") ? "⏱ part-time - check the hours" : "",
   ].filter(Boolean).join("\n");
   const url = `https://www.arbeitsagentur.de/jobsuche/jobdetail/${encodeURIComponent(row.id.slice(3))}`;
   return [
     `🧺 <b>${esc(row.title)}</b>\n${esc(row.company)}${row.place ? ` · ${esc(row.place)}` : ""}`,
+    verdictBlock(v),
     facts,
     text ? esc(short(text)) : "",
     `<a href="${esc(url)}">open the job</a>` + (d?.externeURL ? ` · <a href="${esc(d.externeURL)}">apply</a>` : ""),
@@ -204,20 +400,41 @@ async function post(env: CasualEnv, store: Store, tg: Telegram, cfg: Config, w: 
   for (const row of results ?? []) {
     // the place was narrowed since it was found
     if (outside(w, row.place)) { await setRow(db, row.id, { status: "skipped", why: `not in ${w.city}` }); continue; }
+    if (row.id.startsWith("kj:")) {
+      // a Kleinanzeigen ad: its own page; a refusal leaves the rest for later
+      try {
+        const html = await get(KA_BASE + row.id.slice(3), kaJar(store));
+        const [text] = kaParseAd(html);
+        if (!text && html.includes("data-adid=")) { await setRow(db, row.id, { status: "skipped", why: "gone" }); continue; }
+        const v = await verdictFor(env, store, tg, cfg, { title: row.title, company: "", place: row.place, pay: payOf({}, `${row.title}\n${text}`), times: "", text });
+        const sent = await tg.send(kaJobCard(row, text, v), inTopic(await topicOf(cfg, store, tg, "casual_jobs")));
+        await setRow(db, row.id, { status: "posted", posted_at: now(), msg_id: sent?.result?.message_id ?? null, pay: payOf({}, `${row.title}\n${text}`) || null });
+        n++;
+      } catch (e: any) {
+        if (e instanceof Blocked) { await store.kvSet("casual_ka_blocked_until", String(now() + 3600)); continue; }
+        if (String(e?.message).includes(" 429")) break;
+        const tries = row.attempts + 1;
+        await setRow(db, row.id, tries >= MAX_ATTEMPTS ? { attempts: tries, status: "skipped", why: `could not post: ${String(e?.message ?? e).slice(0, 100)}` } : { attempts: tries });
+      }
+      continue;
+    }
     try {
       const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(row.id.slice(3))));
       const r = await fetch(`${BA}/pc/v4/jobdetails/${b64}`, { headers: BA_KEY });
       if (r.status === 404) { await setRow(db, row.id, { status: "skipped", why: "gone" }); continue; }
       if (!r.ok) throw new Error(`Jobbörse details ${r.status}`);
-      const d = await r.json();
-      const sent = await tg.send(casualCard(row, d), inTopic(await topicOf(cfg, store, tg, "casual_jobs")));
+      const d: any = await r.json();
+      const text = describe(d?.stellenangebotsBeschreibung ?? "");
+      const v = await verdictFor(env, store, tg, cfg, { title: row.title, company: row.company, place: row.place,
+        pay: payOf(d, text), times: TIMES.filter(([k]) => d?.[k]).map(([, x]) => x).join(", ") + (row.id.startsWith("bt:") ? " (part-time)" : ""), text });
+      const sent = await tg.send(casualCard(row, d, v), inTopic(await topicOf(cfg, store, tg, "casual_jobs")));
       await setRow(db, row.id, { status: "posted", posted_at: now(), msg_id: sent?.result?.message_id ?? null,
         pay: payOf(d, describe((d as any)?.stellenangebotsBeschreibung ?? "")) || null });
       n++;
     } catch (e: any) {
       if (String(e?.message).includes(" 429")) break;
       const tries = row.attempts + 1;
-      await setRow(db, row.id, tries >= MAX_ATTEMPTS ? { attempts: tries, status: "skipped", why: "could not post" } : { attempts: tries });
+      await setRow(db, row.id, tries >= MAX_ATTEMPTS ? { attempts: tries, status: "skipped", why: `could not post: ${String(e?.message ?? e).slice(0, 100)}` } : { attempts: tries });
     }
   }
   return n;

@@ -34,6 +34,9 @@ export interface Person {
 }
 
 export interface City { name: string; radius_km: number }
+/** Minijobs and part-time jobs from the Jobbörse, Nebenjobs from Kleinanzeigen */
+export type CasualSource = "minijobs" | "part_time" | "kleinanzeigen";
+const CASUAL_SOURCES: CasualSource[] = ["minijobs", "part_time", "kleinanzeigen"];
 
 export interface Config {
   city: string;
@@ -59,7 +62,7 @@ export interface Config {
     arbeitnow: boolean;
     people: Person[];
   };
-  casual_jobs: { radius_km: number; only_city: boolean };
+  casual_jobs: { radius_km: number; only_city: boolean; sources: CasualSource[]; worth_it: boolean };
 }
 
 // a washing machine and a desk chair are off unless asked for
@@ -194,7 +197,11 @@ export function normalize(raw: unknown): Config {
 
   return {
     city, ka, modules, problems, topics, topics_mode, rooms, finds, jobs,
-    casual_jobs: { radius_km: num(r.casual_jobs?.radius_km, 25), only_city: bool(r.casual_jobs?.only_city, false) },
+    casual_jobs: {
+      radius_km: num(r.casual_jobs?.radius_km, 25), only_city: bool(r.casual_jobs?.only_city, false),
+      worth_it: bool(r.casual_jobs?.worth_it, false),
+      sources: ((s) => (s.length ? s : ["minijobs" as CasualSource]))(list(r.casual_jobs?.sources).filter((x): x is CasualSource => CASUAL_SOURCES.includes(x as CasualSource))),
+    },
   };
 }
 

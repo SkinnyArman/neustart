@@ -139,7 +139,9 @@ const ENT: Record<string, string> = {
 export function unescapeHtml(s: string): string {
   return s
     .replace(/&[a-zA-Z#0-9]+;/g, (m) => ENT[m] ?? m)
-    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)));
+    // numeric codes, decimal and hex: &#47; and &#x2F; are both "/"
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)));
 }
 
 function one(rx: RegExp, blk: string, grp = 1): string {

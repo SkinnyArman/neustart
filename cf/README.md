@@ -183,12 +183,23 @@ Profiles and CV text are personal: they're in the gitignored `neustart.yaml`
 
 ### Casual jobs
 
-`src/casual.ts` posts Minijobs within `casual_jobs.radius_km` of the city (25 by default; Aushilfe, Verkauf,
-Reinigung, Zeitung austragen, …) to their own topic, from the Jobbörse's
-Minijob filter every 30 minutes. No AI and no buttons: each card is the job,
+`src/casual.ts` posts casual jobs within `casual_jobs.radius_km` of the city
+(25 by default), from the sources in `casual_jobs.sources`: `minijobs` (the
+Jobbörse's Minijob filter; the default), `part_time` (its part-time filter,
+kept to casual work by title: Verkauf, Reinigung, Service, Lager… - each
+card says to check the hours) and `kleinanzeigen` (its Mini- & Nebenjobs
+category, hourly, without the job portals' own ads and sales schemes; ads
+up to 2 weeks old). Kleinanzeigen waits while it's limiting the room search
+or the finds. They go to their own topic. No AI and no buttons: each card is the job,
 the pay (the hourly wage field, else a euro amount the ad names, else "not
 stated"), the times of day, the start and the description. Titles that need
 a trade or a licence are left out by a word list.
+
+With `worth_it: true`, each card starts with a verdict from the cheap model
+(✅ Worth it / 🤔 Could be worth it / ❌ Not worth it, and why), weighing
+how hard or unpleasant the work is against what it pays. If the AI doesn't
+answer, the card goes out without it. kv `casual_repost` = a unix time takes
+down the cards posted since then and posts them again on the next tick.
 
 `/casual` (anyone in the group) shows where it looks and changes it: the
 radius (`/casual 10`), the town (`/casual city Spremberg`), only the city

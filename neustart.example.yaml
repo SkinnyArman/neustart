@@ -97,6 +97,10 @@ jobs:
 casual_jobs:
   radius_km: 25
   only_city: false     # true: the city itself only, not the towns around it
+  # where from: the Jobbörse's Minijobs and its part-time jobs (casual work
+  # only, by title), and Kleinanzeigen's Mini- & Nebenjobs category
+  sources: [minijobs, part_time, kleinanzeigen]
+  worth_it: true       # each card says Worth it / Could be worth it / Not worth it (cheap AI)
   # Both can be changed later from Telegram with /casual.
 
 # ============================================================
