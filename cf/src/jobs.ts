@@ -23,6 +23,7 @@ import { fmtLeft } from "./settings.ts";
 import type { Store } from "./store.ts";
 import { esc, inTopic, type Button, type Telegram } from "./telegram.ts";
 import { introduce, topicOf } from "./topics.ts";
+import { noteError, noteOk } from "./watch.ts";
 
 export const JOBS_CRON = "3,13,23,33,43,53 * * * *";
 const QUERIES_PER_TICK = 2;
@@ -125,6 +126,7 @@ const COLUMNS: Record<string, string> = {
   attempts: "INTEGER NOT NULL DEFAULT 0",
   first_seen: "INTEGER NOT NULL", posted_at: "INTEGER", applied_at: "INTEGER",
   replied_at: "INTEGER", reminded: "INTEGER NOT NULL DEFAULT 0", msg_id: "INTEGER",
+  checked_at: "INTEGER",         // when a posted job was last looked up again
 };
 const ready = new WeakSet<D1Database>();
 async function ensureTable(db: D1Database) {
@@ -311,6 +313,8 @@ export async function jobsStep(env: JobsEnv, store: Store, tg: Telegram): Promis
     if (redone) did.push(`${redone} taken down to re-post`);
     const posted = await post(env, store, tg, cfg);
     if (posted) did.push(`${posted} posted`);
+    const gone = await recheck(env, store, tg, cfg);
+    if (gone) did.push(`${gone} no longer listed`);
     const due = await remind(env, store, tg, cfg);
     if (due) did.push(`${due} reminders`);
     if (await weekly(env, store, tg, cfg)) did.push("weekly report");
@@ -328,13 +332,15 @@ async function collect(db: D1Database, store: Store, j: Jobs): Promise<string> {
   const i = Number((await store.kvGet("jobs_query")) ?? 0) % searches.length;
   for (let k = 0; k < QUERIES_PER_TICK; k++) {
     const q = searches[(i + k) % searches.length];
-    try { found.push(...(await fetchBA(q))); out.push(`"${q.q}" ${q.wo}`); }
-    catch (e: any) { out.push(`${q.q}: ${e?.message ?? e}`); }
+    try { const f = await fetchBA(q); found.push(...f); out.push(`"${q.q}" ${q.wo}`); await noteOk(store, "jobs_ba", f.length); }
+    catch (e: any) { out.push(`${q.q}: ${e?.message ?? e}`); await noteError(store, "jobs_ba", e); }
   }
   await store.kvSet("jobs_query", String((i + QUERIES_PER_TICK) % searches.length));
   if (j.arbeitnow && now() - Number((await store.kvGet("jobs_arbeitnow_at")) ?? 0) >= ARBEITNOW_EVERY) {
-    try { found.push(...(await fetchArbeitnow(j))); out.push("Arbeitnow"); await store.kvSet("jobs_arbeitnow_at", String(now())); }
-    catch (e: any) { out.push(`Arbeitnow: ${e?.message ?? e}`); }
+    try {
+      const f = await fetchArbeitnow(j); found.push(...f); out.push("Arbeitnow");
+      await store.kvSet("jobs_arbeitnow_at", String(now())); await noteOk(store, "jobs_arbeitnow", f.length);
+    } catch (e: any) { out.push(`Arbeitnow: ${e?.message ?? e}`); await noteError(store, "jobs_arbeitnow", e); }
   }
   if (!found.length) return out.join(" + ") + ": nothing";
   const { fresh, keep } = await saveFound(db, j, active, found);
@@ -438,7 +444,7 @@ const KIND: Record<string, string> = {
 };
 const STATUS: Record<string, string> = {
   posted: "", applied: "✅ Applied", already: "🔁 Applied before", interview: "🗓 Interview",
-  rejected: "❌ Rejected", offer: "🎉 Offer", skipped: "⏭ Skipped",
+  rejected: "❌ Rejected", offer: "🎉 Offer", skipped: "⏭ Skipped", expired: "🚫 No longer listed",
 };
 
 const forWhom = (j: Jobs, person: string | null) => {
@@ -547,6 +553,35 @@ async function repost(db: D1Database, store: Store, tg: Telegram, j: Jobs): Prom
       : why ? { status: "skipped", why, msg_id: null } : { status: "new", attempts: 0, msg_id: null });
   }
   return results?.length ?? 0;
+}
+
+/**
+ * Without AI: a posted job nobody has acted on is looked up again 3 days
+ * after it went out, then every 3 days, two per tick. Taken down at the
+ * Jobbörse (404) or Arbeitnow: the card says "No longer listed" and loses its
+ * buttons, and it no longer counts as open. LinkedIn can't be reached from
+ * here; those stay as they are.
+ */
+const RECHECK_AFTER = 3 * 86400;
+async function recheck(env: JobsEnv, store: Store, tg: Telegram, cfg: Config): Promise<number> {
+  const db = env.DB;
+  const t = now();
+  const { results } = await db.prepare(
+    `SELECT * FROM jobs WHERE status='posted' AND (id LIKE 'ba:%' OR id LIKE 'an:%') AND posted_at < ? AND COALESCE(checked_at, 0) < ?
+     ORDER BY COALESCE(checked_at, posted_at) LIMIT 2`).bind(t - RECHECK_AFTER, t - RECHECK_AFTER).all<JobRow>();
+  let gone = 0;
+  for (const row of results ?? []) {
+    const url = row.id.startsWith("ba:")
+      ? `${BA}/pc/v4/jobdetails/${btoa(String.fromCharCode(...new TextEncoder().encode(row.id.slice(3))))}` : row.url;
+    let status = 0;
+    try { status = (await fetch(url, row.id.startsWith("ba:") ? { headers: BA_KEY } : { redirect: "manual" })).status; } catch { /* try again later */ }
+    if (status !== 404 && status !== 410) { if (status) await setJob(db, row.id, { checked_at: t }); continue; }
+    const expired = { ...row, status: "expired" };
+    await setJob(db, row.id, { status: "expired", checked_at: t });
+    if (row.msg_id) try { await tg.editText(tg.chat, row.msg_id, card(expired, cfg.jobs), []); } catch { /* too old, or deleted */ }
+    gone++;
+  }
+  return gone;
 }
 
 async function remind(env: JobsEnv, store: Store, tg: Telegram, cfg: Config): Promise<number> {

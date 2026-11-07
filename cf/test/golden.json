@@ -10,12 +10,23 @@
    }
   },
   {
-   "url": "https://api.openai.com/v1/models/gpt-5.6-luna"
+   "url": "https://api.openai.com/v1/chat/completions",
+   "method": "POST",
+   "body": {
+    "model": "gpt-5.6-luna",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Reply with OK."
+     }
+    ],
+    "max_completion_tokens": 16
+   }
   },
   {
    "res": {
     "status": 200,
-    "text": "{\"ok\":true,\"openai\":\"ok\"}"
+    "text": "{\"ok\":true,\"openai\":\"ok\",\"problems\":[]}"
    }
   },
   {
@@ -8407,6 +8418,12 @@
    "url": "https://www.arbeitnow.com/api/job-board-api"
   },
   {
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/MTAwMDQ="
+  },
+  {
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/MTAwMDY="
+  },
+  {
    "url": "https://api.telegram.org/botT/sendMessage",
    "method": "POST",
    "body": {
@@ -8451,6 +8468,10 @@
    "cookie": "sess=ka1"
   },
   {
+   "url": "https://www.kleinanzeigen.de/s-anzeige/28-damenrad-hollandrad/101-1-7743",
+   "cookie": "sess=ka1"
+  },
+  {
    "step": "tick wg 56"
   },
   {
@@ -8462,6 +8483,12 @@
   },
   {
    "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?wo=Cottbus&umkreis=25&arbeitszeit=mj&veroeffentlichtseit=30&size=100"
+  },
+  {
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/MjAwMDE="
+  },
+  {
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/MjAwMDI="
   },
   {
    "step": "tick wg 58"
@@ -8480,6 +8507,12 @@
   },
   {
    "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Softwareentwicklung&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+  },
+  {
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/MTAwMDk="
+  },
+  {
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/MTAwMTA="
   },
   {
    "url": "https://api.telegram.org/botT/sendMessage",
@@ -8503,10 +8536,17 @@
    "cookie": "sess=ka1"
   },
   {
+   "url": "https://www.kleinanzeigen.de/s-anzeige/herrenrad-pegasus-28/201-1-7743",
+   "cookie": "sess=ka1"
+  },
+  {
    "step": "tick wg 6"
   },
   {
    "step": "tick casual 7"
+  },
+  {
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/MjAwMDc="
   },
   {
    "step": "tick wg 8"
@@ -8534,6 +8574,10 @@
   },
   {
    "url": "https://www.kleinanzeigen.de/s-haus-garten/cottbus/anzeige:angebote/preis::30/teppich/k0c80l7743r30",
+   "cookie": "sess=ka1"
+  },
+  {
+   "url": "https://www.kleinanzeigen.de/s-anzeige/teppich-200x300-zu-verschenken/604-1-7743",
    "cookie": "sess=ka1"
   },
   {
@@ -8579,6 +8623,10 @@
    "cookie": "sess=ka1"
   },
   {
+   "url": "https://www.kleinanzeigen.de/s-anzeige/diverse-teller-tassen-zu-verschenken/602-1-7743",
+   "cookie": "sess=ka1"
+  },
+  {
    "step": "tick wg 26"
   },
   {
@@ -8613,6 +8661,10 @@
   },
   {
    "url": "https://www.kleinanzeigen.de/s-fahrraeder/damen/cottbus/anzeige:angebote/preis::25/c217l7743r30+fahrraeder.art_s:damen",
+   "cookie": "sess=ka1"
+  },
+  {
+   "url": "https://www.kleinanzeigen.de/s-anzeige/doppelbett-holz-mit-lattenrost/403-1-7743",
    "cookie": "sess=ka1"
   },
   {
@@ -8654,6 +8706,10 @@
    "cookie": "sess=ka1"
   },
   {
+   "url": "https://www.kleinanzeigen.de/s-anzeige/ikea-brimnes-bett-140x200-cm/401-1-7743",
+   "cookie": "sess=ka1"
+  },
+  {
    "step": "tick wg 46"
   },
   {
@@ -8692,6 +8748,10 @@
    "cookie": "sess=ka1"
   },
   {
+   "url": "https://www.kleinanzeigen.de/s-anzeige/ikea-malm-kommode-3-schubladen/501-1-7743",
+   "cookie": "sess=ka1"
+  },
+  {
    "step": "tick wg 56"
   },
   {
@@ -8726,6 +8786,10 @@
   },
   {
    "url": "https://www.kleinanzeigen.de/s-fahrraeder/herren/cottbus/anzeige:angebote/preis::25/c217l7743r30+fahrraeder.art_s:herren",
+   "cookie": "sess=ka1"
+  },
+  {
+   "url": "https://www.kleinanzeigen.de/s-anzeige/teppich-beige/702-1-7743",
    "cookie": "sess=ka1"
   },
   {
@@ -8824,6 +8888,10 @@
    "cookie": "sess=ka1"
   },
   {
+   "url": "https://www.kleinanzeigen.de/s-anzeige/wohnzimmerteppich-160x230-cm/701-1-7743",
+   "cookie": "sess=ka1"
+  },
+  {
    "step": "tick wg 16"
   },
   {
@@ -8903,6 +8971,10 @@
      }
     ]
    }
+  },
+  {
+   "url": "https://www.kleinanzeigen.de/s-anzeige/rocky-mountain-bike-26-zoll/301-1-7743",
+   "cookie": "sess=ka1"
   },
   {
    "step": "tick wg 26"
@@ -9009,12 +9081,23 @@
    "step": "tick wg 40"
   },
   {
-   "url": "https://api.openai.com/v1/models/gpt-5.6-luna"
+   "url": "https://api.openai.com/v1/chat/completions",
+   "method": "POST",
+   "body": {
+    "model": "gpt-5.6-luna",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Reply with OK."
+     }
+    ],
+    "max_completion_tokens": 16
+   }
   },
   {
    "res": {
     "status": 200,
-    "text": "{\"ok\":true,\"openai\":\"ok\"}"
+    "text": "{\"ok\":true,\"openai\":\"ok\",\"problems\":[]}"
    }
   },
   {
@@ -12135,7 +12218,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "bike"
+    "item": "bike",
+    "msg_id": 1012,
+    "checked_at": 1794207300
    },
    {
     "ad_id": "ka-102",
@@ -12154,7 +12239,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "bike"
+    "item": "bike",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-103",
@@ -12173,7 +12260,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "bike"
+    "item": "bike",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-201",
@@ -12192,7 +12281,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "bike"
+    "item": "bike",
+    "msg_id": 1020,
+    "checked_at": 1794207900
    },
    {
     "ad_id": "ka-202",
@@ -12211,7 +12302,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "bike"
+    "item": "bike",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-301",
@@ -12230,7 +12323,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "bike"
+    "item": "bike",
+    "msg_id": 1031,
+    "checked_at": 1794212700
    },
    {
     "ad_id": "ka-302",
@@ -12249,7 +12344,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "bike"
+    "item": "bike",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-401",
@@ -12268,7 +12365,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "bed"
+    "item": "bed",
+    "msg_id": 1026,
+    "checked_at": 1794210300
    },
    {
     "ad_id": "ka-402",
@@ -12287,7 +12386,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "bed"
+    "item": "bed",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-403",
@@ -12306,7 +12407,9 @@
     "kind": "Wooden double bed",
     "notes": "[\"Size not stated - ask\"]",
     "rating_why": "Cheap, size unknown",
-    "item": "bed"
+    "item": "bed",
+    "msg_id": 1025,
+    "checked_at": 1794209700
    },
    {
     "ad_id": "ka-404",
@@ -12325,7 +12428,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "bed"
+    "item": "bed",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-501",
@@ -12344,7 +12449,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "kommode"
+    "item": "kommode",
+    "msg_id": 1027,
+    "checked_at": 1794210900
    },
    {
     "ad_id": "ka-502",
@@ -12363,7 +12470,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "kommode"
+    "item": "kommode",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-601",
@@ -12382,7 +12491,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "free"
+    "item": "free",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-602",
@@ -12401,7 +12512,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "free"
+    "item": "free",
+    "msg_id": 1024,
+    "checked_at": 1794209100
    },
    {
     "ad_id": "ka-603",
@@ -12420,7 +12533,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "free"
+    "item": "free",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-604",
@@ -12439,7 +12554,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "carpet"
+    "item": "carpet",
+    "msg_id": 1023,
+    "checked_at": 1794208500
    },
    {
     "ad_id": "ka-605",
@@ -12458,7 +12575,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "free"
+    "item": "free",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-701",
@@ -12477,7 +12596,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "carpet"
+    "item": "carpet",
+    "msg_id": 1029,
+    "checked_at": 1794212100
    },
    {
     "ad_id": "ka-702",
@@ -12496,7 +12617,9 @@
     "kind": "Area rug",
     "notes": "[\"Size not stated - ask\"]",
     "rating_why": "Cheap",
-    "item": "carpet"
+    "item": "carpet",
+    "msg_id": 1028,
+    "checked_at": 1794211500
    },
    {
     "ad_id": "ka-703",
@@ -12515,7 +12638,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "carpet"
+    "item": "carpet",
+    "msg_id": null,
+    "checked_at": null
    }
   ],
   "casual": [
@@ -12531,7 +12656,8 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1014
+    "msg_id": 1014,
+    "checked_at": 1794207420
    },
    {
     "id": "ba:20002",
@@ -12545,7 +12671,8 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1015
+    "msg_id": 1015,
+    "checked_at": 1794207420
    },
    {
     "id": "ba:20003",
@@ -12559,7 +12686,8 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": null,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:20005",
@@ -12573,7 +12701,8 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": null,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:20007",
@@ -12587,7 +12716,8 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1016
+    "msg_id": 1016,
+    "checked_at": 1794208020
    }
   ],
   "jobs": [
@@ -12612,7 +12742,8 @@
     "applied_at": 1793098800,
     "replied_at": 1793098800,
     "reminded": 0,
-    "msg_id": 1021
+    "msg_id": 1021,
+    "checked_at": null
    },
    {
     "id": "an:web-cottbus",
@@ -12635,7 +12766,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1022
+    "msg_id": 1022,
+    "checked_at": null
    },
    {
     "id": "ba:10001",
@@ -12658,7 +12790,8 @@
     "applied_at": 1793098800,
     "replied_at": 1793098800,
     "reminded": 0,
-    "msg_id": 1008
+    "msg_id": 1008,
+    "checked_at": null
    },
    {
     "id": "ba:10002",
@@ -12681,7 +12814,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:10004",
@@ -12704,7 +12838,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1175
+    "msg_id": 1175,
+    "checked_at": 1794207180
    },
    {
     "id": "ba:10005",
@@ -12727,7 +12862,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:10006",
@@ -12750,7 +12886,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1176
+    "msg_id": 1176,
+    "checked_at": 1794207180
    },
    {
     "id": "ba:10008",
@@ -12773,7 +12910,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:10009",
@@ -12796,7 +12934,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1177
+    "msg_id": 1177,
+    "checked_at": 1794207780
    },
    {
     "id": "ba:10010",
@@ -12819,7 +12958,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1178
+    "msg_id": 1178,
+    "checked_at": 1794207780
    },
    {
     "id": "ba:10011",
@@ -12842,7 +12982,8 @@
     "applied_at": 1793098800,
     "replied_at": null,
     "reminded": 1,
-    "msg_id": 1019
+    "msg_id": 1019,
+    "checked_at": null
    },
    {
     "id": "ba:10012",
@@ -12865,13 +13006,30 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    }
   ],
   "kv": [
    {
     "k": "ai_key_alerted",
     "v": "1"
+   },
+   {
+    "k": "alert:casual_ba",
+    "v": ""
+   },
+   {
+    "k": "alert:finds",
+    "v": ""
+   },
+   {
+    "k": "alert:jobs_arbeitnow",
+    "v": ""
+   },
+   {
+    "k": "alert:rooms_ka",
+    "v": ""
    },
    {
     "k": "bed_max_price",
@@ -12986,6 +13144,30 @@
     "v": "7"
    },
    {
+    "k": "health:casual_ba",
+    "v": "{\"ok\":1794216420,\"empty\":0}"
+   },
+   {
+    "k": "health:finds",
+    "v": "{\"ok\":1794213300,\"empty\":0}"
+   },
+   {
+    "k": "health:jobs_arbeitnow",
+    "v": "{\"ok\":1794214380,\"empty\":0}"
+   },
+   {
+    "k": "health:jobs_ba",
+    "v": "{\"ok\":1794216780,\"empty\":0}"
+   },
+   {
+    "k": "health:rooms_ka",
+    "v": "{\"ok\":1794213480,\"empty\":0}"
+   },
+   {
+    "k": "health:rooms_wg",
+    "v": "{\"ok\":1794216480,\"empty\":0}"
+   },
+   {
     "k": "jobs_active",
     "v": "diba,arman"
    },
@@ -13044,6 +13226,10 @@
    {
     "k": "settings",
     "v": "{\"max_rent\":500,\"hot_minutes\":25,\"skip_pendler\":false}"
+   },
+   {
+    "k": "watch_at",
+    "v": "1794214380"
    }
   ]
  },
@@ -13163,7 +13349,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "bike"
+    "item": "bike",
+    "msg_id": 1190,
+    "checked_at": null
    },
    {
     "ad_id": "ka-102",
@@ -13182,7 +13370,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "bike"
+    "item": "bike",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-103",
@@ -13201,7 +13391,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "bike"
+    "item": "bike",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-201",
@@ -13220,7 +13412,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "bike"
+    "item": "bike",
+    "msg_id": 1198,
+    "checked_at": null
    },
    {
     "ad_id": "ka-202",
@@ -13239,7 +13433,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "bike"
+    "item": "bike",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-301",
@@ -13258,7 +13454,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "bike"
+    "item": "bike",
+    "msg_id": 1207,
+    "checked_at": null
    },
    {
     "ad_id": "ka-302",
@@ -13277,7 +13475,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "bike"
+    "item": "bike",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-404",
@@ -13296,7 +13496,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "bed"
+    "item": "bed",
+    "msg_id": 1202,
+    "checked_at": null
    },
    {
     "ad_id": "ka-501",
@@ -13315,7 +13517,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "kommode"
+    "item": "kommode",
+    "msg_id": 1203,
+    "checked_at": null
    },
    {
     "ad_id": "ka-502",
@@ -13334,7 +13538,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "kommode"
+    "item": "kommode",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-601",
@@ -13353,7 +13559,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "free"
+    "item": "free",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-602",
@@ -13372,7 +13580,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "free"
+    "item": "free",
+    "msg_id": 1201,
+    "checked_at": null
    },
    {
     "ad_id": "ka-603",
@@ -13391,7 +13601,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "free"
+    "item": "free",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-604",
@@ -13410,7 +13622,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "carpet"
+    "item": "carpet",
+    "msg_id": 1200,
+    "checked_at": null
    },
    {
     "ad_id": "ka-605",
@@ -13429,7 +13643,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "free"
+    "item": "free",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-701",
@@ -13448,7 +13664,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "carpet"
+    "item": "carpet",
+    "msg_id": 1205,
+    "checked_at": null
    },
    {
     "ad_id": "ka-702",
@@ -13467,7 +13685,9 @@
     "kind": "Area rug",
     "notes": "[\"Size not stated - ask\"]",
     "rating_why": "Cheap",
-    "item": "carpet"
+    "item": "carpet",
+    "msg_id": 1204,
+    "checked_at": null
    },
    {
     "ad_id": "ka-703",
@@ -13486,7 +13706,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "carpet"
+    "item": "carpet",
+    "msg_id": null,
+    "checked_at": null
    }
   ],
   "casual": [
@@ -13502,7 +13724,8 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1192
+    "msg_id": 1192,
+    "checked_at": null
    },
    {
     "id": "ba:20002",
@@ -13516,7 +13739,8 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1193
+    "msg_id": 1193,
+    "checked_at": null
    },
    {
     "id": "ba:20003",
@@ -13530,7 +13754,8 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": null,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:20005",
@@ -13544,7 +13769,8 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": null,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:20007",
@@ -13558,7 +13784,8 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1194
+    "msg_id": 1194,
+    "checked_at": null
    }
   ],
   "jobs": [
@@ -13583,7 +13810,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1199
+    "msg_id": 1199,
+    "checked_at": null
    },
    {
     "id": "an:web-cottbus",
@@ -13606,7 +13834,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:10001",
@@ -13629,7 +13858,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1186
+    "msg_id": 1186,
+    "checked_at": null
    },
    {
     "id": "ba:10002",
@@ -13652,7 +13882,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:10004",
@@ -13675,7 +13906,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:10005",
@@ -13698,7 +13930,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:10006",
@@ -13721,7 +13954,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1187
+    "msg_id": 1187,
+    "checked_at": null
    },
    {
     "id": "ba:10008",
@@ -13744,7 +13978,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:10009",
@@ -13767,7 +14002,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1188
+    "msg_id": 1188,
+    "checked_at": null
    },
    {
     "id": "ba:10010",
@@ -13790,7 +14026,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1195
+    "msg_id": 1195,
+    "checked_at": null
    },
    {
     "id": "ba:10011",
@@ -13813,7 +14050,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1196
+    "msg_id": 1196,
+    "checked_at": null
    },
    {
     "id": "ba:10012",
@@ -13836,7 +14074,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1197
+    "msg_id": 1197,
+    "checked_at": null
    }
   ],
   "kv": [
@@ -13913,6 +14152,30 @@
     "v": "{\"Zustand\":\"In Ordnung\",\"Verfügbar ab\":\"November 2026\"}"
    },
    {
+    "k": "health:casual_ba",
+    "v": "{\"ok\":1793092020,\"empty\":0}"
+   },
+   {
+    "k": "health:finds",
+    "v": "{\"ok\":1793093100,\"empty\":0}"
+   },
+   {
+    "k": "health:jobs_arbeitnow",
+    "v": "{\"ok\":1793088180,\"empty\":0}"
+   },
+   {
+    "k": "health:jobs_ba",
+    "v": "{\"ok\":1793092980,\"empty\":0}"
+   },
+   {
+    "k": "health:rooms_ka",
+    "v": "{\"ok\":1793093280,\"empty\":0}"
+   },
+   {
+    "k": "health:rooms_wg",
+    "v": "{\"ok\":1793093160,\"empty\":0}"
+   },
+   {
     "k": "jobs_active",
     "v": "diba"
    },
@@ -13927,6 +14190,10 @@
    {
     "k": "jobs_query",
     "v": "2"
+   },
+   {
+    "k": "watch_at",
+    "v": "1793091780"
    }
   ]
  },
@@ -14046,7 +14313,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "bike"
+    "item": "bike",
+    "msg_id": 1218,
+    "checked_at": null
    },
    {
     "ad_id": "ka-102",
@@ -14065,7 +14334,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "bike"
+    "item": "bike",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-103",
@@ -14084,7 +14355,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "bike"
+    "item": "bike",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-201",
@@ -14103,7 +14376,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "bike"
+    "item": "bike",
+    "msg_id": 1226,
+    "checked_at": null
    },
    {
     "ad_id": "ka-202",
@@ -14122,7 +14397,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "bike"
+    "item": "bike",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-404",
@@ -14141,7 +14418,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "bed"
+    "item": "bed",
+    "msg_id": 1230,
+    "checked_at": null
    },
    {
     "ad_id": "ka-501",
@@ -14160,7 +14439,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "kommode"
+    "item": "kommode",
+    "msg_id": 1231,
+    "checked_at": null
    },
    {
     "ad_id": "ka-502",
@@ -14179,7 +14460,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "kommode"
+    "item": "kommode",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-601",
@@ -14198,7 +14481,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "free"
+    "item": "free",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-602",
@@ -14217,7 +14502,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "free"
+    "item": "free",
+    "msg_id": 1229,
+    "checked_at": null
    },
    {
     "ad_id": "ka-603",
@@ -14236,7 +14523,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "free"
+    "item": "free",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-604",
@@ -14255,7 +14544,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "carpet"
+    "item": "carpet",
+    "msg_id": 1228,
+    "checked_at": null
    },
    {
     "ad_id": "ka-605",
@@ -14274,7 +14565,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "free"
+    "item": "free",
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "ad_id": "ka-701",
@@ -14293,7 +14586,9 @@
     "kind": "Good find",
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
-    "item": "carpet"
+    "item": "carpet",
+    "msg_id": 1233,
+    "checked_at": null
    },
    {
     "ad_id": "ka-702",
@@ -14312,7 +14607,9 @@
     "kind": "Area rug",
     "notes": "[\"Size not stated - ask\"]",
     "rating_why": "Cheap",
-    "item": "carpet"
+    "item": "carpet",
+    "msg_id": 1232,
+    "checked_at": null
    },
    {
     "ad_id": "ka-703",
@@ -14331,7 +14628,9 @@
     "kind": null,
     "notes": null,
     "rating_why": null,
-    "item": "carpet"
+    "item": "carpet",
+    "msg_id": null,
+    "checked_at": null
    }
   ],
   "casual": [
@@ -14347,7 +14646,8 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1220
+    "msg_id": 1220,
+    "checked_at": null
    },
    {
     "id": "ba:20002",
@@ -14361,7 +14661,8 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1221
+    "msg_id": 1221,
+    "checked_at": null
    },
    {
     "id": "ba:20003",
@@ -14375,7 +14676,8 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": null,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:20005",
@@ -14389,7 +14691,8 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": null,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:20007",
@@ -14403,7 +14706,8 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1222
+    "msg_id": 1222,
+    "checked_at": null
    }
   ],
   "jobs": [
@@ -14428,7 +14732,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1227
+    "msg_id": 1227,
+    "checked_at": null
    },
    {
     "id": "an:web-cottbus",
@@ -14451,7 +14756,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:10001",
@@ -14474,7 +14780,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1214
+    "msg_id": 1214,
+    "checked_at": null
    },
    {
     "id": "ba:10002",
@@ -14497,7 +14804,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:10004",
@@ -14520,7 +14828,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:10005",
@@ -14543,7 +14852,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:10006",
@@ -14566,7 +14876,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1215
+    "msg_id": 1215,
+    "checked_at": null
    },
    {
     "id": "ba:10008",
@@ -14589,7 +14900,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": null
+    "msg_id": null,
+    "checked_at": null
    },
    {
     "id": "ba:10009",
@@ -14612,7 +14924,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1216
+    "msg_id": 1216,
+    "checked_at": null
    },
    {
     "id": "ba:10010",
@@ -14635,7 +14948,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1223
+    "msg_id": 1223,
+    "checked_at": null
    },
    {
     "id": "ba:10011",
@@ -14658,7 +14972,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1224
+    "msg_id": 1224,
+    "checked_at": null
    },
    {
     "id": "ba:10012",
@@ -14681,7 +14996,8 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1225
+    "msg_id": 1225,
+    "checked_at": null
    }
   ],
   "kv": [
@@ -14742,6 +15058,30 @@
     "v": "sess=ka1"
    },
    {
+    "k": "health:casual_ba",
+    "v": "{\"ok\":1793090220,\"empty\":0}"
+   },
+   {
+    "k": "health:finds",
+    "v": "{\"ok\":1793091300,\"empty\":0}"
+   },
+   {
+    "k": "health:jobs_arbeitnow",
+    "v": "{\"ok\":1793088180,\"empty\":0}"
+   },
+   {
+    "k": "health:jobs_ba",
+    "v": "{\"ok\":1793091180,\"empty\":0}"
+   },
+   {
+    "k": "health:rooms_ka",
+    "v": "{\"ok\":1793088480,\"empty\":0}"
+   },
+   {
+    "k": "health:rooms_wg",
+    "v": "{\"ok\":1793088120,\"empty\":0}"
+   },
+   {
     "k": "jobs_arbeitnow_at",
     "v": "1793088180"
    },
@@ -14752,6 +15092,10 @@
    {
     "k": "jobs_query",
     "v": "12"
+   },
+   {
+    "k": "watch_at",
+    "v": "1793088180"
    }
   ]
  }

@@ -59,8 +59,25 @@ Commands are answered in the topic they were typed in; a deleted topic's
 posts go to the main chat. A new topic first gets a short note: what will be
 posted there, the budget, and how to change it (once; kv `intro:<topic>`).
 
-**Is it healthy?** `curl 'https://<worker>.workers.dev/health?ai'` answers
-`{"ok":true,"openai":"ok"}` when the deployed OpenAI key works. A rejected key
+**Is it healthy?** `curl 'https://<worker>.workers.dev/health?ai'` makes one
+tiny real OpenAI request and answers `{"ok":true,"openai":"ok","problems":[]}`
+when it goes through; `problems` lists what the watchdog sees.
+
+**The watchdog** (`src/watch.ts`): every search notes when it worked and how
+many results it read. Once an hour a check looks for a source that hasn't
+worked for 12 hours, or keeps reading empty pages (what a changed page
+layout looks like). A problem has to show at two checks in a row; then the
+group hears of it exactly once, and once more when it works again - no
+reminders in between. Sites that send their own notice for a long block
+(the room search's, the finds') are left to it while they back off. Open
+problems also show in `/status`.
+
+**Cards whose ad is gone**: without AI, posted finds, jobs and casual jobs
+are looked up again 3 days after they went out, then every 3 days, a few
+per tick. A deleted ad marks the card ("Gone from Kleinanzeigen", "No
+longer listed"; a job also loses its buttons) and it stops counting as
+open in `/status`, `/jobs` and `/finds`. LinkedIn jobs aren't looked up
+(Cloudflare can't reach LinkedIn); jobs someone applied to are left alone. A rejected key
 (or no credit) also sends the group one alert - unlike a rate limit, it never
 fixes itself. Meanwhile bikes are only posted unrated when their title
 clearly names a bike, and rooms that failed can be re-drafted with `/retry`.
@@ -104,7 +121,7 @@ What gets through is decided mostly without AI:
    alone; changing tables and wardrobe inserts; fitted carpet, runners,
    mats, carpet accessories and rugs of clearly unsuitable sizes.
 3. The ad page's own "Art" field has to agree.
-4. Ads that were already more than 2 days old when first seen are stored
+4. Ads that were already more than 3 days old when first seen are stored
    quietly: no backlog flood when a search starts, no pinned "TOP" ads.
 
 Only what's left reaches the AI, in the one call it needs anyway for the

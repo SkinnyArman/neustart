@@ -184,6 +184,7 @@ globalThis.fetch = async (url, init = {}) => {
   if (url.includes("api.openai.com/v1/models/")) return new Response("{}", { status: net.ai === "401" ? 401 : 200 });
   if (url.includes("api.openai.com")) {
     if (net.ai === "401") return new Response('{"error":{"message":"Incorrect API key provided","code":"invalid_api_key"}}', { status: 401 });
+    if (body.messages.length === 1) return ok("OK");                     // /health?ai's tiny request
     const sys = body.messages[0].content, user = body.messages[1].content;
     const title = /Title: (.*)/.exec(user)?.[1] ?? "";
     if (/cover letter/.test(sys)) return ok("Sehr geehrte Damen und Herren — Ihr Dashboard-Team … Mit freundlichen Grüßen");

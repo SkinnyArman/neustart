@@ -28,6 +28,7 @@ import { blockSecondsLeft, fmtLeft } from "./settings.ts";
 import type { Store } from "./store.ts";
 import { esc, inTopic, type Button, type Telegram } from "./telegram.ts";
 import { introduce, topicOf } from "./topics.ts";
+import { noteError, noteOk } from "./watch.ts";
 
 export const CASUAL_CRON = "7,17,27,37,47,57 * * * *";
 const SEARCH_EVERY = 30 * 60;
@@ -89,6 +90,9 @@ async function ensureTable(db: D1Database) {
     `CREATE TABLE IF NOT EXISTS casual (id TEXT PRIMARY KEY, dkey TEXT, title TEXT, company TEXT, place TEXT,
        status TEXT NOT NULL, why TEXT, pay TEXT, attempts INTEGER NOT NULL DEFAULT 0,
        first_seen INTEGER NOT NULL, posted_at INTEGER, msg_id INTEGER)`).run();
+  // added later: when a posted job was last looked up again
+  const { results } = await db.prepare("PRAGMA table_info(casual)").all<{ name: string }>();
+  if (!(results ?? []).some((c) => c.name === "checked_at")) await db.prepare("ALTER TABLE casual ADD COLUMN checked_at INTEGER").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS casual_status ON casual(status)").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS casual_dkey ON casual(dkey)").run();
   ready.add(db);
@@ -145,19 +149,21 @@ export async function casualStep(env: CasualEnv, store: Store, tg: Telegram): Pr
   const src = cfg.casual_jobs.sources;
   if (now() - Number((await store.kvGet("casual_searched_at")) ?? 0) >= SEARCH_EVERY) {
     try {
-      if (src.includes("minijobs")) did.push(await search(db, w));
-      if (src.includes("part_time")) did.push(await searchPartTime(db, w));
+      if (src.includes("minijobs")) did.push(await search(db, w, store));
+      if (src.includes("part_time")) did.push(await searchPartTime(db, w, store));
       await store.kvSet("casual_searched_at", String(now()));
-    } catch (e: any) { did.push(`search: ${e?.message ?? e}`); }
+    } catch (e: any) { did.push(`search: ${e?.message ?? e}`); await noteError(store, "casual_ba", e); }
   }
   if (src.includes("kleinanzeigen") && now() - Number((await store.kvGet("casual_ka_at")) ?? 0) >= KA_EVERY)
     did.push(await searchKleinanzeigen(db, store, w, cfg));
+  const gone = await recheck(db, store, tg);
+  if (gone) did.push(`${gone} no longer listed`);
   const n = await post(env, store, tg, cfg, w);
   if (n) did.push(`${n} posted`);
   return `casual: ${did.join(", ") || "nothing to do"}`;
 }
 
-async function search(db: D1Database, w: Where): Promise<string> {
+async function search(db: D1Database, w: Where, store?: Store): Promise<string> {
   const u = new URL(`${BA}/pc/v6/jobs`);
   const place = { wo: w.city, umkreis: String(w.radius) };
   for (const [k, v] of Object.entries({ ...place, arbeitszeit: "mj", veroeffentlichtseit: "30", size: "100" }))
@@ -166,6 +172,7 @@ async function search(db: D1Database, w: Where): Promise<string> {
   if (!r.ok) throw new Error(`Jobbörse ${r.status}`);
   const list = (((await r.json()) as any).ergebnisliste ?? [])
     .filter((j: any) => !["AUSBILDUNG", "SELBSTAENDIGKEIT"].includes(j.stellenangebotsart));
+  if (store) await noteOk(store, "casual_ba", list.length);
   let fresh = 0, keep = 0;
   for (const j of list) {
     const id = "ba:" + j.referenznummer;
@@ -185,7 +192,7 @@ async function search(db: D1Database, w: Where): Promise<string> {
 }
 
 /** The Jobbörse's part-time jobs of the last week, casual work only. */
-async function searchPartTime(db: D1Database, w: Where): Promise<string> {
+async function searchPartTime(db: D1Database, w: Where, store?: Store): Promise<string> {
   const u = new URL(`${BA}/pc/v6/jobs`);
   for (const [k, v] of Object.entries({ wo: w.city, umkreis: String(w.radius), arbeitszeit: "tz", veroeffentlichtseit: "7", size: "100" }))
     u.searchParams.set(k, v);
@@ -193,6 +200,7 @@ async function searchPartTime(db: D1Database, w: Where): Promise<string> {
   if (!r.ok) throw new Error(`Jobbörse ${r.status}`);
   const list = (((await r.json()) as any).ergebnisliste ?? [])
     .filter((j: any) => !["AUSBILDUNG", "SELBSTAENDIGKEIT"].includes(j.stellenangebotsart));
+  if (store) await noteOk(store, "casual_ba", list.length);
   let fresh = 0, keep = 0;
   for (const j of list) {
     const title = j.stellenangebotsTitel ?? "", company = j.firma ?? "";
@@ -249,10 +257,12 @@ async function searchKleinanzeigen(db: D1Database, store: Store, w: Where, cfg?:
     if (!(e instanceof Blocked)) throw e;
     await store.kvSet("casual_ka_blocked_until", String(t + 3600));
     await store.kvSet("cookies_casual", "");
+    await noteError(store, "casual_ka", e);
     return "Kleinanzeigen: refused, trying again in an hour";
   }
   await store.kvSet("casual_ka_at", String(t));
   const ads = kaParseListing(html);
+  await noteOk(store, "casual_ka", ads.length);
   const dates = kaDates(html);
   let fresh = 0, keep = 0;
   for (const ad of ads) {
@@ -445,6 +455,45 @@ const setRow = (db: D1Database, id: string, f: Record<string, unknown>) => {
   return db.prepare(`UPDATE casual SET ${keys.map((k) => `${k}=?`).join(", ")} WHERE id=?`)
     .bind(...keys.map((k) => f[k]), id).run();
 };
+
+/**
+ * Without AI: a posted job is looked up again 3 days after it went out, then
+ * every 3 days, two per tick. Gone from the Jobbörse (404) or Kleinanzeigen
+ * (a deleted ad sends you to a search page): the card says so and the job no
+ * longer counts as posted.
+ */
+const RECHECK_AFTER = 3 * 86400;
+async function recheck(db: D1Database, store: Store, tg: Telegram): Promise<number> {
+  const t = now();
+  const { results } = await db.prepare(
+    `SELECT id, title, company, place, msg_id FROM casual WHERE status='posted' AND posted_at < ? AND COALESCE(checked_at, 0) < ?
+     ORDER BY COALESCE(checked_at, posted_at) LIMIT 2`).bind(t - RECHECK_AFTER, t - RECHECK_AFTER)
+    .all<{ id: string; title: string; company: string; place: string; msg_id: number | null }>();
+  let gone = 0;
+  for (const r of results ?? []) {
+    let isGone: boolean | null = null;
+    try {
+      if (r.id.startsWith("kj:")) {
+        const html = await get(KA_BASE + r.id.slice(3), kaJar(store));
+        isGone = !kaParseAd(html)[0] && html.includes("data-adid=");
+      } else {
+        const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(r.id.slice(3))));
+        const s = (await fetch(`${BA}/pc/v4/jobdetails/${b64}`, { headers: BA_KEY })).status;
+        isGone = s === 404 || s === 410 ? true : s === 200 ? false : null;
+      }
+    } catch (e) {
+      if (e instanceof Blocked) break;                 // Kleinanzeigen is limiting: later
+    }
+    if (isGone === null) continue;
+    if (!isGone) { await setRow(db, r.id, { checked_at: t }); continue; }
+    await setRow(db, r.id, { status: "gone", checked_at: t });
+    if (r.msg_id) try {
+      await tg.editText(tg.chat, r.msg_id, `🚫 <b>No longer listed</b>\n<s>${esc(r.title)}</s>\n${esc([r.company, r.place].filter(Boolean).join(" · "))}`);
+    } catch { /* too old, or deleted */ }
+    gone++;
+  }
+  return gone;
+}
 
 /** Posted cards from outside the city, when only the city itself counts: deleted. */
 async function takeDownOutside(db: D1Database, tg: Telegram, w: Where): Promise<number> {

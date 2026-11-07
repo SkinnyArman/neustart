@@ -79,6 +79,14 @@ export class Telegram {
     });
   }
 
+  /** A photo's caption (editText only works on text messages). */
+  editCaption(chatId: number | string, messageId: number, caption: string) {
+    return this.call("editMessageCaption", { chat_id: chatId, message_id: messageId, caption, parse_mode: "HTML" });
+  }
+
+  /** The chat this bot posts to by default. */
+  get chat() { return this.chatId; }
+
   editMarkup(chatId: number | string, messageId: number, rows: Button[][]) {
     return this.call("editMessageReplyMarkup", {
       chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: rows },

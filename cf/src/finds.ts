@@ -23,6 +23,7 @@ import { assessItem, screenFree, type FindContext, type ItemKey } from "./findai
 import { aiFailed, aiWorked } from "./aikey.ts";
 import { loadConfig, NO_CONFIG, type Config } from "./config.ts";
 import { introduce, topicOf } from "./topics.ts";
+import { noteOk } from "./watch.ts";
 import {
   blockSecondsLeft, dueOutageNotice, endOutage, fmtLeft, noteBlock, outageHours,
 } from "./settings.ts";
@@ -603,7 +604,7 @@ const isStale = (posted: string | undefined): boolean => {
   const m = posted && /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(posted);
   if (!m) return false;                              // Heute, Gestern, or unknown
   const at = Date.UTC(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
-  return Date.now() - at > 2 * 86400_000;
+  return Date.now() - at > 3 * 86400_000;
 };
 
 const distanceKm = (place: string): number | null => {
@@ -624,6 +625,8 @@ const COLUMNS: Record<string, string> = {
   score: "INTEGER", kind: "TEXT", notes: "TEXT",
   rating_why: "TEXT",         // the score explained in one line
   item: "TEXT",               // bike | bed | kommode | carpet | washer | chair | free (empty: bike, from before)
+  msg_id: "INTEGER",          // the card, to mark it once the ad is gone
+  checked_at: "INTEGER",      // when the ad was last looked up again
 };
 const tableReady = new WeakSet<D1Database>();
 
@@ -710,6 +713,8 @@ export async function findsStep(
       const screened = await screenSome(env, store, tg, cfg);
       if (screened) did.push(screened);
       did.push(await assessSome(env, store, cfg, s, tg));
+      const gone = await recheckOne(db, store, tg);
+      if (gone) did.push(gone);
     } catch (e) {
       if (!(e instanceof Blocked)) throw e;
       return await backOff(store, tg, e.message);
@@ -733,6 +738,7 @@ async function checkListing(
   // only once it worked: after a block the next tick should look again
   await store.kvSet("bikes_checked:" + search.id, String(now()));
   const ads = parseListing(html);
+  await noteOk(store, "finds", ads.length);
   if (!ads.length) return `${search.id} listing empty`;
   const posted = cardDates(html);
 
@@ -915,8 +921,9 @@ async function sendReady(env: FindsEnv, store: Store, tg: Telegram, cfg: Config,
       await setRow(db, row.ad_id, { status: "skipped", why: `rated ${row.score}/10` });
       continue;
     }
+    let msgId: number | null = null;
     try {
-      await deliver(tg, row, cfg, await topicOf(cfg, store, tg, itemOf(row).key));
+      msgId = await deliver(tg, row, cfg, await topicOf(cfg, store, tg, itemOf(row).key));
     } catch (e: any) {
       const msg = String(e?.message ?? e);
       // flood control: stop here, the rest stays queued for the next tick
@@ -927,7 +934,7 @@ async function sendReady(env: FindsEnv, store: Store, tg: Telegram, cfg: Config,
       console.error(`alert failed for ${row.ad_id}:`, msg);
       continue;
     }
-    await setRow(db, row.ad_id, { status: "sent", sent_at: now() });
+    await setRow(db, row.ad_id, { status: "sent", sent_at: now(), msg_id: msgId });
     sent++;
   }
   return sent;
@@ -953,18 +960,45 @@ function caption(row: FindRow, cfg: Config): string {
   );
 }
 
-async function deliver(tg: Telegram, row: FindRow, cfg: Config, topic: number | null): Promise<void> {
+/** Posts the card; its message id, or null. */
+async function deliver(tg: Telegram, row: FindRow, cfg: Config, topic: number | null): Promise<number | null> {
   const text = caption(row, cfg);
   if (row.image) {
     try {
-      await tg.sendPhoto(bigImage(row.image), text, undefined, inTopic(topic));
-      return;
+      const r = await tg.sendPhoto(bigImage(row.image), text, undefined, inTopic(topic));
+      return r?.result?.message_id ?? null;
     } catch (e: any) {
       if (String(e?.message ?? e).includes(" 429")) throw e;
       // a photo Telegram can't fetch shouldn't cost the alert
     }
   }
-  await tg.send(text, inTopic(topic));
+  const r = await tg.send(text, inTopic(topic));
+  return r?.result?.message_id ?? null;
+}
+
+// ---------------------------------------------------------------- gone?
+// Without AI: a posted find is looked up again 3 days after it went out, then
+// every 3 days, one per tick. A deleted ad (Kleinanzeigen sends you to a
+// search page) marks the card "gone", so what's counted as open is open.
+const RECHECK_AFTER = 3 * 86400;
+
+async function recheckOne(db: D1Database, store: Store, tg: Telegram): Promise<string> {
+  const t = now();
+  const row = await db.prepare(
+    `SELECT * FROM bikes WHERE status='sent' AND sent_at < ? AND COALESCE(checked_at, 0) < ?
+     ORDER BY COALESCE(checked_at, sent_at) LIMIT 1`).bind(t - RECHECK_AFTER, t - RECHECK_AFTER).first<FindRow & { msg_id: number | null }>();
+  if (!row) return "";
+  await sleep(2000 + Math.random() * 2500);
+  const html = await get(row.url, jar(store));            // Blocked propagates: the tick backs off
+  const [text] = parseAd(html);
+  if (text || !html.includes("data-adid=")) { await setRow(db, row.ad_id, { checked_at: t }); return ""; }
+  await setRow(db, row.ad_id, { status: "gone", checked_at: t });
+  if (row.msg_id) {
+    const note = `🚫 <b>Gone from Kleinanzeigen</b>\n<s>${esc(row.title || "this find")}</s> · ${esc(row.price || "")}`;
+    try { await tg.editCaption(tg.chat, row.msg_id, note); }
+    catch { try { await tg.editText(tg.chat, row.msg_id, note); } catch { /* too old, or deleted */ } }
+  }
+  return "1 gone";
 }
 
 // ---------------------------------------------------------------- status
@@ -997,7 +1031,8 @@ export async function findsStatus(db: D1Database, store: Store): Promise<string>
   const shown = ITEMS.filter((i) => s.items[i.key].listed);
   for (const i of shown)
     day.push(`${i.emoji} ${await count("status='sent' AND sent_at > ? AND coalesce(item,'bike') = ?", now() - 86400, i.key)}`);
-  const total = await count("status='sent'");
+  const total = await count("status IN ('sent','gone')");
+  const gone = await count("status='gone'");
   const skipped = await count("status='skipped'");
   const queued = await count("status IN ('screen','new','ready')");
   const ago = checked ? `${fmtLeft(Math.max(0, now() - checked))} ago` : "not yet";
@@ -1016,7 +1051,7 @@ export async function findsStatus(db: D1Database, store: Store): Promise<string>
     `Last check:   ${ago}`,
     ...(until > now() ? [`Backing off:  ${fmtLeft(until - now())} left`] : []),
     `Posted (24h): ${day.join(" · ")}`,
-    `Posted total: ${total}`,
+    `Posted total: ${total}${gone ? ` (${gone} gone since)` : ""}`,
     `Filtered out: ${skipped}`,
     ...(queued ? [`Being rated:  ${queued}`] : []),
     "",

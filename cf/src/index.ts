@@ -18,6 +18,7 @@ import { Telegram, esc, inTopic, type Button } from "./telegram.ts";
 import { aiFailed, aiWorked, checkKey } from "./aikey.ts";
 import { loadConfig, NO_CONFIG, type Config } from "./config.ts";
 import { introduce, topicOf } from "./topics.ts";
+import { noteOk, problems, watchdog } from "./watch.ts";
 import { CASUAL_CRON, casualLine, casualSettings, casualStep, setCasual } from "./casual.ts";
 import { JOBS_CRON, ingestJobs, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, skillsCommand, weeklyReport } from "./jobs.ts";
 import {
@@ -154,6 +155,7 @@ async function refreshOneSearch(
   const html = await get(search.url, cookieJar(store, src));
   await clearOutage(store, src);
   const ads: Ad[] = src === "ka" ? kaParseListing(html) : parseListing(html);
+  await noteOk(store, src === "ka" ? "rooms_ka" : "rooms_wg", ads.length);
   const seen = await store.seenMany(ads.map((a) => a.ad_id));
 
   let queued = 0;
@@ -241,6 +243,7 @@ export async function statusReport(env: Env, store: Store, cfg: Config): Promise
     ...(on.jobs ? [await jobsLine(store, env.DB)] : []),
     ...(on.casual_jobs ? [await casualLine(store, env.DB)] : []),
     ...cfg.problems.map((p) => `⚠️ config: ${p}`),
+    ...(await problems(cfg, store)).map((p) => `⚠️ ${p}`),
   ];
   if (!on.rooms) return [`🏠 Room search: off`, "", ...others].join("\n");
   const profile = cfg.rooms;
@@ -923,6 +926,12 @@ export default {
         (r) => console.log("step:", r), (e) => console.error("jobs failed:", e?.message ?? e)));
       ctx.waitUntil(syncCommands(env, new Store(env.DB), tg).catch(
         (e) => console.error("commands failed:", e?.message ?? e)));
+      // is every search still working? (hourly, inside; one message per problem)
+      ctx.waitUntil((async () => {
+        const store = new Store(env.DB);
+        const cfg = await loadConfig(store);
+        if (cfg) { const r = await watchdog(cfg, store, tg); if (r) console.log("watchdog:", r); }
+      })().catch((e) => console.error("watchdog failed:", e?.message ?? e)));
       return;
     }
     const odd = minute % 2 === 1;
@@ -940,7 +949,9 @@ export default {
       // /health?ai also asks OpenAI whether the deployed key works
       if (!url.searchParams.has("ai")) return new Response("ok");
       const ai = await checkKey(env.OPENAI_API_KEY, env.FINDS_MODEL || "gpt-5.6-luna");
-      return Response.json({ ok: true, openai: ai });
+      const store = new Store(env.DB);
+      const cfg = await loadConfig(store);
+      return Response.json({ ok: true, openai: ai, problems: cfg ? await problems(cfg, store) : ["no config"] });
     }
     if (req.method !== "POST") return new Response("wg-finder", { status: 200 });
 

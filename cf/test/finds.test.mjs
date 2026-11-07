@@ -152,6 +152,8 @@ globalThis.fetch = async (url, init = {}) => {
     return new Response("{}", { status: net.ai === "401" ? 401 : 200 });
   if (url.includes("api.openai.com")) {
     const body = JSON.parse(init.body);
+    if (body.messages.length === 1 && /Reply with OK/.test(body.messages[0].content))     // /health?ai
+      return new Response(net.ai === "401" ? '{"error":{"message":"Incorrect API key provided"}}' : '{"choices":[{"message":{"content":"OK"}}]}', { status: net.ai === "401" ? 401 : 200 });
     const title = /Title: (.*)/.exec(body.messages[1].content)?.[1] ?? "";
     const sys = body.messages[0].content;
     if (/You screen free giveaway ads/.test(sys)) {                        // the batched screen
@@ -833,10 +835,10 @@ console.log("\n5. cron dispatch, commands, permissions, health");
   await ok("owner /status has the finds line", () =>
     assert.match(c[0].body.text, /Finds: {11}✅ 🚲 ≤ 25 € · 🛏 ≤ 80 € · 🗄 ≤ 40 € · 🧶 ≤ 30 € · 🎁 ⭐ ≥ 6, checked/));
   const health = async (q) => worker.fetch(new Request("https://w/health" + q), E);
-  await ok("/health?ai asks OpenAI whether the deployed key works", async () => {
-    assert.deepEqual(await (await health("?ai")).json(), { ok: true, openai: "ok" });
+  await ok("/health?ai makes a real tiny OpenAI request, and lists any problems", async () => {
+    assert.deepEqual(await (await health("?ai")).json(), { ok: true, openai: "ok", problems: [] });
     net.ai = "401";
-    assert.deepEqual(await (await health("?ai")).json(), { ok: true, openai: "rejected (401)" });
+    assert.equal((await (await health("?ai")).json()).openai, "key rejected (401)");
     net.ai = "ok";
     assert.equal(await (await health("")).text(), "ok");
   });
