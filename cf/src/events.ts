@@ -15,7 +15,9 @@
 //
 // Cultural events over the budget (10 € by default) are left out; ones
 // without a listed price say so. A show on several dates is posted once.
-// Only events in the next few weeks go out; past ones never do.
+// Only events in the next few weeks go out; past ones never do. A card with
+// the event's poster goes out as a photo (the theatre's, from the show's own
+// page when it's posted); without one, as text.
 
 import { loadConfig, NO_CONFIG, type Config } from "./config.ts";
 import type { Store } from "./store.ts";
@@ -41,6 +43,7 @@ export interface Event {
   tickets?: string;
   note: string;          // a line or two about it
   tag: string;           // "Musiktheater", "Konzert", "Hackathon"…
+  image?: string;        // the poster, when the source has one
 }
 
 // ---------------------------------------------------------------- reading the sources
@@ -85,23 +88,32 @@ export function parseTheater(html: string, base = "https://www.staatstheater-cot
   return out;
 }
 
-/** Glad-House: a "dd.mm.yyyy | hh:mm Uhr" line, then the title, then a text with the price. */
+/**
+ * Glad-House: a "dd.mm.yyyy | hh:mm Uhr" line, then the title, then a text
+ * with the price. The poster is the image just before the date.
+ */
 export function parseGladhouse(html: string): Event[] {
   const out: Event[] = [];
+  const at = [...html.matchAll(/<strong>\s*(?=\d{2}\.\d{2}\.\d{4})/g)].map((m) => m.index!);
   const parts = html.split(/<strong>\s*(?=\d{2}\.\d{2}\.\d{4})/).slice(1);
-  for (const p of parts) {
+  parts.forEach((p, n) => {
+    const before = html.slice(Math.max(n ? at[n - 1] + 40 : 0, at[n] - 4000), at[n]);
+    const posters = [...before.matchAll(/src="(https:\/\/image\.jimcdn\.com\/[^"]+)"/g)];
+    // the page shows it 249 px wide; Jimdo serves any size, so ask for a readable one
+    const image = posters.length
+      ? posters[posters.length - 1][1].replace(/dimension=\d+x\d+:format=\w+/, "dimension=1000x10000:format=jpg") : undefined;
     const m = /^(\d{2})\.(\d{2})\.(\d{4})\s*(?:\|\s*(\d{1,2}[:.]\d{2}))?/.exec(p);
-    if (!m) continue;
+    if (!m) return;
     const title = text(one(/<h3[^>]*>([\s\S]*?)<\/h3>/, p.slice(0, 3000)));
-    if (!title) continue;
+    if (!title) return;
     const body = text(p.slice(p.indexOf("</h3>") + 5, p.indexOf("</h3>") + 2500)).slice(0, 600);
     const date = `${m[3]}-${m[2]}-${m[1]}`;
     out.push({
       id: `gladhouse:${date}:${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40)}`, kind: "culture", title,
       starts: m[4] ? `${date}T${hhmm(m[4])}` : date, place: "Glad-House Cottbus", price: priceOf(body),
-      url: "https://www.gladhouse.de/", note: body.slice(0, 240), tag: "",
+      url: "https://www.gladhouse.de/", note: body.slice(0, 240), tag: "", image,
     });
-  }
+  });
   return out;
 }
 
@@ -123,6 +135,7 @@ export function parseCottbus(html: string): Event[] {
       ends: endDay ? `${start.slice(0, 8)}${endDay.padStart(2, "0")}` : undefined, place: place || "Cottbus",
       price: priceOf(`${metas.join(" ")} ${note}`), url: one(/data-href="([^"]+)"/, c), note,
       tag: text(one(/class="prec-event-category-tag">([\s\S]*?)<\/span>/, c)),
+      image: one(/class="prec-event-thumb">[\s\S]*?<img[^>]+src="([^"]+)"/, c) || undefined,
     });
   }
   return out;
@@ -147,6 +160,7 @@ export function parseDevpost(json: any): Event[] {
     out.push({
       id: `devpost:${h.id}`, kind: "career", title: String(h.title ?? "").slice(0, 200), starts: start, ends: end, place: where,
       price: 0, url: String(h.url ?? ""), tag: "Hackathon",
+      image: h.thumbnail_url ? String(h.thumbnail_url).replace(/^\/\//, "https://") : undefined,
       note: [prize && prize !== "$0" ? `prizes ${prize}` : "", (h.themes ?? []).map((t: any) => t.name).slice(0, 3).join(", ")].filter(Boolean).join(" · "),
     });
   }
@@ -171,13 +185,17 @@ export function parseBtu(html: string): Event[] {
   const CAREER = /karriere|career|stipend|scholarship|job|messe|bewerb|workshop|infoveranstaltung|info day|transfertag|gründ|praktik|alumni|speak europe|sprach/i;
   for (const m of html.matchAll(/<h2>\s*([\s\S]*?)<small>([\s\S]*?)<\/small><\/h2><a href="([^"]+)"/g)) {
     const title = text(m[1]), sub = text(m[2]);
+    // the slide's own picture comes just before its text
+    const pics = [...html.slice(Math.max(0, m.index! - 1500), m.index!).matchAll(/data-original="([^"]+)"/g)];
+    const pic = pics.length ? pics[pics.length - 1][1] : "";
     if (!CAREER.test(`${title} ${sub}`)) continue;
     // "Bis zum 15. November 2026 bewerben!" - a deadline is the date that matters
     const dm = /(\d{1,2})\.\s?(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s(\d{4})/.exec(sub);
     const MON = ["januar", "februar", "märz", "april", "mai", "juni", "juli", "august", "september", "oktober", "november", "dezember"];
     const starts = dm ? `${dm[3]}-${String(MON.indexOf(dm[2].toLowerCase()) + 1).padStart(2, "0")}-${dm[1].padStart(2, "0")}` : "";
     out.push({ id: `btu:${m[3].replace(/^https?:\/\/[^/]+/, "").slice(0, 120)}`, kind: "career", title, starts, place: "BTU Cottbus-Senftenberg",
-      price: 0, url: m[3].startsWith("http") ? m[3] : `https://www.b-tu.de${m[3]}`, note: sub, tag: /stipend|scholarship/i.test(title) ? "Scholarship" : "BTU" });
+      price: 0, url: m[3].startsWith("http") ? m[3] : `https://www.b-tu.de${m[3]}`, note: sub, tag: /stipend|scholarship/i.test(title) ? "Scholarship" : "BTU",
+      image: pic ? (pic.startsWith("http") ? pic : `https://www.b-tu.de${pic}`) : undefined });
   }
   return out;
 }
@@ -201,6 +219,9 @@ async function ensureTable(db: D1Database) {
   await db.prepare(`CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, kind TEXT NOT NULL, dkey TEXT, title TEXT, starts TEXT,
     ends TEXT, place TEXT, price REAL, url TEXT, tickets TEXT, note TEXT, tag TEXT, status TEXT NOT NULL, why TEXT,
     first_seen INTEGER NOT NULL, posted_at INTEGER, msg_id INTEGER)`).run();
+  // added later: the poster
+  const { results } = await db.prepare("PRAGMA table_info(events)").all<{ name: string }>();
+  if (!(results ?? []).some((c) => c.name === "image")) await db.prepare("ALTER TABLE events ADD COLUMN image TEXT").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS events_status ON events(status)").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS events_dkey ON events(dkey)").run();
   ready.add(db);
@@ -238,6 +259,19 @@ export async function eventsStep(env: { DB: D1Database }, store: Store, tg: Tele
     .map((k) => ({ k, late: now() - Number(checked[`events_checked:${k}`] ?? 0) - SOURCES[k].every }))
     .filter((x) => x.late >= 0).sort((a, b) => b.late - a.late)[0];
   if (due) did.push(await read(db, store, cfg, due.k));
+  // kv events_repost_before=<time>: cards posted before then that now have a
+  // poster (and the theatre's, whose poster is fetched when posting) come down
+  // and go out again with it
+  const before = Number((await store.kvGet("events_repost_before")) ?? 0);
+  if (before) {
+    const { results } = await db.prepare(
+      `SELECT id, msg_id FROM events WHERE status='posted' AND posted_at < ? AND (image IS NOT NULL OR id LIKE 'theater:%')`).bind(before).all<{ id: string; msg_id: number | null }>();
+    for (const r of results ?? []) {
+      if (r.msg_id) try { await tg.deleteMessage(r.msg_id); } catch { /* gone, or older than 48 h */ }
+      await db.prepare("UPDATE events SET status='new', posted_at=NULL, msg_id=NULL WHERE id=?").bind(r.id).run();
+    }
+    if (results?.length) did.push(`${results.length} taken down for their poster`);
+  }
   const n = await post(db, store, tg, cfg, s);
   if (n) did.push(`${n} posted`);
   return `events: ${did.join(", ") || "nothing to do"}`;
@@ -261,11 +295,16 @@ async function read(db: D1Database, store: Store, cfg: Config, key: string): Pro
   await noteOk(store, watch, found.length);
   let fresh = 0;
   for (const e of found) {
-    if (await db.prepare("SELECT 1 FROM events WHERE id=?").bind(e.id).first()) continue;
+    const known = await db.prepare("SELECT image FROM events WHERE id=?").bind(e.id).first<{ image: string | null }>();
+    if (known) {
+      // found before this source's posters were read: add it
+      if (!known.image && e.image) await db.prepare("UPDATE events SET image=? WHERE id=?").bind(e.image, e.id).run();
+      continue;
+    }
     fresh++;
-    await db.prepare(`INSERT OR IGNORE INTO events (id,kind,dkey,title,starts,ends,place,price,url,tickets,note,tag,status,first_seen)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'new',?)`).bind(e.id, e.kind, dkeyOf(e), e.title, e.starts, e.ends ?? null, e.place,
-        e.price, e.url, e.tickets ?? null, e.note, e.tag, now()).run();
+    await db.prepare(`INSERT OR IGNORE INTO events (id,kind,dkey,title,starts,ends,place,price,url,tickets,note,tag,status,first_seen,image)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'new',?,?)`).bind(e.id, e.kind, dkeyOf(e), e.title, e.starts, e.ends ?? null, e.place,
+        e.price, e.url, e.tickets ?? null, e.note, e.tag, now(), e.image ?? null).run();
   }
   return `${key} ${found.length} events, ${fresh} new`;
 }
@@ -279,7 +318,28 @@ const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 const berlinNow = () => new Date(Date.now()).toLocaleString("sv-SE", { timeZone: "Europe/Berlin" }).replace(" ", "T").slice(0, 16);
 
 interface Row { id: string; kind: Kind; dkey: string; title: string; starts: string; ends: string | null; place: string;
-  price: number | null; url: string; tickets: string | null; note: string; tag: string }
+  price: number | null; url: string; tickets: string | null; note: string; tag: string; image?: string | null }
+
+/** The theatre's listing has no pictures; the show's own page leads with a production photo. */
+async function theaterPoster(url: string): Promise<string | null> {
+  try {
+    const r = await fetch(url, { headers: { "User-Agent": UA } });
+    if (!r.ok) return null;
+    const src = /<img[^>]+src="([^"]*\/cache\/img\/[^"]+\.jpe?g)"/i.exec(await r.text())?.[1];
+    return src ? (src.startsWith("http") ? src : `https://www.staatstheater-cottbus.de${src}`) : null;
+  } catch { return null; }
+}
+
+/** With a poster: a photo with the card as its caption (1024 characters at most); else text. */
+async function send(tg: Telegram, r: Row, where: Record<string, unknown>): Promise<any> {
+  if (r.image) {
+    let caption = eventCard(r);
+    if (caption.length > 1024) caption = eventCard({ ...r, note: r.note.slice(0, Math.max(0, r.note.length - (caption.length - 1020))) + "…" });
+    try { return await tg.sendPhoto(r.image, caption, undefined, where); }
+    catch (e: any) { if (String(e?.message).includes(" 429")) throw e; /* a picture Telegram can't fetch: as text */ }
+  }
+  return tg.send(eventCard(r), where);
+}
 
 /**
  * Why an event isn't posted (now), or null. "later" (not yet in the window)
@@ -315,7 +375,11 @@ async function post(db: D1Database, store: Store, tg: Telegram, cfg: Config, s: 
       continue;
     }
     try {
-      const sent = await tg.send(eventCard(r), inTopic(await topicOf(cfg, store, tg, r.kind === "culture" ? "culture_events" : "career_events")));
+      if (!r.image && r.id.startsWith("theater:")) {
+        r.image = await theaterPoster(r.url);
+        if (r.image) await db.prepare("UPDATE events SET image=? WHERE id=?").bind(r.image, r.id).run();
+      }
+      const sent = await send(tg, r, inTopic(await topicOf(cfg, store, tg, r.kind === "culture" ? "culture_events" : "career_events")));
       await db.prepare("UPDATE events SET status='posted', posted_at=?, msg_id=? WHERE id=?").bind(now(), sent?.result?.message_id ?? null, r.id).run();
       n++;
     } catch (e: any) {

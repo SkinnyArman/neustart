@@ -34,7 +34,11 @@ const net = { tg: [], urls: [] };
 globalThis.fetch = async (url, init = {}) => {
   url = String(url); net.urls.push(url);
   if (url.includes("api.telegram.org")) { net.tg.push({ method: url.split("/").pop(), body: JSON.parse(init.body) }); return Response.json({ ok: true, result: { message_id: 900 + net.tg.length } }); }
-  if (url.includes("staatstheater-cottbus")) return new Response(FIX("theater.html"));
+  if (url.includes("spielplan.html")) return new Response(FIX("theater.html"));
+  // a show's own page: a logo, then the production photo (none for the film festival)
+  if (url.includes("staatstheater-cottbus")) return new Response(/filmfestival/.test(url) ? "<p>no pictures</p>"
+    : '<img src="/logo.png" width="360"><img src="/cache/img/4760_show.jpg" width="1440" height="960">');
+  if (url.includes("bad-poster")) return new Response("nope", { status: 404 });
   if (url.includes("gladhouse")) return new Response(FIX("gladhouse.html"));
   if (url.includes("cottbus.de/veranstaltungen")) return new Response(FIX("cottbus.html"));
   if (url.includes("b-tu.de")) return new Response(FIX("btu.html"));
@@ -102,11 +106,13 @@ await st.kvSet("config", JSON.stringify(CFG));
 const ENV = { DB, OPENAI_API_KEY: "k", TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100", TELEGRAM_OWNER_ID: "1", WEBHOOK_SECRET: "s" };
 const tick = async () => { NOW += 10 * 60_000; const w = []; await worker.scheduled({ cron: E.EVENTS_CRON, scheduledTime: NOW }, ENV, { waitUntil: (p) => w.push(p) }); await Promise.all(w); };
 for (let i = 0; i < 14; i++) await tick();
-const sent = () => net.tg.filter((c) => c.method === "sendMessage");
+// text cards and photo cards alike (a photo's card is its caption)
+const sent = () => net.tg.filter((c) => c.method === "sendMessage" || c.method === "sendPhoto")
+  .map((c) => (c.method === "sendPhoto" ? { ...c, body: { ...c.body, text: c.body.caption } } : c));
+const reads = () => net.urls.filter((u) => !u.includes("telegram") && !(/staatstheater/.test(u) && !/spielplan/.test(u)));
 const row = (q) => DB.raw.prepare(`SELECT * FROM events WHERE ${q}`).all();
 await ok("its own trigger at :01: one source per tick, each read once (every 6-12 h)", () => {
-  const reads = net.urls.filter((u) => !u.includes("telegram"));
-  assert.equal(reads.length, 6);                  // 5 sources + 1 meetup group
+  assert.equal(reads().length, 6);                  // 5 sources + 1 meetup group
 });
 await ok("each topic says hello first, with the budget and how to change it", () => {
   const h = sent().filter((c) => /will be posted here/.test(c.body.text));
@@ -143,10 +149,26 @@ await ok("a card: icon, title, when, where, price, link - easy to read", () => {
   const s = sent().find((x) => /Deutschlandstipendium/.test(x.body.text)).body.text;
   assert.match(s, /^🎓 <b>Deutschlandstipendium<\/b>\n\n📅 Sun 15 Nov\n📍 BTU Cottbus-Senftenberg/);
 });
+await ok("posters: read from Glad-House, cottbus.de, BTU and Devpost; the theatre's from the show's page", () => {
+  const g = E.parseGladhouse(FIX("gladhouse.html"));
+  assert.ok(g.length >= 2 && g.every((e) => e.image), "glad-house posters");
+  assert.ok(g.every((e) => e.image.startsWith("https://image.jimcdn.com/") && e.image.includes("dimension=1000x10000:format=jpg")));
+  assert.equal(new Set(g.filter((e) => e.image).map((e) => e.image)).size, g.filter((e) => e.image).length, "each its own poster");
+  assert.ok(E.parseCottbus(FIX("cottbus.html")).some((e) => /^https:\/\/cottbus\.de\/wp-content\/uploads\//.test(e.image ?? "")));
+  assert.match(E.parseBtu(FIX("btu.html")).find((e) => e.title === "Deutschlandstipendium").image ?? "", /^https:\/\/www\.b-tu\.de\/fileadmin\//);
+  assert.equal(E.parseDevpost({ hackathons: [{ ...DEVPOST.hackathons[0], thumbnail_url: "//d1.cloudfront.net/x.png" }] })[0].image, "https://d1.cloudfront.net/x.png");
+  const nab = net.tg.find((c) => c.method === "sendPhoto" && /Nabucco/.test(c.body.caption));
+  assert.ok(nab, "Nabucco went out as a photo");
+  assert.equal(nab.body.photo, "https://www.staatstheater-cottbus.de/cache/img/4760_show.jpg");
+  assert.equal(nab.body.message_thread_id, 1372);
+  const ff = net.tg.find((c) => /FilmFestival/.test(c.body.text ?? c.body.caption ?? ""));
+  if (ff) assert.equal(ff.method, "sendMessage", "no picture on its page: a text card");
+  assert.ok(net.tg.filter((c) => c.method === "sendPhoto").every((c) => c.body.caption.length <= 1024));
+});
 const before = sent().length;
 for (let i = 0; i < 12; i++) await tick();
 await ok("nothing new to read within 6 hours: nothing fetched, nothing posted twice", () => {
-  assert.equal(net.urls.filter((u) => !u.includes("telegram")).length, 6);
+  assert.equal(reads().length, 6);
   const titles = sent().slice(before).map((c) => c.body.text.split("\n")[0]);
   assert.ok(titles.every((t) => !sent().slice(0, before).some((c) => c.body.text.split("\n")[0] === t)));
 });
@@ -161,6 +183,56 @@ await ok("a show that started earlier today isn't posted (Berlin time)", async (
   assert.ok(!sent().some((c) => /Robin Hood/.test(c.body.text)), "Robin Hood started at 17:00");
   assert.equal(DB3.raw.prepare("SELECT why FROM events WHERE title='Robin Hood'").get().why, "over");
   NOW = saved;
+});
+
+await ok("a long note is shortened to fit a photo caption (1024)", async () => {
+  const DB4 = makeDB(); const st4 = new Store(DB4); await st4.kvSet("config", JSON.stringify(CFG));
+  for (const k of ["culture_events", "career_events"]) await st4.kvSet("intro:" + k, "1");
+  await E.eventsStep({ DB: DB4 }, st4, tg);                     // creates the table
+  DB4.raw.prepare("DELETE FROM events").run();
+  DB4.raw.prepare(`INSERT INTO events (id,kind,dkey,title,starts,place,price,url,note,tag,status,first_seen,image)
+    VALUES ('x:1','culture','long','Long One','2026-11-20T19:00','Somewhere',0,'https://e.x/','${"blah ".repeat(400)}','','new',0,'https://e.x/p.jpg')`).run();
+  for (const k of Object.keys(E.SOURCES)) await st4.kvSet("events_checked:" + k, String(Math.floor(NOW / 1000)));
+  net.tg = [];
+  await E.eventsStep({ DB: DB4 }, st4, tg);
+  const p = net.tg.find((c) => c.method === "sendPhoto");
+  assert.ok(p); assert.ok(p.body.caption.length <= 1024, String(p.body.caption.length)); assert.match(p.body.caption, /…/);
+  assert.match(p.body.caption, /details<\/a>$/);
+});
+await ok("a poster Telegram can't fetch: the card goes out as text", async () => {
+  const DB5 = makeDB(); const st5 = new Store(DB5); await st5.kvSet("config", JSON.stringify(CFG));
+  for (const k of ["culture_events", "career_events"]) await st5.kvSet("intro:" + k, "1");
+  await E.eventsStep({ DB: DB5 }, st5, tg);
+  DB5.raw.prepare("DELETE FROM events").run();
+  DB5.raw.prepare(`INSERT INTO events (id,kind,dkey,title,starts,place,price,url,note,tag,status,first_seen,image)
+    VALUES ('x:2','culture','bad','Bad Poster','2026-11-20T19:00','Somewhere',0,'https://e.x/','fine','','new',0,'https://bad-poster/p.jpg')`).run();
+  for (const k of Object.keys(E.SOURCES)) await st5.kvSet("events_checked:" + k, String(Math.floor(NOW / 1000)));
+  const real = globalThis.fetch;
+  globalThis.fetch = async (u, i) => (String(u).endsWith("/sendPhoto") ? new Response('{"ok":false,"description":"Bad Request: wrong file"}', { status: 400 }) : real(u, i));
+  net.tg = [];
+  await E.eventsStep({ DB: DB5 }, st5, tg);
+  globalThis.fetch = real;
+  assert.ok(net.tg.some((c) => c.method === "sendMessage" && /Bad Poster/.test(c.body.text)));
+  assert.equal(DB5.raw.prepare("SELECT status FROM events WHERE id='x:2'").get().status, "posted");
+});
+await ok("cards posted before the posters came: taken down and sent again with the poster", async () => {
+  const DB6 = makeDB(); const st6 = new Store(DB6); await st6.kvSet("config", JSON.stringify(CFG));
+  for (const k of ["culture_events", "career_events"]) await st6.kvSet("intro:" + k, "1");
+  await E.eventsStep({ DB: DB6 }, st6, tg);
+  DB6.raw.prepare("DELETE FROM events").run();
+  const ins = (id, img, at) => DB6.raw.prepare(`INSERT INTO events (id,kind,dkey,title,starts,place,price,url,note,tag,status,first_seen,posted_at,msg_id,image)
+    VALUES (?,'culture',?,?,'2026-11-20T19:00','Somewhere',0,'https://e.x/','n','','posted',0,?,?,?)`).run(id, id, id, at, 77, img);
+  ins("x:old-poster", "https://e.x/p.jpg", 100); ins("x:old-none", null, 100); ins("x:new-poster", "https://e.x/q.jpg", Math.floor(NOW / 1000) + 1);
+  await st6.kvSet("events_repost_before", String(Math.floor(NOW / 1000)));
+  for (const k of Object.keys(E.SOURCES)) await st6.kvSet("events_checked:" + k, String(Math.floor(NOW / 1000)));
+  net.tg = [];
+  await E.eventsStep({ DB: DB6 }, st6, tg);
+  assert.equal(net.tg.filter((c) => c.method === "deleteMessage").length, 1);
+  assert.ok(net.tg.some((c) => c.method === "sendPhoto" && /x:old-poster/.test(c.body.caption)));
+  assert.equal(DB6.raw.prepare("SELECT status FROM events WHERE id='x:old-none'").get().status, "posted");
+  net.tg = [];
+  await E.eventsStep({ DB: DB6 }, st6, tg);                    // and only once
+  assert.equal(net.tg.filter((c) => c.method === "deleteMessage" || c.method === "sendPhoto").length, 0);
 });
 
 console.log("\n3. /events");
