@@ -24,6 +24,7 @@ modules:
   finds: true          # cheap or free bikes, a bed, a Kommode, a rug, free stuff
   jobs: true           # jobs for the people below, with an application tracker
   casual_jobs: true    # Minijobs around the city, with the pay
+  events: false        # cultural and career events (see events: below)
 
 # Forum topics. Each new topic starts with a short note on what comes there,
 # the budget, and how to change it. Make the Telegram group a forum ("Topics" on) and the bot an
@@ -102,6 +103,19 @@ casual_jobs:
   sources: [minijobs, part_time, kleinanzeigen]
   worth_it: true       # each card says Worth it / Could be worth it / Not worth it (cheap AI)
   # Both can be changed later from Telegram with /casual.
+
+# ============================================================
+#  EVENTS - two topics: cultural events, career events (no AI)
+# ============================================================
+events:
+  max_price: 10        # cultural events over this are left out (or wait for a higher budget)
+  culture_days: 14     # posted when they're this close
+  career_days: 60
+  # readers: cottbus_theater, gladhouse, cottbus_city (for Cottbus),
+  # devpost (hackathons, online or in Germany), btu (BTU's notices)
+  sources: [devpost]
+  meetup_groups: []    # meetup.com group names, e.g. pydata-berlin
+  # /events in Telegram changes the budget and pauses either topic.
 
 # ============================================================
 #  ROOMS - the room search and the replies it drafts

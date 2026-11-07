@@ -198,6 +198,26 @@ commands for the group, all of them for the owner.
 Profiles and CV text are personal: they're in the gitignored `neustart.yaml`
 (or a `cv_file` next to it) and in D1, never in the repo.
 
+### Events
+
+`src/events.ts` posts events to two topics, without AI: **cultural events**
+(theatre, concerts, exhibitions) and **career events** (meetups, hackathons,
+the university's career and scholarship notices). Off unless the config's
+`modules.events` is on. Readers (`events.sources`): `cottbus_theater`
+(Staatstheater Cottbus), `gladhouse` (Glad-House), `cottbus_city`
+(cottbus.de), `devpost` (hackathons, online or in Germany), `btu` (BTU's
+notices) and `meetup` (the `events.meetup_groups`' calendar feeds).
+
+It has its own trigger (:01, :11, …), reads one source per tick, each about
+every 6-12 hours, and posts up to four cards a tick. Cultural events over
+the budget (`events.max_price`, 10 € by default) wait, in case the budget
+goes up before the date; ones without a listed price say so. A show on
+several dates is posted once; kids' shows, markets and info for school
+leavers are left out. Events are posted when they're within
+`culture_days` / `career_days`, never once they're over.
+
+`/events` (anyone in the group): the budget and pausing either topic.
+
 ### LinkedIn, from your own computer
 
 LinkedIn refuses requests from Cloudflare (429 on the first one), but

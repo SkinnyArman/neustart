@@ -115,19 +115,19 @@ await ok("Kleinanzeigen's place from a city URL, a category search, a short form
 });
 await ok("a config without a city switches every module off, and says why", () => {
   const c = normalize({ modules: { rooms: true } });
-  assert.deepEqual(Object.values(c.modules), [false, false, false, false]);
+  assert.deepEqual(Object.values(c.modules), [false, false, false, false, false]);
   assert.ok(c.problems.every((p) => /no city set/.test(p)) && c.problems.length === 4);
 });
 await ok("each module needs its own part: a room search, a Kleinanzeigen place, people", () => {
   const c = normalize({ city: "Leipzig", rooms: { about: { name: "Sam" }, searches: [] }, jobs: { people: [] } });
-  assert.deepEqual(c.modules, { rooms: false, finds: false, jobs: false, casual_jobs: true });
+  assert.deepEqual(c.modules, { rooms: false, finds: false, jobs: false, casual_jobs: true, events: false });
   assert.equal(c.problems.length, 3);
   assert.match(c.problems.join("\n"), /rooms\.searches has no search[\s\S]*kleinanzeigen is missing[\s\S]*jobs\.people is empty/);
 });
 await ok("a module switched off on purpose is not a problem", () => {
   const c = normalize({ city: "Leipzig", modules: { rooms: false, finds: false, jobs: false } });
   assert.deepEqual(c.problems, []);
-  assert.deepEqual(c.modules, { rooms: false, finds: false, jobs: false, casual_jobs: true });
+  assert.deepEqual(c.modules, { rooms: false, finds: false, jobs: false, casual_jobs: true, events: false });
 });
 await ok("defaults: prices, bed width, room size, radius, cities, topics created when needed", () => {
   const c = normalize({ city: "Leipzig", kleinanzeigen: "leipzig/l4233", modules: { rooms: false, jobs: false } });

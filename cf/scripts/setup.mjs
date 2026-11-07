@@ -102,6 +102,7 @@ if (!DRY) {
     const wanted = [
       ...(cfg.modules.rooms ? ["rooms"] : []), ...(cfg.modules.jobs ? ["jobs"] : []), ...(cfg.modules.casual_jobs ? ["casual_jobs"] : []),
       ...(cfg.modules.finds ? Object.keys(cfg.finds.items).filter((k) => cfg.finds.items[k].on) : []),
+      ...(cfg.modules.events ? [...(cfg.events.culture ? ["culture_events"] : []), ...(cfg.events.career ? ["career_events"] : [])] : []),
     ];
     const missing = wanted.every((k) => cfg.topics[k]) ? [] : [
       ...(chat.result.is_forum ? [] : ["turn on Topics in the group's settings"]),

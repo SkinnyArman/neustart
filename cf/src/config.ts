@@ -9,13 +9,15 @@
 import type { Profile } from "./settings.ts";
 import type { Store } from "./store.ts";
 
-export type ModuleKey = "rooms" | "finds" | "jobs" | "casual_jobs";
-export const MODULES: ModuleKey[] = ["rooms", "finds", "jobs", "casual_jobs"];
+export type ModuleKey = "rooms" | "finds" | "jobs" | "casual_jobs" | "events";
+export const MODULES: ModuleKey[] = ["rooms", "finds", "jobs", "casual_jobs", "events"];
+// off unless the config asks for them
+const OPTIONAL_MODULES: ModuleKey[] = ["events"];
 export type ItemKey = "bike" | "bed" | "kommode" | "carpet" | "washer" | "chair" | "free";
 export const ITEM_KEYS: ItemKey[] = ["bike", "bed", "kommode", "carpet", "washer", "chair", "free"];
 /** Where each kind of post goes: one forum topic per module, and per find. */
-export type TopicKey = "rooms" | ItemKey | "jobs" | "casual_jobs";
-export const TOPIC_KEYS: TopicKey[] = ["rooms", ...ITEM_KEYS, "jobs", "casual_jobs"];
+export type TopicKey = "rooms" | ItemKey | "jobs" | "casual_jobs" | "culture_events" | "career_events";
+export const TOPIC_KEYS: TopicKey[] = ["rooms", ...ITEM_KEYS, "jobs", "casual_jobs", "culture_events", "career_events"];
 
 export interface Person {
   id: string;             // what commands and buttons use: /skills diba
@@ -63,6 +65,13 @@ export interface Config {
     people: Person[];
   };
   casual_jobs: { radius_km: number; only_city: boolean; sources: CasualSource[]; worth_it: boolean };
+  events: {
+    culture: boolean; career: boolean;   // the two topics
+    max_price: number;                   // cultural events over this are left out
+    culture_days: number; career_days: number;   // how far ahead they're posted
+    sources: string[];                   // readers in events.ts
+    meetup_groups: string[];             // meetup.com group names
+  };
 }
 
 // a washing machine and a desk chair are off unless asked for
@@ -113,7 +122,7 @@ export function normalize(raw: unknown): Config {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, any>;
   const problems: string[] = [];
   const city = str(r.city);
-  const want = (k: ModuleKey) => bool(r.modules?.[k], true);
+  const want = (k: ModuleKey) => bool(r.modules?.[k], !OPTIONAL_MODULES.includes(k));
   const modules = Object.fromEntries(MODULES.map((k) => [k, want(k)])) as Record<ModuleKey, boolean>;
   const off = (k: ModuleKey, why: string) => { if (modules[k]) problems.push(`${k}: ${why}`); modules[k] = false; };
   if (!city) for (const k of MODULES) off(k, "no city set");
@@ -195,8 +204,16 @@ export function normalize(raw: unknown): Config {
     people,
   };
 
+  const e = r.events ?? {};
+  const events = {
+    culture: bool(e.culture?.on ?? e.culture, true), career: bool(e.career?.on ?? e.career, true),
+    max_price: num(e.max_price, 10), culture_days: num(e.culture_days, 21), career_days: num(e.career_days, 60),
+    sources: list(e.sources).length ? list(e.sources) : ["devpost"], meetup_groups: list(e.meetup_groups),
+  };
+  if (events.meetup_groups.length && !events.sources.includes("meetup")) events.sources.push("meetup");
+
   return {
-    city, ka, modules, problems, topics, topics_mode, rooms, finds, jobs,
+    city, ka, modules, problems, topics, topics_mode, rooms, finds, jobs, events,
     casual_jobs: {
       radius_km: num(r.casual_jobs?.radius_km, 25), only_city: bool(r.casual_jobs?.only_city, false),
       worth_it: bool(r.casual_jobs?.worth_it, false),

@@ -42,6 +42,7 @@ export function summary(c) {
   }
   if (c.modules.casual_jobs) L.push(`Minijobs:  ${c.casual_jobs.only_city ? `${c.city} itself` : `${c.city}, ${c.casual_jobs.radius_km} km`}`);
   if (c.modules.rooms) L.push(`Rooms:     ${c.rooms.searches.length} searches for ${c.rooms.about.name}`);
+  if (c.modules.events) L.push(`Events:    ${[c.events.culture ? `cultural (≤ ${c.events.max_price} €)` : "", c.events.career ? "career" : ""].filter(Boolean).join(" and ")}; from ${c.events.sources.join(", ")}`);
   const fixed = Object.entries(c.topics).map(([k, v]) => `${k} ${v}`).join(", ");
   L.push(`Topics:    ${c.topics_mode === "none" ? "none, everything in the main chat" : fixed ? `${fixed}; the rest created when needed` : "created when needed"}`);
   return L.join("\n");

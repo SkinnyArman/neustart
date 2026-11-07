@@ -7,9 +7,11 @@ compatibility_date = "2026-09-01"
 #   finds        :05, :15, …: check the most overdue search, rate up to two ads
 #   jobs         :03, :13, …: two Jobbörse searches, match up to three jobs
 #   casual jobs  :07, :17, …: the Minijob search every 30 min, post up to five
+#   events       :01, :11, …: one event source per tick, post up to four
+# (five triggers: the free plan's limit)
 # What each module looks for, and where, is in the config (neustart.yaml).
 [triggers]
-crons = ["*/2 * * * *", "5,15,25,35,45,55 * * * *", "3,13,23,33,43,53 * * * *", "7,17,27,37,47,57 * * * *"]
+crons = ["*/2 * * * *", "5,15,25,35,45,55 * * * *", "3,13,23,33,43,53 * * * *", "7,17,27,37,47,57 * * * *", "1,11,21,31,41,51 * * * *"]
 
 [[d1_databases]]
 binding = "DB"

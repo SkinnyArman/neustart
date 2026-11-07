@@ -20,6 +20,7 @@ import { loadConfig, NO_CONFIG, type Config } from "./config.ts";
 import { introduce, topicOf } from "./topics.ts";
 import { noteOk, problems, watchdog } from "./watch.ts";
 import { CASUAL_CRON, casualLine, casualSettings, casualStep, setCasual } from "./casual.ts";
+import { EVENTS_CRON, eventsCard, eventsLine, eventsStep, setEvents } from "./events.ts";
 import { JOBS_CRON, ingestJobs, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, skillsCommand, weeklyReport } from "./jobs.ts";
 import {
   FINDS_CRON, findsKeyboard, findsLine, findsStatus, findsStep, loadFindSettings,
@@ -242,6 +243,7 @@ export async function statusReport(env: Env, store: Store, cfg: Config): Promise
     ...(on.finds ? [await findsLine(store)] : []),
     ...(on.jobs ? [await jobsLine(store, env.DB)] : []),
     ...(on.casual_jobs ? [await casualLine(store, env.DB)] : []),
+    ...(on.events ? [await eventsLine(store, env.DB, cfg)] : []),
     ...cfg.problems.map((p) => `⚠️ config: ${p}`),
     ...(await problems(cfg, store)).map((p) => `⚠️ ${p}`),
   ];
@@ -443,6 +445,10 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
   const casualCmd = /^\/casual(@\w+)?(\s|$)/i.test(text.trim());
   const casualBtn = String(update.callback_query?.data ?? "").startsWith("cj:");
   if ((casualCmd || casualBtn) && (isOwner || inGroup)) return handleCasual(update, env, tg, store, cfg);
+  // the events' budget and on/off: open to the group too
+  const eventsCmd = /^\/events(@\w+)?(\s|$)/i.test(text.trim());
+  const eventsBtn = String(update.callback_query?.data ?? "").startsWith("ev:");
+  if ((eventsCmd || eventsBtn) && (isOwner || inGroup)) return handleEvents(update, tg, store, cfg);
 
   const name = (cfg?.rooms.about as any)?.name ?? "its owner";
   if (!isOwner) {
@@ -703,6 +709,26 @@ async function handleCasual(update: any, env: Env, tg: Telegram, store: Store, c
   await reply(t, tg.keyboard(kb));
 }
 
+/** /events and its card's buttons - for anyone in the group. */
+async function handleEvents(update: any, tg: Telegram, store: Store, cfg: Config | null): Promise<void> {
+  const cq = update.callback_query;
+  const chat = String(update.message?.chat?.id ?? cq?.message?.chat?.id);
+  const no = !cfg ? NO_CONFIG : !cfg.modules.events ? "🎭 Events are switched off in the config." : "";
+  if (no) { if (cq) await tg.answerCallback(cq.id, no); else await tg.send(no, sameTopic(update.message), chat); return; }
+  if (cq) {
+    // ev:budget:<±n> · ev:culture|career:on|off · ev:noop
+    const [, what, val = ""] = String(cq.data).split(":");
+    await tg.answerCallback(cq.id, what === "noop" ? "" : await setEvents(store, cfg!, what, val));
+    try { const [t, kb] = await eventsCard(store, cfg!); await tg.editText(chat, cq.message.message_id, t, kb); } catch { /* unchanged */ }
+    return;
+  }
+  const reply = (t: string, o: Record<string, unknown> = {}) => tg.send(t, { ...sameTopic(update.message), ...o }, chat);
+  const [, sub = "", val = ""] = String(update.message.text ?? "").trim().split(/\s+/);
+  if (sub) await reply(await setEvents(store, cfg!, sub.toLowerCase(), val.toLowerCase()));
+  const [t, kb] = await eventsCard(store, cfg!);
+  await reply(t, tg.keyboard(kb));
+}
+
 async function handleButton(
   cq: any, env: Env, tg: Telegram, store: Store, cfg: Config,
 ): Promise<void> {
@@ -839,6 +865,7 @@ function commandMenus(cfg: Config) {
     ] : []),
     ...(on.finds ? [{ command: "finds", description: "Bike, bed, Kommode, carpet & free stuff alerts" }] : []),
     ...(on.casual_jobs ? [{ command: "casual", description: "Minijobs: which town, how far around it" }] : []),
+    ...(on.events ? [{ command: "events", description: "Events: budget, pause" }] : []),
   ];
   const owner = [
     { command: "status", description: "Is it running" },
@@ -867,7 +894,8 @@ function helpLines(cfg: Config) {
   const first = cfg.jobs.people[0]?.id ?? "name";
   const finds = on.finds ? "/finds — bikes, bed, Kommode, carpet & free stuff alerts" : "";
   const jobs = on.jobs ? `/jobs — job board and where each application stands · /cv — the CVs · /skills ${first} · /jobreport` : "";
-  const casual = on.casual_jobs ? "/casual — Minijobs: which town, how far around it (anyone in the group)" : "";
+  const casual = [on.casual_jobs ? "/casual — Minijobs: which town, how far around it (anyone in the group)" : "",
+    on.events ? "/events — cultural and career events: budget, pause (anyone in the group)" : ""].filter(Boolean).join("\n");
   const start = on.rooms
     ? `/status — is it running\n/review — decide on ads you haven't answered\n` +
       `/pause [2h] — stop it\n` +
@@ -916,6 +944,11 @@ export default {
     // The jobs trigger fires at :03, :13, …, the casual jobs one at :07, :17, …;
     // both are checked first, by their text or their minute.
     const minute = new Date(c.scheduledTime).getUTCMinutes();
+    if (c.cron === EVENTS_CRON || minute % 10 === 1) {
+      ctx.waitUntil(eventsStep(env, new Store(env.DB), tg).then(
+        (r) => console.log("step:", r), (e) => console.error("events failed:", e?.message ?? e)));
+      return;
+    }
     if (c.cron === CASUAL_CRON || minute % 10 === 7) {
       ctx.waitUntil(casualStep(env, new Store(env.DB), tg).then(
         (r) => console.log("step:", r), (e) => console.error("casual failed:", e?.message ?? e)));

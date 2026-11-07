@@ -13,18 +13,18 @@ import { blockSecondsLeft, pauseState } from "./settings.ts";
 import type { Store } from "./store.ts";
 import { esc, type Telegram } from "./telegram.ts";
 
-export type Source = "rooms_wg" | "rooms_ka" | "finds" | "jobs_ba" | "jobs_arbeitnow" | "casual_ba" | "casual_ka";
+export type Source = "rooms_wg" | "rooms_ka" | "finds" | "jobs_ba" | "jobs_arbeitnow" | "casual_ba" | "casual_ka" | "events_culture" | "events_career";
 
 const NAME: Record<Source, string> = {
   rooms_wg: "WG-Gesucht (rooms)", rooms_ka: "Kleinanzeigen (rooms)", finds: "Kleinanzeigen (finds)",
   jobs_ba: "Jobbörse (jobs)", jobs_arbeitnow: "Arbeitnow (jobs)", casual_ba: "Jobbörse (casual jobs)",
-  casual_ka: "Kleinanzeigen (casual jobs)",
+  casual_ka: "Kleinanzeigen (casual jobs)", events_culture: "Cultural events", events_career: "Career events",
 };
 const STALE_HOURS = 12;
 // empty pages in a row that mean something's wrong; 0: empty is normal there
 // (a niche keyword search on the Jobbörse often finds nothing)
 const EMPTY_LIMIT: Record<Source, number> = {
-  rooms_wg: 12, rooms_ka: 8, finds: 8, jobs_ba: 0, jobs_arbeitnow: 3, casual_ba: 12, casual_ka: 6,
+  rooms_wg: 12, rooms_ka: 8, finds: 8, jobs_ba: 0, jobs_arbeitnow: 3, casual_ba: 12, casual_ka: 6, events_culture: 4, events_career: 0,
 };
 const CHECK_EVERY = 3600;
 
@@ -75,13 +75,18 @@ async function watched(cfg: Config, store: Store): Promise<{ s: Source; skip: bo
     if (src.includes("minijobs") || src.includes("part_time")) out.push({ s: "casual_ba", skip: off });
     if (src.includes("kleinanzeigen")) out.push({ s: "casual_ka", skip: off });
   }
+  if (cfg.modules.events) {
+    // its sources are each read every 6-12 hours, so a day without any is the sign
+    if (cfg.events.culture) out.push({ s: "events_culture", skip: (await store.kvGet("events_culture_on")) === "0" });
+    if (cfg.events.career) out.push({ s: "events_career", skip: (await store.kvGet("events_career_on")) === "0" });
+  }
   return out;
 }
 
 /** What's wrong with one source right now, or null. */
 function problemOf(s: Source, h: Health): string | null {
   const hours = Math.floor((now() - h.ok) / 3600);
-  if (hours >= STALE_HOURS)
+  if (hours >= (s.startsWith("events_") ? 30 : STALE_HOURS))
     return `hasn't worked for ${hours} hours` + (h.err && (h.errAt ?? 0) > h.ok ? ` (last error: ${h.err})` : "");
   if (EMPTY_LIMIT[s] && h.empty >= EMPTY_LIMIT[s])
     return `keeps reading empty pages (${h.empty} in a row) - the site may have changed its layout, so nothing new is found`;
