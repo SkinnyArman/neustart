@@ -33,6 +33,18 @@ there first, so running it again is safe:
 
 `npm run setup -- --dry-run` shows what it would do without changing anything.
 
+**Or set it up from Telegram.** Once it's deployed, the owner can skip
+`neustart.yaml`: open a private chat with the bot and send `/setup`. It asks
+for the city (and finds Kleinanzeigen's code), which modules to use, and
+each module's details - mostly buttons - shows a summary, and saves the same
+config `npm run config` would, checked the same way. `/setup` never touches
+a bot that's already set up: with a config stored it only says so; `/setup
+restart` answers everything again (the current config is saved first),
+`/setup undo` brings the saved one back, `/setup cancel` drops the answers.
+Owner only, private chat only; while a setup is going, the owner's plain
+messages in that chat are its answers, and nothing else reads messages
+differently.
+
 **The config** lives in D1 as kv `config`, not in a Worker secret: with a
 room profile and CVs it is far over a secret's 5 KB. After changing
 `neustart.yaml`:

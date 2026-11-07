@@ -233,4 +233,4 @@ export async function loadConfig(store: Store): Promise<Config | null> {
   return cache.config;
 }
 
-export const NO_CONFIG = "no config yet - fill in neustart.yaml, then run: npm run config";
+export const NO_CONFIG = "no config yet - fill in neustart.yaml, then run: npm run config (or send /setup to the bot in a private chat)";

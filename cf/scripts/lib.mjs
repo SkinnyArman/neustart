@@ -54,16 +54,12 @@ export function summary(c) {
  * one town of that name (then the config has to say which).
  */
 export async function lookupKa(city) {
-  const r = await fetch(`https://www.kleinanzeigen.de/s-ort-empfehlungen.json?query=${encodeURIComponent(city)}`, {
-    headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36", Accept: "application/json" },
-  });
-  if (!r.ok) throw new Error(`Kleinanzeigen answered ${r.status}`);
-  const towns = Object.entries(await r.json())
-    .filter(([id, name]) => /^_\d+$/.test(id) && id !== "_0" && name.toLowerCase().startsWith(`${city.toLowerCase()} - `));
-  if (towns.length !== 1)
-    throw new Error(towns.length ? `more than one ${city}: ${towns.map(([, n]) => n).join("; ")}` : `no town called ${city}`);
   const { slugify } = await import(resolve(CF, "src/config.ts"));
-  return `${slugify(city)}/l${towns[0][0].slice(1)}`;
+  const { findTowns } = await import(resolve(CF, "src/kleinanzeigen.ts"));
+  const towns = await findTowns(city, slugify);
+  if (towns.length !== 1)
+    throw new Error(towns.length ? `more than one ${city}: ${towns.map((t) => t.name).join("; ")}` : `no town called ${city}`);
+  return towns[0].code;
 }
 
 /** One kv row as SQL, for wrangler d1 execute --file. */

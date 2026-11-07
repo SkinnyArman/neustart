@@ -151,6 +151,18 @@ await ok("nothing new to read within 6 hours: nothing fetched, nothing posted tw
   assert.ok(titles.every((t) => !sent().slice(0, before).some((c) => c.body.text.split("\n")[0] === t)));
 });
 
+await ok("a show that started earlier today isn't posted (Berlin time)", async () => {
+  // the fixtures' first day has a 17:00 show ("Robin Hood"); the clock is past 9:00 UTC = 10:00 in Berlin
+  const DB3 = makeDB(); const st3 = new Store(DB3); await st3.kvSet("config", JSON.stringify(CFG));
+  for (const k of ["culture_events", "career_events"]) await st3.kvSet("intro:" + k, "1");
+  const saved = NOW; NOW = Date.UTC(2026, 10, 7, 19, 51);                 // 20:51 in Berlin
+  net.tg = [];
+  for (let i = 0; i < 2; i++) { NOW += 60_000; await E.eventsStep({ DB: DB3 }, st3, tg); }
+  assert.ok(!sent().some((c) => /Robin Hood/.test(c.body.text)), "Robin Hood started at 17:00");
+  assert.equal(DB3.raw.prepare("SELECT why FROM events WHERE title='Robin Hood'").get().why, "over");
+  NOW = saved;
+});
+
 console.log("\n3. /events");
 const say = async (text, from = 7) => { net.tg = []; await worker.fetch(new Request("https://w/", { method: "POST",
   headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" },

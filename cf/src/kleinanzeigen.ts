@@ -105,3 +105,18 @@ export function isBlocked(html: string): boolean {
     html.length < 3000
   );
 }
+
+/**
+ * The towns Kleinanzeigen knows by a name, from its own place suggestions:
+ * "Leipzig" -> [{name: "Leipzig - Sachsen", code: "leipzig/l4233"}]. Several
+ * for a name like Neustadt; none for a typo.
+ */
+export async function findTowns(city: string, slugify: (s: string) => string): Promise<{ name: string; code: string }[]> {
+  const r = await fetch(`${KA_BASE}/s-ort-empfehlungen.json?query=${encodeURIComponent(city)}`, {
+    headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36", Accept: "application/json" },
+  });
+  if (!r.ok) throw new Error(`Kleinanzeigen answered ${r.status}`);
+  return Object.entries((await r.json()) as Record<string, string>)
+    .filter(([id, name]) => /^_\d+$/.test(id) && id !== "_0" && name.toLowerCase().startsWith(`${city.toLowerCase()} - `))
+    .map(([id, name]) => ({ name, code: `${slugify(city)}/l${id.slice(1)}` }));
+}

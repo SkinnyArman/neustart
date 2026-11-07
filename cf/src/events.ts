@@ -275,6 +275,8 @@ const DAY = 86400_000;
 // not for a student's evening: kids' and school shows, weekly markets, info for school leavers
 const NOT_FOR_US = /für minis|kinder|kita|schul(?!d)|familien|krabbel|wochenmarkt|\bmarkt\b|duale[sn]? studium|baby/i;
 const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+/** Now as the listings write it: Berlin time, "2026-11-07T20:51". */
+const berlinNow = () => new Date(Date.now()).toLocaleString("sv-SE", { timeZone: "Europe/Berlin" }).replace(" ", "T").slice(0, 16);
 
 interface Row { id: string; kind: Kind; dkey: string; title: string; starts: string; ends: string | null; place: string;
   price: number | null; url: string; tickets: string | null; note: string; tag: string }
@@ -287,9 +289,11 @@ interface Row { id: string; kind: Kind; dkey: string; title: string; starts: str
 function holdBack(r: Row, s: EventSettings, cfg: Config): string | null {
   if (!s[r.kind]) return "paused";
   if (NOT_FOR_US.test(`${r.title} ${r.tag}`)) return "not for us";
-  const today = isoDay(Date.now());
+  const local = berlinNow(), today = local.slice(0, 10);
   const last = r.ends ?? r.starts.slice(0, 10);
   if (r.starts && last < today) return "over";
+  // started already today (a single show with a time; not a run like an exhibition)
+  if (!r.ends && r.starts.length > 10 && r.starts < local) return "over";
   const window = r.kind === "culture" ? cfg.events.culture_days : cfg.events.career_days;
   if (r.starts && r.starts.slice(0, 10) > isoDay(Date.now() + window * DAY)) return "later";
   if (r.kind === "culture" && r.price !== null && r.price > s.budget) return "over budget";

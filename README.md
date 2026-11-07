@@ -54,6 +54,10 @@ one with [@BotFather](https://t.me/BotFather)) and Node.js 22.6 or newer.
 Changed `neustart.yaml` later? `npm run config` stores it; the bot uses it from
 its next tick, no deploy needed.
 
+**No config file at all?** After the deploy, send `/setup` to the bot in a
+private chat: it asks about your city, what to look for and who's job
+hunting, mostly with buttons, and sets itself up.
+
 ## How it's built
 
 - **One Cloudflare Worker** in TypeScript on the free plan, with no server

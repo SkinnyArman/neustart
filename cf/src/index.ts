@@ -19,6 +19,7 @@ import { aiFailed, aiWorked, checkKey } from "./aikey.ts";
 import { loadConfig, NO_CONFIG, type Config } from "./config.ts";
 import { introduce, topicOf } from "./topics.ts";
 import { noteOk, problems, watchdog } from "./watch.ts";
+import { setupActive, setupAnswer, setupButton, setupCommand } from "./wizard.ts";
 import { CASUAL_CRON, casualLine, casualSettings, casualStep, setCasual } from "./casual.ts";
 import { EVENTS_CRON, eventsCard, eventsLine, eventsStep, setEvents } from "./events.ts";
 import { JOBS_CRON, ingestJobs, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, skillsCommand, weeklyReport } from "./jobs.ts";
@@ -406,14 +407,20 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
   const text: string = update.message?.text ?? update.message?.caption ?? "";
   const isCommand = text.startsWith("/");
 
+  const from = update.message?.from ?? update.callback_query?.from;
+  const owner = String(env.TELEGRAM_OWNER_ID || env.TELEGRAM_CHAT_ID);
+  const isOwner = !!from && String(from.id) === owner;
+
+  // A setup going on in a private chat with the owner: their plain messages
+  // there are its answers (and only there, only then).
+  if (!update.callback_query && !isCommand && isOwner && update.message?.chat?.type === "private"
+      && (await setupActive(store, String(update.message.chat.id))))
+    return setupAnswer(store, tg, update.message);
+
   // Ordinary group chatter is none of our business. Only commands and button
   // presses are even considered - otherwise the bot would answer every
   // message anyone sends in the group.
   if (!update.callback_query && !isCommand) return;
-
-  const from = update.message?.from ?? update.callback_query?.from;
-  const owner = String(env.TELEGRAM_OWNER_ID || env.TELEGRAM_CHAT_ID);
-  const isOwner = !!from && String(from.id) === owner;
 
   // The finds (bikes, furniture, free stuff) belong to the whole group: anyone in it
   // may run /finds (or /bikes) and press its buttons.
@@ -462,6 +469,10 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
     }
     return;
   }
+
+  // /setup and its buttons work before there's a config, too
+  if (/^\/setup(@\w+)?(\s|$)/i.test(text.trim())) return setupCommand(store, tg, update.message, text.trim().split(/\s+/).slice(1));
+  if (String(update.callback_query?.data ?? "").startsWith("su:")) return setupButton(store, tg, update.callback_query);
 
   const chat = String(update.message?.chat?.id ?? update.callback_query?.message?.chat?.id);
   const reply = (t: string, o: Record<string, unknown> = {}) =>
