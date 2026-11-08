@@ -1,5 +1,5 @@
 import {
-  Blocked, get, parseListing, parseAdText, flatmates,
+  Blocked, get, parseListing, parseAdText, parseSeeking, flatmates,
   type Ad, type CookieJar,
 } from "./scraper.ts";
 import {
@@ -95,7 +95,7 @@ async function step(env: Env, tg: Telegram, force = false): Promise<string> {
         const budget = s.max_per_hour - (await store.pushedSince(3600));
         if (budget <= 0) return "hourly cap reached";
       }
-      return await draftOne(env, tg, store, cfg, queued);
+      return await draftOne(env, tg, store, cfg, queued, s);
     }
     return await refreshOneSearch(store, profile, s, b);
   } catch (e) {
@@ -172,7 +172,7 @@ async function refreshOneSearch(
 }
 
 async function draftOne(
-  env: Env, tg: Telegram, store: Store, cfg: Config, row: AdRow,
+  env: Env, tg: Telegram, store: Store, cfg: Config, row: AdRow, s: Settings,
 ): Promise<string> {
   const src = sourceOfId(row.ad_id);
   const html = await get(row.url, cookieJar(store, src));
@@ -181,7 +181,14 @@ async function draftOne(
   let text: string;
   let details: Record<string, string> = {};
   if (src === "ka") [text, details] = kaParseAd(html);
-  else text = parseAdText(html);
+  else {
+    text = parseAdText(html);
+    // the listing card stopped saying who the WG wants; the ad page does
+    if (s.skip_female_only && parseSeeking(html) === "female") {
+      await store.setStatus(row.ad_id, "filtered");
+      return `${row.ad_id}: WG wants a woman, skipped`;
+    }
+  }
 
   // The title passed, but the full description can still say women only.
   // Catch it here, before paying for a draft.

@@ -114,7 +114,8 @@ export async function get(url: string, jar?: CookieJar): Promise<string> {
   return html;
 }
 
-const CARD_SPLIT = /<div\s+id="liste-details-ad-\d+"/;
+// a card was a <div> until November 2026, now it's an <a>; both are read
+const CARD_SPLIT = /<(?:div|a)\s+id="liste-details-ad-\d+"/;
 const RX = {
   id: /data-id="(\d+)"/,
   url: /href="(\/[a-z-]*wg-zimmer[^"]+\.html)"/,
@@ -125,7 +126,12 @@ const RX = {
   img: /src="(https:\/\/img\.wg-gesucht\.de\/[^"]+)"/,
   seek: /\/img\/wg(eg|wg|mg)\.gif/,
   loc: /<div class="col-xs-11[^"]*">\s*<span\s*>([\s\S]*?)<\/span>/,
+  // the November 2026 card: "10er WG · Cottbus Spremberger Vorstadt · Parzellenstraße 79"
+  details: /class="[^"]*card-details-text[^"]*" title="([^"]*)"/,
+  flatmates: /id="flatmates-\d+"[\s\S]*?<\/div>\s*<\/div>/,
 };
+/** "2 Frauen", "1 Mann", "2 Divers" in the new card's flatmates popover */
+const count = (blk: string, rx: RegExp) => Number(rx.exec(blk)?.[1] ?? 0);
 const TAGS = /<[^>]+>/g;
 const WS = /\s+/g;
 const SEEK: Record<string, Ad["seeking"]> = { eg: "any", wg: "female", mg: "male" };
@@ -158,7 +164,13 @@ export function parseListing(html: string): Ad[] {
     const href = one(RX.url, blk);
     if (!adId || !href) continue;
 
-    const wg = RX.wg.exec(blk);
+    let wg: (string | number)[] | null = RX.wg.exec(blk);
+    const details = unescapeHtml(one(RX.details, blk)).replace(WS, " ").trim();
+    if (!wg && details) {
+      const size = /(\d+)er WG/.exec(details)?.[1];
+      const pop = RX.flatmates.exec(blk)?.[0] ?? "";
+      if (size) wg = ["", size, count(pop, /(\d+) Frau/), count(pop, /(\d+) M(?:a|ä|&auml;)nn/), count(pop, /(\d+) Divers/)];
+    }
     const rent = one(RX.rent, blk);
     const size = one(RX.size, blk);
 
@@ -172,6 +184,8 @@ export function parseListing(html: string): Ad[] {
         .map((x) => x.trim())
         .filter(Boolean);
       district = parts.slice(1, 3).join(" · ");
+    } else if (details) {
+      district = details.split("·").map((x) => x.trim()).filter(Boolean).slice(1, 3).join(" · ");
     }
 
     let image = one(RX.img, blk);
@@ -194,6 +208,16 @@ export function parseListing(html: string): Ad[] {
     });
   }
   return out;
+}
+
+/** The ad page's "Gesucht wird:" - the listing card no longer says it. */
+export function parseSeeking(html: string): Ad["seeking"] {
+  const i = html.indexOf("Gesucht wird");
+  if (i < 0) return "";
+  const t = unescapeHtml(html.slice(i, i + 1500).replace(TAGS, " ")).replace(WS, " ");
+  const m = /Gesucht wird:?\s*(Geschlecht egal|Frau(?:en)?|M(?:ä|a)nn(?:er)?)\b/.exec(t);
+  if (!m) return "";
+  return m[1] === "Geschlecht egal" ? "any" : m[1].startsWith("Frau") ? "female" : "male";
 }
 
 const DESC = /<div id="ad_description_text">([\s\S]*?)<\/div>\s*<\/div>/;
