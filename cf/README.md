@@ -116,6 +116,11 @@ default), each with its own price cap:
 | 🪑 | a desk chair, comfy enough for studying (keyword Bürostuhl; off unless `on: true`) | 30 € |
 | 🎁 | anything free that's useful for the room (category Zu verschenken; `for_whom` says for whom) | rated 6/10+ |
 
+Each item can have its own distance (`radius_km` under the item, or
+`/finds chair 4km` in Telegram; `0km` goes back to the finds radius): the
+search asks Kleinanzeigen for its next radius step up (5, 10, 20…) and
+anything further than the item's limit is dropped.
+
 The config sets the starting caps and which items are on; changes made from
 Telegram with `/finds` are kept and win over it.
 

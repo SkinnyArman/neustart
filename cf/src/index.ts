@@ -25,7 +25,7 @@ import { EVENTS_CRON, eventsCard, eventsLine, eventsStep, setEvents } from "./ev
 import { JOBS_CRON, ingestJobs, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, skillsCommand, weeklyReport } from "./jobs.ts";
 import {
   FINDS_CRON, findsKeyboard, findsLine, findsStatus, findsStep, loadFindSettings,
-  parseItem, setFindSetting, setItemOn, ITEMS, type ItemKey,
+  parseItem, setFindKm, setFindSetting, setItemOn, ITEMS, type ItemKey,
 } from "./finds.ts";
 
 export interface Env {
@@ -656,9 +656,12 @@ async function handleFinds(update: any, env: Env, tg: Telegram, store: Store): P
   const chat = String(update.message.chat.id);
   const reply = (t: string, o: Record<string, unknown> = {}) =>
     tg.send(t, { ...sameTopic(update.message), ...o }, chat);
-  const [cmdRaw, sub = "", val = ""] = update.message.text.trim().split(/\s+/);
+  const [cmdRaw, sub = "", val = "", more = ""] = update.message.text.trim().split(/\s+/);
+  // how far: /finds chair 4km · /finds chair 4 km · /finds chair km 4 (0 = like the others)
+  const km = /^(\d+)km$/i.exec(val)?.[1] ?? (/^km$/i.test(more) && /^\d+$/.test(val) ? val
+    : /^km$/i.test(val) && /^\d+$/.test(more) ? more : null);
   const isBikes = /^\/bikes/i.test(cmdRaw);
-  const usage = "Try /finds, /finds bed 80, /finds kommode 40, /finds carpet 30, /finds washer 60, /finds chair 40, /finds free 7 (min rating), /finds bike off, /finds min 5, /finds now";
+  const usage = "Try /finds, /finds bed 80, /finds kommode 40, /finds carpet 30, /finds washer 60, /finds chair 40, /finds chair 4km (how far; 0km = like the others), /finds free 7 (min rating), /finds bike off, /finds min 5, /finds now";
   const lsub = sub.toLowerCase();
   const item = parseItem(lsub);
 
@@ -674,7 +677,8 @@ async function handleFinds(update: any, env: Env, tg: Telegram, store: Store): P
     if (!Number.isFinite(Number(val)) || !val) return void (await reply("Try /bikes price 30"));
     await reply(await setFindSetting(store, "bike", Number(val), cfg));
   } else if (item) {
-    if (val === "on" || val === "off") await reply(await setItemOn(store, item, val === "on", cfg));
+    if (km !== null) await reply(await setFindKm(store, item, Number(km), cfg));
+    else if (val === "on" || val === "off") await reply(await setItemOn(store, item, val === "on", cfg));
     else if (val && Number.isFinite(Number(val))) await reply(await setFindSetting(store, item, Number(val), cfg));
     else if (val) return void (await reply(usage));
   } else if (lsub) return void (await reply(usage));

@@ -418,7 +418,7 @@ export interface Item {
   key: ItemKey;
   emoji: string;
   label: string;          // on the /finds card
-  kv: string;             // settings keys: <kv>_on, <kv>_max_price, <kv>_floor
+  kv: string;             // settings keys: <kv>_on, <kv>_max_price, <kv>_floor, <kv>_km
   priced: boolean;        // has a price cap; free stuff has a rating floor instead
   optional?: boolean;     // off unless the config or /finds asks for it
   defaultMax: number;
@@ -527,8 +527,13 @@ export function parseItem(word: string): ItemKey | null {
 export interface FindSettings {
   min_score: number;
   // listed: on the /finds card. Not an item the config leaves off, until someone switches it on
-  items: Record<ItemKey, { on: boolean; max: number; floor: number; listed: boolean }>;
+  // km: how far for this item; 0 = the finds radius
+  items: Record<ItemKey, { on: boolean; max: number; floor: number; listed: boolean; km: number }>;
 }
+
+/** Kleinanzeigen's own radius steps; a search asks for the one just above. */
+const KA_RADII = [5, 10, 20, 30, 50, 100, 150, 200];
+const kaRadius = (km: number) => KA_RADII.find((r) => r >= km) ?? 200;
 
 /** Changed from Telegram: kv. Otherwise what the config says, else the built-in defaults. */
 export async function loadFindSettings(store: Store, cfg?: Config | null): Promise<FindSettings> {
@@ -547,6 +552,7 @@ export async function loadFindSettings(store: Store, cfg?: Config | null): Promi
       listed: on !== null || start,
       max: await num(`${i.kv}_max_price`, c?.max_price ?? i.defaultMax),
       floor: await num(`${i.kv}_floor`, c?.min_rating ?? i.defaultFloor),
+      km: await num(`${i.kv}_km`, c?.radius_km ?? 0),
     };
   }
   return { min_score: await num("bikes_min_score", 0), items };
@@ -570,6 +576,14 @@ export async function setFindSetting(store: Store, key: ItemKey | "min", value: 
   const v = Math.min(500, Math.max(0, Math.round(value)));
   await store.kvSet(`${ITEM[key].kv}_max_price`, String(v));
   return `${ITEM[key].emoji} ${labelOf(ITEM[key], cfg)}: up to ${v} €`;
+}
+
+/** How far for one item; 0 = back to the finds radius. */
+export async function setFindKm(store: Store, key: ItemKey, value: number, cfg?: Config | null): Promise<string> {
+  const v = Math.min(200, Math.max(0, Math.round(value)));
+  await store.kvSet(`${ITEM[key].kv}_km`, String(v));
+  return `${ITEM[key].emoji} ${labelOf(ITEM[key], cfg)}: ` +
+    (v ? `up to ${v} km away` : `as far as the others (${cfg?.finds.radius_km ?? 30} km)`);
 }
 
 export async function setItemOn(store: Store, key: ItemKey, on: boolean, cfg?: Config | null): Promise<string> {
@@ -732,7 +746,8 @@ export async function findsStep(
 async function checkListing(
   db: D1Database, store: Store, cfg: Config, s: FindSettings, item: Item, search: Search,
 ): Promise<string> {
-  const at: Place = { slug: cfg.ka!.slug, id: cfg.ka!.id, r: cfg.finds.radius_km };
+  const own = s.items[item.key].km;
+  const at: Place = { slug: cfg.ka!.slug, id: cfg.ka!.id, r: own ? kaRadius(own) : cfg.finds.radius_km };
   const width = cfg.finds.items.bed.width_cm;
   const html = await get(search.url(s.items[item.key].max, at), jar(store));
   // only once it worked: after a block the next tick should look again
@@ -766,7 +781,7 @@ async function checkListing(
       routed && !s.items[routed].on ? "paused"
       : it.priced && price !== null && price > s.items[it.key].max ? `price ${ad.rent}`
       // a thin result page gets padded with ads from far away
-      : km !== null && km > cfg.finds.radius_km + 5 ? `too far (${km} km)`
+      : km !== null && km > (s.items[it.key].km || cfg.finds.radius_km + 5) ? `too far (${km} km)`
       // no flood of old ads when a search starts, no pinned "TOP" ads
       : isStale(posted.get(ad.ad_id)) ? `old ad (${posted.get(ad.ad_id)})`
       : it.reject(ad.title, ad.snippet ?? "", width);
@@ -1043,7 +1058,8 @@ export async function findsStatus(db: D1Database, store: Store): Promise<string>
     ...shown.map((i) => {
       const it = s.items[i.key];
       return `${i.emoji} <b>${labelOf(i, cfg)}</b> (${WHAT(cfg)[i.key]}): ` +
-        (!it.on ? "⏸ paused" : i.priced ? `up to <b>${it.max} €</b> or free` : `free, rated <b>${it.floor}/10</b> or better`);
+        (!it.on ? "⏸ paused" : i.priced ? `up to <b>${it.max} €</b> or free` : `free, rated <b>${it.floor}/10</b> or better`) +
+        (it.on && it.km ? `, within <b>${it.km} km</b>` : "");
     }),
     "",
     `Each one is read and rated out of 10 by AI before it's posted.`,
@@ -1081,10 +1097,10 @@ function hello(i: Item, cfg: Config, s: FindSettings): string {
   const it = s.items[i.key];
   const cmd = i.key === "kommode" ? "kommode" : i.key;
   return `${i.emoji} <b>${labelOf(i, cfg)}</b> will be posted here: ${WHAT(cfg)[i.key]}, ` +
-    (i.priced ? `up to ${it.max} € or free, within ${cfg.finds.radius_km} km. ` : `rated ${it.floor}/10 or better, within ${cfg.finds.radius_km} km. `) +
+    (i.priced ? `up to ${it.max} € or free, within ${it.km || cfg.finds.radius_km} km. ` : `rated ${it.floor}/10 or better, within ${it.km || cfg.finds.radius_km} km. `) +
     `Each one is read and rated by AI first.\n\n` +
     (i.priced ? `/finds ${cmd} ${it.max + 10} - another budget · ` : `/finds free 7 - pickier · `) +
-    `/finds ${cmd} off - pause · /finds - all settings`;
+    `/finds ${cmd} 5km - closer · /finds ${cmd} off - pause · /finds - all settings`;
 }
 
 /** One line for /status. */

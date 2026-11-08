@@ -1013,5 +1013,48 @@ console.log("\n9. a new topic says what it's for");
   await ok("…and only once", () => assert.ok(!posts().some((p) => /will be posted here/.test(p.body.text ?? ""))));
 }
 
+// ---------------------------------------------------------------- 10. how far, per item
+console.log("\n10. each item can have its own distance");
+{
+  const CHAIRS = page([
+    [961, "Bürostuhl ergonomisch schwarz", "20 €", "03046 Cottbus", 3, "Heute, 10:00"],
+    [962, "Bürostuhl mit Kopfstütze", "15 €", "03054 Cottbus", 6, "Heute, 09:00"],
+    [963, "Drehstuhl Bürostuhl grau", "10 €", "03130 Spremberg", 20, "Heute, 08:00"],
+  ]);
+  const f0 = globalThis.fetch;
+  globalThis.fetch = (u, i) => (String(u).includes("/buerostuhl/") ? (net.kaHits.push({ url: String(u) }), Promise.resolve(new Response(CHAIRS))) : f0(u, i));
+  const items = Object.fromEntries(["bike", "bed", "kommode", "carpet", "free"].map((k) => [k, { on: false }]));
+  const [DB, st, E] = fresh({ finds: { ...CONFIG.finds, items: { ...items, carpet: { on: true }, chair: { on: true, max_price: 30, radius_km: 4 } } } });
+  reset();
+  await B.findsStep(E, st, tg); await B.findsStep(E, st, tg);
+  await ok("config radius_km: 4 → asks Kleinanzeigen for 5 km, keeps the 3 km chair, drops 6 and 20 km", () => {
+    assert.ok(listings().some((h) => h.url.endsWith("/buerostuhl/k0l7743r5")), JSON.stringify(listings()));
+    assert.ok(listings().some((h) => h.url.includes("/teppich/") && h.url.endsWith("r30")), "the carpet keeps the finds radius");
+    assert.equal(why(DB, "Bürostuhl mit Kopfstütze"), "too far (6 km)");
+    assert.equal(why(DB, "Drehstuhl Bürostuhl grau"), "too far (20 km)");
+    assert.notEqual(DB.raw.prepare("SELECT status FROM bikes WHERE title='Bürostuhl ergonomisch schwarz'").get().status, "skipped");
+  });
+  const say = async (text) => { net.tgCalls = []; await worker.fetch(new Request("https://w/", { method: "POST",
+    headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" },
+    body: JSON.stringify({ message: { text, from: { id: 555 }, chat: { id: -100 } } }) }), E); return net.tgCalls; };
+  let c = await say("/finds");
+  await ok("the /finds card shows it", () => assert.match(c.at(-1).body.text, /🪑 <b>Desk chairs<\/b>[^\n]*up to <b>30 €<\/b> or free, within <b>4 km<\/b>/));
+  for (const [cmd, km] of [["/finds chair 8km", 8], ["/finds stuhl 12 km", 12], ["/finds chair km 2", 2]]) {
+    c = await say(cmd);
+    await ok(`${cmd} → ${km} km`, async () => {
+      assert.equal((await B.loadFindSettings(st)).items.chair.km, km);
+      assert.match(c[0].body.text, new RegExp(`up to ${km} km away`));
+    });
+  }
+  c = await say("/finds chair 0km");
+  await ok("/finds chair 0km → back to the finds radius (30 km), and the search asks for 30 again", async () => {
+    assert.match(c[0].body.text, /as far as the others \(30 km\)/);
+    reset(); await st.kvSet("bikes_checked:chair", "0"); await st.kvSet("bikes_lock", "0");
+    await B.findsStep(E, st, tg);
+    assert.ok(listings().some((h) => h.url.endsWith("/buerostuhl/k0l7743r30")), JSON.stringify(listings()));
+  });
+  globalThis.fetch = f0;
+}
+
 console.error = quiet;
 console.log(`\nall ${pass} checks passed`);

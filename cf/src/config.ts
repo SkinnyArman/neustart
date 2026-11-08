@@ -54,7 +54,8 @@ export interface Config {
   finds: {
     radius_km: number;
     for_whom: string;
-    items: Record<ItemKey, { on: boolean; max_price: number; min_rating: number; width_cm: number; room_m2: number }>;
+    // radius_km: 0 = the finds radius
+    items: Record<ItemKey, { on: boolean; max_price: number; min_rating: number; width_cm: number; room_m2: number; radius_km: number }>;
   };
   jobs: {
     student_permit: boolean;
@@ -154,6 +155,7 @@ export function normalize(raw: unknown): Config {
       min_rating: num(it.min_rating, ITEM_DEFAULTS[k].min_rating),
       width_cm: num(it.width_cm, 140),
       room_m2: num(it.room_m2, 25),
+      radius_km: num(it.radius_km, 0),
     };
   }
   const finds = {
