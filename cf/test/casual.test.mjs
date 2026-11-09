@@ -350,7 +350,8 @@ console.log("\n5. what the cards show");
 
 console.log("\n6. worth it or not");
 {
-  const ai = { calls: [], verdict: { verdict: "worth", why: "€15.33/h for light office cleaning, close by" }, down: false };
+  const ABOUT = "Help out in a supermarket: stocking shelves and working the till, a few afternoons a week. Basic German needed.";
+  const ai = { calls: [], verdict: { verdict: "worth", why: "€15.33/h for light office cleaning, close by", about: ABOUT }, down: false };
   const f0 = globalThis.fetch;
   globalThis.fetch = async (u, i) => {
     u = String(u);
@@ -382,6 +383,17 @@ console.log("\n6. worth it or not");
     assert.equal(lines[3], "✅ <b>Worth it</b>");
     assert.equal(lines[4], "<i>€15.33/h for light office cleaning, close by</i>");
   });
+  await ok("numeric codes in the text come out as characters (\"Aufgaben:&amp;#160;\" was shown raw)", () => {
+    assert.equal(C.describe("<p>Deine Aufgaben:&amp;#160;</p><p>Kasse &#8211; Lager</p>"), "Deine Aufgaben:\nKasse – Lager");
+  });
+  await ok("a short English paragraph on what the job is, before a shorter taste of the German text", () => {
+    const parts = first.body.text.split("\n\n");
+    const i = parts.indexOf(`🇬🇧 ${ABOUT}`);
+    assert.ok(i > 0, first.body.text);
+    assert.match(parts[i - 1], /^💶 /);                         // after the facts
+    assert.ok(parts[i + 1].length <= 310, String(parts[i + 1].length));
+    assert.match(ai.calls[0].messages[0].content, /about: the job in plain English/);
+  });
   ai.verdict = { verdict: "not", why: "Night shifts lifting crates for minimum wage" };
   net.tg = []; await run3(17);
   await ok("…not worth it says so too", () => assert.ok(cards().some((c) => /\n\n❌ <b>Not worth it<\/b>\n<i>Night shifts/.test(c.body.text))));
@@ -390,7 +402,7 @@ console.log("\n6. worth it or not");
   net.tg = []; await run3(27);
   await ok("the AI down: the card still goes out, without a verdict", () => {
     const c = cards().find((x) => /Hausmeister/.test(x.body.text));
-    assert.ok(c); assert.ok(!/Worth it|worth it/.test(c.body.text));
+    assert.ok(c); assert.ok(!/Worth it|worth it/.test(c.body.text)); assert.ok(!/🇬🇧/.test(c.body.text));
   });
   ai.down = false;
   // re-post: cards posted from a time on come down and go out again

@@ -284,17 +284,19 @@ async function searchKleinanzeigen(db: D1Database, store: Store, w: Where, cfg?:
 
 // ---------------------------------------------------------------- worth it?
 // Optional (casual_jobs.worth_it): the cheap model weighs how hard the work
-// is against what it pays. Without an answer the card just goes out without it.
-export type Verdict = { verdict: "worth" | "maybe" | "not"; why: string };
+// is against what it pays, and says in English what the job is (the ads are
+// long German texts). Without an answer the card just goes out without them.
+export type Verdict = { verdict: "worth" | "maybe" | "not"; why: string; about?: string };
 const VERDICT: Record<Verdict["verdict"], string> = { worth: "✅ <b>Worth it</b>", maybe: "🤔 <b>Could be worth it</b>", not: "❌ <b>Not worth it</b>" };
 
 const WORTH = (city: string) => `You judge casual jobs - Minijobs, part-time and side jobs - for a student in ${city} who wants to earn some money next to their studies. Decide whether applying is worth it, weighing how hard or unpleasant the work is (physical strain, early, night or weekend hours, stress, travel, needing a car or a licence) against what it pays (German minimum wage in 2026 is 13.90 €/h; no pay stated means minimum wage) and how well it fits around studying.
 
-Return JSON only: {"verdict": "worth"|"maybe"|"not", "why": string}
+Return JSON only: {"verdict": "worth"|"maybe"|"not", "why": string, "about": string}
 worth: fair or good pay for easy, pleasant or flexible work.
 maybe: fine but with a catch - only minimum wage, odd hours, more effort than the pay suggests, or unclear.
 not: hard or unpleasant for the money, impractical for a student, or a sales scheme.
-why: one line under 90 characters naming the main reason, e.g. "15.33 €/h for light office cleaning, evenings" or "Night shifts lifting crates for minimum wage". Only what the ad says.`;
+why: one line under 90 characters naming the main reason, e.g. "15.33 €/h for light office cleaning, evenings" or "Night shifts lifting crates for minimum wage". Only what the ad says.
+about: the job in plain English for someone who doesn't read German well, 2 short sentences under 260 characters: what you'd actually do, when and how much, and what they ask for (German level, licence, car, experience) if the ad says. No pay - it's shown already. Only what the ad says.`;
 
 async function worthIt(env: CasualEnv, city: string, ad: { title: string; company: string; place: string; pay: string; times: string; text: string }): Promise<Verdict> {
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -309,7 +311,7 @@ async function worthIt(env: CasualEnv, city: string, ad: { title: string; compan
   if (!r.ok) throw new Error(`OpenAI ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const d = JSON.parse((((await r.json()) as any)?.choices?.[0]?.message?.content) || "{}");
   if (!["worth", "maybe", "not"].includes(d.verdict)) throw new Error("no verdict");
-  return { verdict: d.verdict, why: String(d.why ?? "").trim().slice(0, 110) };
+  return { verdict: d.verdict, why: String(d.why ?? "").trim().slice(0, 110), about: String(d.about ?? "").trim().slice(0, 320) };
 }
 
 /** The verdict, or null when it's switched off or the AI didn't answer. */
@@ -326,6 +328,9 @@ async function verdictFor(env: CasualEnv, store: Store, tg: Telegram, cfg: Confi
   }
 }
 const verdictBlock = (v: Verdict | null) => (v ? `${VERDICT[v.verdict]}${v.why ? `\n<i>${esc(v.why)}</i>` : ""}` : "");
+/** The English summary; with it, the German text is only a short taste. */
+const aboutBlock = (v: Verdict | null) => (v?.about ? `🇬🇧 ${esc(v.about)}` : "");
+const germanMax = (v: Verdict | null) => (v?.about ? 300 : 600);
 
 // ---------------------------------------------------------------- the card
 const TIMES: [string, string][] = [
@@ -375,7 +380,8 @@ export function kaJobCard(row: Row, raw: string, v: Verdict | null = null): stri
     `🧺 <b>${esc(row.title)}</b>\nKleinanzeigen${row.place ? ` · ${esc(row.place)}` : ""}`,
     verdictBlock(v),
     pay ? `💶 ${pay}` : "💶 pay not stated (at least minimum wage)",
-    text ? esc(short(text)) : "",
+    aboutBlock(v),
+    text ? esc(short(text, germanMax(v))) : "",
     `<a href="${esc(KA_BASE + row.id.slice(3))}">open on Kleinanzeigen</a>`,
   ].filter(Boolean).join("\n\n");
 }
@@ -397,7 +403,8 @@ export function casualCard(row: Row, d: any, v: Verdict | null = null): string {
     `🧺 <b>${esc(row.title)}</b>\n${esc(row.company)}${row.place ? ` · ${esc(row.place)}` : ""}`,
     verdictBlock(v),
     facts,
-    text ? esc(short(text)) : "",
+    aboutBlock(v),
+    text ? esc(short(text, germanMax(v))) : "",
     `<a href="${esc(url)}">open the job</a>` + (d?.externeURL ? ` · <a href="${esc(d.externeURL)}">apply</a>` : ""),
   ].filter(Boolean).join("\n\n");
 }

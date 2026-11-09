@@ -112,7 +112,10 @@ export const dedupeKey = (company: string, title: string) =>
 
 export const strip = (html: string) =>
   html.replace(/<(br|\/p|\/li|\/h\d)[^>]*>/gi, "\n").replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{2,}/g, "\n").trim();
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
+    // numeric codes ("&#160;", "&#8211;"), often double-escaped as "&amp;#160;"
+    .replace(/&#(\d+);/g, (_, d) => (d === "160" ? " " : String.fromCodePoint(Number(d))))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{2,}/g, "\n").trim();
 
 // ---------------------------------------------------------------- storage
 const COLUMNS: Record<string, string> = {
