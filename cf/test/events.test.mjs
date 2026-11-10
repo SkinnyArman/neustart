@@ -31,8 +31,9 @@ const DEVPOST = { hackathons: [
 ] };
 const ICS = "BEGIN:VCALENDAR\r\nBEGIN:VTIMEZONE\r\nDTSTART:19700329T020000\r\nEND:VTIMEZONE\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20261118T183000\r\nSUMMARY:PyData Berlin\\, November edition\r\nLOCATION:Somewhere\\, Berlin\r\nURL:https://www.meetup.com/pydata-berlin/events/1/\r\nUID:ev1@meetup.com\r\nDESCRIPTION:Talks on pandas and LLMs\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
 // OpenLigaDB: the team's games, home and away, one already played
+const ICON = { "Energie Cottbus": "https://upload.wikimedia.org/wikipedia/commons/5/55/Logo_Energie_Cottbus.svg", "Hertha BSC": "https://i.imgur.com/hertha.png" };
 const game = (id, at, home, away, done = false) => ({ matchID: id, matchDateTime: at, leagueName: "2. Fußball-Bundesliga 2026/2027",
-  group: { groupName: `${id - 100}. Spieltag` }, team1: { teamName: home }, team2: { teamName: away }, location: null, matchIsFinished: done });
+  group: { groupName: `${id - 100}. Spieltag` }, team1: { teamName: home, teamIconUrl: ICON[home] }, team2: { teamName: away, teamIconUrl: ICON[away] }, location: null, matchIsFinished: done });
 const LIGA = [game(110, "2026-11-01T13:30:00", "Energie Cottbus", "SC Paderborn 07", true), game(111, "2026-11-14T20:30:00", "Hertha BSC", "Energie Cottbus"),
   game(112, "2026-11-22T13:30:00", "Energie Cottbus", "Hertha BSC"), game(113, "2026-12-04T18:30:00", "Energie Cottbus", "VfL Osnabrück"),
   game(114, "2027-01-31T13:30:00", "Energie Cottbus", "DSC Arminia Bielefeld")];
@@ -308,6 +309,10 @@ await ok("OpenLigaDB: the club's home games still to come", () => {
   assert.deepEqual(f.map((e) => e.title), ["Energie Cottbus – Hertha BSC", "Energie Cottbus – VfL Osnabrück", "Energie Cottbus – DSC Arminia Bielefeld"]);
   assert.equal(f[0].starts, "2026-11-22T13:30"); assert.equal(f[0].note, "2. Fußball-Bundesliga, 12. Spieltag");
   assert.equal(f[0].place, "home game in Cottbus"); assert.equal(f[0].price, null); assert.equal(f[0].url, "https://shop.example/tickets");
+  // the home club's crest: Wikimedia's PNG of the SVG
+  assert.equal(f[0].image, "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Logo_Energie_Cottbus.svg/500px-Logo_Energie_Cottbus.svg.png");
+  assert.equal(E.crest("https://i.imgur.com/hertha.png"), "https://i.imgur.com/hertha.png");
+  assert.equal(E.crest("https://example.org/logo.svg"), undefined); assert.equal(E.crest(undefined), undefined);
 });
 await ok("not asked for: no sport source is read, no sport topic", async () => {
   const { normalize } = await import(SRC + "config.ts");
@@ -337,8 +342,10 @@ await ok("not asked for: no sport source is read, no sport topic", async () => {
     assert.ok(net.urls.some((u) => /berlin\.de\/en\/tickets\/search\/\?q=Cottbus&categories%5B%5D=Sport/.test(u)));
     assert.ok(net.urls.includes("https://api.openligadb.de/getmatchdata/bl2/2026/Energie%20Cottbus"));
   });
-  await ok("a home game: ⚽ card with kick-off, league, 'price not listed' and the ticket shop", () => {
+  await ok("a home game: ⚽ card with the club's crest, kick-off, league, 'price not listed' and the ticket shop", () => {
     const c = sport().find((x) => /Hertha/.test(x.body.text));
+    assert.equal(net.tg.find((x) => x.method === "sendPhoto" && /Hertha/.test(x.body.caption)).body.photo,
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Logo_Energie_Cottbus.svg/500px-Logo_Energie_Cottbus.svg.png");
     assert.ok(c, sport().map((x) => x.body.text.split("\n")[0]).join(" | "));
     assert.match(c.body.text, /^⚽ <b>Energie Cottbus – Hertha BSC<\/b>\n\n📅 Sun 22 Nov, 13:30\n📍 home game in Cottbus\n💶 price not listed\n\n2\. Fußball-Bundesliga, 12\. Spieltag\n\n<a href="https:\/\/shop\.example\/tickets">tickets<\/a>$/);
   });

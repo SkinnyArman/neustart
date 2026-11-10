@@ -253,8 +253,18 @@ export function parseFootball(json: any, team: string, city: string, tickets: st
     starts: String(m.matchDateTime ?? "").slice(0, 16), place: m.location?.locationStadium ?? `home game in ${city}`,
     price: null, url: tickets, tickets: undefined,
     note: [String(m.leagueName ?? "").replace(/\s*\d{4}\/\d{4}$/, ""), m.group?.groupName].filter(Boolean).join(", "),
-    tag: "Football", image: undefined,
+    tag: "Football", image: crest(m.team1?.teamIconUrl),
   }));
+}
+/**
+ * The home club's crest as a picture Telegram takes: PNG or JPEG as it is; a
+ * Wikimedia SVG as Wikimedia's own 500 px PNG of it; any other SVG, none.
+ */
+export function crest(url: unknown): string | undefined {
+  const u = String(url ?? "");
+  const svg = /^https:\/\/upload\.wikimedia\.org\/wikipedia\/(commons|[a-z]+)\/([0-9a-f]\/[0-9a-f]{2})\/([^/]+\.svg)$/i.exec(u);
+  if (svg) return `https://upload.wikimedia.org/wikipedia/${svg[1]}/thumb/${svg[2]}/${svg[3]}/500px-${svg[3]}.png`;
+  return /^https:\/\/[^ ]+\.(png|jpe?g)$/i.test(u) ? u : undefined;
 }
 /**
  * University sport on Buchsys (the booking system most German universities
