@@ -1,7 +1,8 @@
-// Events, in two topics: cultural events (theatre, concerts, exhibitions)
-// and career events (meetups, hackathons, the university's career and
-// scholarship notices). No AI: each event is a card with when, where, the
-// price and a link, posted when it's found.
+// Events, in up to three topics: cultural events (theatre, concerts,
+// exhibitions), career events (meetups, hackathons, the university's career
+// and scholarship notices) and, when asked for, sport events (games you can
+// go and watch). No AI: each event is a card with when, where, the price and
+// a link, posted when it's found.
 //
 // Sources, read on a trigger of their own (one source per tick, each about
 // every 6 hours - events change slowly):
@@ -10,10 +11,16 @@
 //   career:  devpost (hackathons, online or in Germany), meetup (the
 //            groups' calendar feeds), btu (BTU's notices: career,
 //            scholarships, info days)
+//   sport:   to join in: btu_sport (BTU's university sport, Cottbus campus:
+//            weekly courses with places free - running group, football,
+//            yoga, climbing...; open to students and people from the region)
+//            to watch: city_sport (berlin.de's ticket search: sport in the
+//            city, with prices - it covers Berlin and Brandenburg), football
+//            (a club's home games from OpenLigaDB; events.football names it)
 // The theatre and city readers are for Cottbus; other cities use meetup
 // groups and devpost, or add a reader here.
 //
-// Cultural events over the budget (10 € by default) are left out; ones
+// Cultural and sport events over the budget (10 € by default) wait; ones
 // without a listed price say so. A show on several dates is posted once.
 // Only events in the next few weeks go out; past ones never do. A card with
 // the event's poster goes out as a photo (the theatre's, from the show's own
@@ -30,7 +37,8 @@ const POST_PER_TICK = 4;
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36";
 const now = () => Math.floor(Date.now() / 1000);
 
-export type Kind = "culture" | "career";
+export type Kind = "culture" | "career" | "sport";
+const KINDS: Kind[] = ["culture", "career", "sport"];
 export interface Event {
   id: string;            // "<source>:<its own id>"
   kind: Kind;
@@ -200,9 +208,136 @@ export function parseBtu(html: string): Event[] {
   return out;
 }
 
+const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+
+/**
+ * berlin.de's ticket search (Berlin and Brandenburg), one category and one
+ * city: "Saturday, 05/December/2026 19:00", the venue and its address, a
+ * "from €11.00" price. Only events whose address is in the city.
+ */
+export function parseTicketSearch(html: string, city: string, kind: Kind): Event[] {
+  const out: Event[] = [];
+  for (const card of html.split('<article class="modul-teaser').slice(1)) {
+    const c = card.slice(0, card.indexOf("</article>"));
+    const dd = (label: string) => one(new RegExp(`<dt>${label}:</dt>\\s*<dd[^>]*>([\\s\\S]*?)</dd>`), c);
+    const address = text(dd("Address"));
+    if (!address.toLowerCase().includes(city.toLowerCase())) continue;
+    const d = /(\d{2})\/([a-z]+)\/(\d{4})\s*(\d{2}:\d{2})?/i.exec(text(dd("Date")));
+    const month = d ? MONTHS.indexOf(d[2].toLowerCase()) + 1 : 0;
+    if (!d || !month) continue;
+    const day = `${d[3]}-${String(month).padStart(2, "0")}-${d[1]}`;
+    const link = one(/<dt>Date:<\/dt>\s*<dd[^>]*>\s*<a href="([^"]+)"/, c) || one(/<h3 class="title">\s*<a href="([^"]+)"/, c);
+    const title = text(dd("Next date")) || text(one(/<h3 class="title">([\s\S]*?)<\/h3>/, c)).replace(/\s*\|[^|]*$/, "");
+    if (!title || !link) continue;
+    const price = /€\s?(\d+(?:[.,]\d{1,2})?)/.exec(text(dd("Price")))?.[1];
+    // the picture, unless it's the category's stock photo
+    const img = one(/<img[^>]+src="([^"]+)"/, c);
+    let image: string | undefined;
+    try {
+      const b64 = img.split("/").pop()!.replace(/\.\w+$/, "").replace(/-/g, "+").replace(/_/g, "/");
+      if (img && !decodeURIComponent(atob(b64)).includes("/static/themes/")) image = img;
+    } catch { /* not an image proxy address: no picture */ }
+    out.push({
+      id: `berlin:${/[0-9a-f-]{36}\/?$/.exec(link)?.[0].replace("/", "") ?? link.slice(-60)}`, kind, title,
+      starts: d[4] ? `${day}T${d[4]}` : day, place: text(dd("Venue")) || address,
+      price: price ? Number(price.replace(",", ".")) : null, url: link, note: "", tag: "", image,
+    });
+  }
+  return out;
+}
+
+/** A club's home games from OpenLigaDB: "Energie Cottbus – Hertha BSC", 2. Bundesliga, matchday 13. */
+export function parseFootball(json: any, team: string, city: string, tickets: string): Event[] {
+  return (Array.isArray(json) ? json : []).filter((m) => m?.team1?.teamName === team && !m.matchIsFinished).map((m) => ({
+    id: `football:${m.matchID}`, kind: "sport" as Kind, title: `${m.team1.teamName} – ${m.team2?.teamName ?? "?"}`,
+    starts: String(m.matchDateTime ?? "").slice(0, 16), place: m.location?.locationStadium ?? `home game in ${city}`,
+    price: null, url: tickets, tickets: undefined,
+    note: [String(m.leagueName ?? "").replace(/\s*\d{4}\/\d{4}$/, ""), m.group?.groupName].filter(Boolean).join(", "),
+    tag: "Football", image: undefined,
+  }));
+}
+/**
+ * University sport on Buchsys (the booking system most German universities
+ * use): kurssuche.js holds every course of the current term in one object -
+ * name, level, weekly slots (day, time, place), the term's dates, the price
+ * per group and whether places are free. One card per sport with places free:
+ * when it meets, and the student price for the term, also per session.
+ * Kids' courses and the trainers' own (further training, volunteers) are
+ * left out; women-only and men-only ones go out like the rest.
+ */
+export function parseUniSport(js: string, base: string): Event[] {
+  const d = jsonObject(js);
+  if (!d?.kurse) return [];
+  const DAY: Record<string, string> = { Mo: "Mon", Di: "Tue", Mi: "Wed", Do: "Thu", Fr: "Fri", Sa: "Sat", So: "Sun", "Mo-Fr": "Mon-Fri", "Sa-So": "Sat-Sun" };
+  const groups = new Map<string, any[]>();
+  for (const k of d.kurse) {
+    if (!Array.isArray(k) || k[10] !== 1) continue;                 // full, waiting list or not bookable
+    const name = unent(String(k[2] ?? "")).trim();
+    const all = `${name} ${unent(String(k[3] ?? ""))}`;
+    if (!name || NOT_FOR_US.test(all) || /eingangstest|teach the teacher|volunteer|helfer|kursleitend/i.test(all)) continue;
+    groups.set(name, [...(groups.get(name) ?? []), k]);
+  }
+  const out: Event[] = [];
+  for (const [name, ks] of groups) {
+    const slots: string[] = [];
+    for (const k of ks) (k[4] as number[]).forEach((t, i) => {
+      if (!t) return;
+      const day = String(d.tage?.[t]?.[0] ?? "");
+      const where = String(d.orte?.[k[6]?.[i]]?.[0] ?? "").trim();
+      slots.push(`${DAY[day] ?? unent(day)} ${String(k[5][i]).replace(/\s/g, "")}${where ? ` (${unent(where)})` : ""}`);
+    });
+    const [from, to] = term(String(ks[0][7]));
+    const fee = (k: any[]) => { const p = String(k[9]); return /entgeltfrei|kostenlos/i.test(p) ? 0 : Number(/bs_tt1">([\d,.]+)/.exec(p)?.[1]?.replace(",", ".") ?? NaN); };
+    const fees = ks.map(fee).filter((x) => Number.isFinite(x));
+    const semester = fees.length ? Math.min(...fees) : null;
+    const weeks = from && to ? Math.max(1, Math.round((Date.parse(to) - Date.parse(from)) / (7 * 86400e3)) + 1) : 15;
+    const levels = [...new Set(ks.map((k) => unent(String(k[3] ?? "")).trim()).filter(Boolean))].join(", ");
+    out.push({
+      id: `unisport:${d.conf?.zr ?? ""}:${slug(name)}`, kind: "sport", title: name.replace(/_/g, " "),
+      starts: from, ends: to || undefined, place: "BTU sport, Cottbus",
+      price: semester === null ? null : Math.round((semester / weeks) * 100) / 100,
+      url: `${base}${courseFile(name)}`, tag: "Uni sport",
+      note: [`Weekly: ${[...new Set(slots)].join(" · ")}`, levels ? `Level: ${levels}` : "",
+        semester === null ? "" : semester === 0 ? "Free for the term" : `${String(semester).replace(".", ",")} € for the whole term as a student, booked online`]
+        .filter(Boolean).join("\n"),
+    });
+  }
+  return out;
+}
+const slug = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50);
+/** Buchsys' page for a sport: "_Frauen_-_Fussball.html", "_Healthy__und__strong_body.html" */
+export const courseFile = (name: string) => "_" + name.replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/Ä/g, "Ae")
+  .replace(/Ö/g, "Oe").replace(/Ü/g, "Ue").replace(/ß/g, "ss").replace(/&/g, "_und_").replace(/[^A-Za-z0-9-]/g, "_") + ".html";
+/** "13.10.-<wbr>26.01." → the dates, the year being the one that puts the start nearest today. */
+function term(s: string): [string, string] {
+  const m = /(\d{1,2})\.(\d{1,2})\.[\s\S]*?(\d{1,2})\.(\d{1,2})\./.exec(s);
+  if (!m) return ["", ""];
+  const today = Date.now(), y0 = new Date(today).getUTCFullYear();
+  const iso = (y: number, mo: string, da: string) => `${y}-${mo.padStart(2, "0")}-${da.padStart(2, "0")}`;
+  const y = [y0 - 1, y0, y0 + 1].sort((a, b) => Math.abs(Date.parse(iso(a, m[2], m[1])) - today) - Math.abs(Date.parse(iso(b, m[2], m[1])) - today))[0];
+  return [iso(y, m[2], m[1]), iso(Number(m[4]) < Number(m[2]) ? y + 1 : y, m[4], m[3])];
+}
+/** The first {...} in a script, as JSON (kurssuche.js is "const data={...};"). */
+function jsonObject(s: string): any {
+  const start = s.indexOf("{");
+  let depth = 0, str = false, esc = false;
+  for (let i = start; start >= 0 && i < s.length; i++) {
+    const c = s[i];
+    if (str) { if (esc) esc = false; else if (c === "\\") esc = true; else if (c === '"') str = false; continue; }
+    if (c === '"') str = true;
+    else if (c === "{") depth++;
+    else if (c === "}" && --depth === 0) { try { return JSON.parse(s.slice(start, i + 1)); } catch { return null; } }
+  }
+  return null;
+}
+
+/** The season a date falls in: from July on, the one starting that year. */
+const season = (t = new Date(Date.now())) => (t.getUTCMonth() >= 6 ? t.getUTCFullYear() : t.getUTCFullYear() - 1);
+
 // ---------------------------------------------------------------- sources
-interface Source { kind: Kind; every: number; url: (cfg: Config) => string[]; parse: (body: string, src: string) => Event[] }
+interface Source { kind: Kind; every: number; url: (cfg: Config) => string[]; parse: (body: string, src: string, cfg: Config) => Event[] }
 const H = 3600;
+const BTU_SPORT = "https://www.buchsys.de/b-tu/angebote/aktueller_zeitraum_0/";   // campus Cottbus (_1: Senftenberg)
 export const SOURCES: Record<string, Source> = {
   cottbus_theater: { kind: "culture", every: 6 * H, url: () => ["https://www.staatstheater-cottbus.de/de/programm/spielplan.html"], parse: (b) => parseTheater(b) },
   gladhouse: { kind: "culture", every: 6 * H, url: () => ["https://www.gladhouse.de/"], parse: (b) => parseGladhouse(b) },
@@ -210,6 +345,14 @@ export const SOURCES: Record<string, Source> = {
   devpost: { kind: "career", every: 12 * H, url: () => ["https://devpost.com/api/hackathons?status[]=upcoming&status[]=open"], parse: (b) => parseDevpost(JSON.parse(b)) },
   meetup: { kind: "career", every: 6 * H, url: (c) => c.events.meetup_groups.map((g) => `https://www.meetup.com/${encodeURIComponent(g)}/events/ical/`), parse: (b) => parseIcal(b, "meetup") },
   btu: { kind: "career", every: 12 * H, url: () => ["https://www.b-tu.de/veranstaltungen"], parse: (b) => parseBtu(b) },
+  btu_sport: { kind: "sport", every: 12 * H, url: () => [`${BTU_SPORT}kurssuche.js`],
+    parse: (b) => parseUniSport(b, BTU_SPORT) },
+  city_sport: { kind: "sport", every: 12 * H,
+    url: (c) => [`https://www.berlin.de/en/tickets/search/?q=${encodeURIComponent(c.city)}&categories%5B%5D=Sport&order_by=start`],
+    parse: (b, _, c) => parseTicketSearch(b, c.city, "sport") },
+  football: { kind: "sport", every: 12 * H,
+    url: (c) => (c.events.football.team ? [`https://api.openligadb.de/getmatchdata/${encodeURIComponent(c.events.football.league)}/${season()}/${encodeURIComponent(c.events.football.team)}`] : []),
+    parse: (b, _, c) => parseFootball(JSON.parse(b), c.events.football.team, c.city, c.events.football.tickets) },
 };
 
 // ---------------------------------------------------------------- storage
@@ -230,11 +373,11 @@ async function ensureTable(db: D1Database) {
 const dkeyOf = (e: Event) => `${e.kind}|${e.title.toLowerCase().replace(/[^\p{L}\d]+/gu, "")}`.slice(0, 160);
 
 // ---------------------------------------------------------------- settings
-export interface EventSettings { budget: number; culture: boolean; career: boolean }
+export interface EventSettings { budget: number; culture: boolean; career: boolean; sport: boolean }
 export async function eventSettings(store: Store, cfg: Config): Promise<EventSettings> {
   const b = Number(await store.kvGet("events_budget"));
   const on = async (k: Kind) => { const v = await store.kvGet(`events_${k}_on`); return v === null ? cfg.events[k] : v !== "0"; };
-  return { budget: (await store.kvGet("events_budget")) !== null && Number.isFinite(b) ? b : cfg.events.max_price, culture: await on("culture"), career: await on("career") };
+  return { budget: (await store.kvGet("events_budget")) !== null && Number.isFinite(b) ? b : cfg.events.max_price, culture: await on("culture"), career: await on("career"), sport: await on("sport") };
 }
 
 // ---------------------------------------------------------------- one tick
@@ -243,7 +386,7 @@ export async function eventsStep(env: { DB: D1Database }, store: Store, tg: Tele
   if (!cfg) return `events: ${NO_CONFIG}`;
   if (!cfg.modules.events) return "events: off";
   const s = await eventSettings(store, cfg);
-  if (!s.culture && !s.career) return "events: all paused";
+  if (!s.culture && !s.career && !s.sport) return "events: all paused";
   const db = env.DB;
   await ensureTable(db);
   const did: string[] = [];
@@ -252,6 +395,11 @@ export async function eventsStep(env: { DB: D1Database }, store: Store, tg: Tele
     `up to ${s.budget} € or free (some don't list a price).\n\n/events budget ${s.budget + 5} - another budget · /events culture off - pause · /events - settings`);
   if (s.career) await introduce(cfg, store, tg, "career_events",
     `🎤 <b>Career events</b> will be posted here: meetups, hackathons, career and scholarship dates.\n\n/events career off - pause · /events - settings`);
+  if (s.sport) await introduce(cfg, store, tg, "sport_events",
+    `🏟 <b>Sport events</b> in ${esc(cfg.city)} will be posted here: ` +
+    (cfg.events.sources.includes("btu_sport") ? "groups to join (BTU's running group, football, yoga, climbing… when places are free) and " : "") +
+    `games to go and watch` + (cfg.events.football.team ? ` (${esc(cfg.events.football.team)} home games among them)` : "") +
+    `, up to ${s.budget} € or free (some don't list a price).\n\n/events budget ${s.budget + 5} - another budget · /events sport off - pause · /events - settings`);
 
   // the most overdue source of the kinds that are on
   const checked = await store.kvPrefix("events_checked:");
@@ -279,14 +427,14 @@ export async function eventsStep(env: { DB: D1Database }, store: Store, tg: Tele
 
 async function read(db: D1Database, store: Store, cfg: Config, key: string): Promise<string> {
   const src = SOURCES[key];
-  const watch = src.kind === "culture" ? "events_culture" : "events_career";
+  const watch = `events_${src.kind}` as const;
   await store.kvSet(`events_checked:${key}`, String(now()));
   const found: Event[] = [];
   try {
     for (const url of src.url(cfg)) {
       const r = await fetch(url, { headers: { "User-Agent": UA, "Accept-Language": "de-DE,de;q=0.9,en;q=0.8" } });
       if (!r.ok) throw new Error(`${key} answered ${r.status}`);
-      found.push(...src.parse(await r.text(), key));
+      found.push(...src.parse(await r.text(), key, cfg));
     }
   } catch (e) {
     await noteError(store, watch, e);
@@ -295,8 +443,10 @@ async function read(db: D1Database, store: Store, cfg: Config, key: string): Pro
   await noteOk(store, watch, found.length);
   let fresh = 0;
   for (const e of found) {
-    const known = await db.prepare("SELECT image FROM events WHERE id=?").bind(e.id).first<{ image: string | null }>();
+    const known = await db.prepare("SELECT image, starts, status FROM events WHERE id=?").bind(e.id).first<{ image: string | null; starts: string; status: string }>();
     if (known) {
+      // not posted yet and moved (a game's kick-off is fixed weeks later)
+      if (known.status === "new" && e.starts && known.starts !== e.starts) await db.prepare("UPDATE events SET starts=? WHERE id=?").bind(e.starts, e.id).run();
       // found before this source's posters were read: add it
       if (!known.image && e.image) await db.prepare("UPDATE events SET image=? WHERE id=?").bind(e.image, e.id).run();
       continue;
@@ -354,9 +504,9 @@ function holdBack(r: Row, s: EventSettings, cfg: Config): string | null {
   if (r.starts && last < today) return "over";
   // started already today (a single show with a time; not a run like an exhibition)
   if (!r.ends && r.starts.length > 10 && r.starts < local) return "over";
-  const window = r.kind === "culture" ? cfg.events.culture_days : cfg.events.career_days;
+  const window = r.kind === "culture" ? cfg.events.culture_days : r.kind === "sport" ? cfg.events.sport_days : cfg.events.career_days;
   if (r.starts && r.starts.slice(0, 10) > isoDay(Date.now() + window * DAY)) return "later";
-  if (r.kind === "culture" && r.price !== null && r.price > s.budget) return "over budget";
+  if (r.kind !== "career" && r.price !== null && r.price > s.budget) return "over budget";
   return null;
 }
 
@@ -379,7 +529,7 @@ async function post(db: D1Database, store: Store, tg: Telegram, cfg: Config, s: 
         r.image = await theaterPoster(r.url);
         if (r.image) await db.prepare("UPDATE events SET image=? WHERE id=?").bind(r.image, r.id).run();
       }
-      const sent = await send(tg, r, inTopic(await topicOf(cfg, store, tg, r.kind === "culture" ? "culture_events" : "career_events")));
+      const sent = await send(tg, r, inTopic(await topicOf(cfg, store, tg, `${r.kind}_events`)));
       await db.prepare("UPDATE events SET status='posted', posted_at=?, msg_id=? WHERE id=?").bind(now(), sent?.result?.message_id ?? null, r.id).run();
       n++;
     } catch (e: any) {
@@ -393,18 +543,21 @@ async function post(db: D1Database, store: Store, tg: Telegram, cfg: Config, s: 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const fmtDay = (iso: string) => { const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`); return `${DOW[d.getUTCDay()]} ${d.getUTCDate()} ${MON[d.getUTCMonth()]}`; };
-const EMOJI: Record<string, string> = { Hackathon: "🏆", Meetup: "🎤", Scholarship: "🎓", BTU: "🎓" };
+const EMOJI: Record<string, string> = { Hackathon: "🏆", Meetup: "🎤", Scholarship: "🎓", BTU: "🎓", Football: "⚽", "Uni sport": "🏃" };
+const ICON: Record<Kind, string> = { culture: "🎭", career: "🎤", sport: "🏟" };
 
 export function eventCard(r: Row): string {
   const when = !r.starts ? "" : r.ends && r.ends !== r.starts.slice(0, 10)
     ? `${fmtDay(r.starts)} – ${fmtDay(r.ends)}` : `${fmtDay(r.starts)}${r.starts.length > 10 ? `, ${r.starts.slice(11, 16)}` : ""}`;
-  const price = r.price === null ? "💶 price not listed" : r.price === 0 ? "🆓 <b>Free</b>" : `💶 ${String(r.price).replace(".", ",")} €`;
-  const icon = EMOJI[r.tag] ?? (r.kind === "culture" ? "🎭" : "🎤");
+  const eur = (n: number) => String(n).replace(".", ",");
+  const price = r.price === null ? "💶 price not listed" : r.price === 0 ? "🆓 <b>Free</b>"
+    : r.tag === "Uni sport" ? `💶 about ${eur(r.price)} € a session` : `💶 ${eur(r.price)} €`;
+  const icon = EMOJI[r.tag] ?? ICON[r.kind];
   return [
     `${icon} <b>${esc(r.title)}</b>${r.tag && !EMOJI[r.tag] ? `\n<i>${esc(r.tag)}</i>` : ""}`,
-    [when ? `📅 ${when}` : "", r.place ? `📍 ${esc(r.place)}` : "", r.kind === "culture" || r.price ? price : ""].filter(Boolean).join("\n"),
+    [when ? `📅 ${when}` : "", r.place ? `📍 ${esc(r.place)}` : "", r.kind !== "career" || r.price ? price : ""].filter(Boolean).join("\n"),
     r.note ? esc(r.note) : "",
-    [`<a href="${esc(r.url)}">details</a>`, r.tickets ? `<a href="${esc(r.tickets)}">tickets</a>` : ""].filter(Boolean).join(" · "),
+    [r.url ? `<a href="${esc(r.url)}">${r.tag === "Football" ? "tickets" : "details"}</a>` : "", r.tickets ? `<a href="${esc(r.tickets)}">tickets</a>` : ""].filter(Boolean).join(" · "),
   ].filter(Boolean).join("\n\n");
 }
 
@@ -414,16 +567,18 @@ export async function eventsCard(store: Store, cfg: Config): Promise<[string, Bu
   return [[
     `🎭 <b>Events</b>`, "",
     `Cultural events: ${s.culture ? `on, up to ${s.budget} € or free` : "⏸ paused"}`,
-    `Career events: ${s.career ? "on" : "⏸ paused"}`, "",
-    `<i>/events budget 15 · /events culture off · /events career on - anyone here can change it</i>`,
+    `Career events: ${s.career ? "on" : "⏸ paused"}`,
+    ...(cfg.events.sport || s.sport ? [`Sport events: ${s.sport ? `on, up to ${s.budget} € or free` : "⏸ paused"}`] : []), "",
+    `<i>/events budget 15 · /events culture off · /events career on${cfg.events.sport ? " · /events sport off" : ""} - anyone here can change it</i>`,
   ].join("\n"), [
     [{ text: "−5 €", callback_data: "ev:budget:-5" }, { text: `≤ ${s.budget} €`, callback_data: "ev:noop" }, { text: "+5 €", callback_data: "ev:budget:+5" }],
     [{ text: `🎭 ${s.culture ? "⏸ pause" : "▶️ on"}`, callback_data: `ev:culture:${s.culture ? "off" : "on"}` },
-     { text: `🎤 ${s.career ? "⏸ pause" : "▶️ on"}`, callback_data: `ev:career:${s.career ? "off" : "on"}` }],
+     { text: `🎤 ${s.career ? "⏸ pause" : "▶️ on"}`, callback_data: `ev:career:${s.career ? "off" : "on"}` },
+     ...(cfg.events.sport || s.sport ? [{ text: `🏟 ${s.sport ? "⏸ pause" : "▶️ on"}`, callback_data: `ev:sport:${s.sport ? "off" : "on"}` }] : [])],
   ]];
 }
 
-/** budget ±n or n; culture|career on|off. The answer to show. */
+/** budget ±n or n; culture|career|sport on|off. The answer to show. */
 export async function setEvents(store: Store, cfg: Config, what: string, value: string): Promise<string> {
   const s = await eventSettings(store, cfg);
   if (what === "budget") {
@@ -431,19 +586,21 @@ export async function setEvents(store: Store, cfg: Config, what: string, value: 
     if (!value || !Number.isFinite(v)) return "Try /events budget 15";
     const b = Math.min(200, Math.max(0, v));
     await store.kvSet("events_budget", String(b));
-    return `🎭 Cultural events: up to ${b} € or free`;
+    return `${s.sport ? "🎭 Cultural and 🏟 sport" : "🎭 Cultural"} events: up to ${b} € or free`;
   }
-  if ((what === "culture" || what === "career") && (value === "on" || value === "off")) {
+  if (KINDS.includes(what as Kind) && (value === "on" || value === "off")) {
     await store.kvSet(`events_${what}_on`, value === "on" ? "1" : "0");
-    return `${what === "culture" ? "🎭 Cultural" : "🎤 Career"} events: ${value === "on" ? "on" : "paused"}`;
+    const name: Record<Kind, string> = { culture: "🎭 Cultural", career: "🎤 Career", sport: "🏟 Sport" };
+    return `${name[what as Kind]} events: ${value === "on" ? "on" : "paused"}`;
   }
-  return "Try /events budget 15, /events culture off, /events career on";
+  return "Try /events budget 15, /events culture off, /events career on, /events sport off";
 }
 
 /** One line for /status. */
 export async function eventsLine(store: Store, db: D1Database, cfg: Config): Promise<string> {
   await ensureTable(db);
   const s = await eventSettings(store, cfg);
-  const r = await db.prepare("SELECT SUM(kind='culture' AND status='posted') c, SUM(kind='career' AND status='posted') k FROM events").first<{ c: number | null; k: number | null }>();
-  return `Events:          ${s.culture ? `🎭 ${r?.c ?? 0} posted (≤ ${s.budget} €)` : "🎭 paused"} · ${s.career ? `🎤 ${r?.k ?? 0} posted` : "🎤 paused"}`;
+  const r = await db.prepare("SELECT SUM(kind='culture' AND status='posted') c, SUM(kind='career' AND status='posted') k, SUM(kind='sport' AND status='posted') p FROM events").first<{ c: number | null; k: number | null; p: number | null }>();
+  return `Events:          ${s.culture ? `🎭 ${r?.c ?? 0} posted (≤ ${s.budget} €)` : "🎭 paused"} · ${s.career ? `🎤 ${r?.k ?? 0} posted` : "🎤 paused"}` +
+    (cfg.events.sport || s.sport ? ` · ${s.sport ? `🏟 ${r?.p ?? 0} posted` : "🏟 paused"}` : "");
 }

@@ -30,6 +30,12 @@ const DEVPOST = { hackathons: [
   { id: 4, title: "Old One", url: "https://z.devpost.com/", submission_period_dates: "Sep 01 - Oct 01, 2026", displayed_location: { location: "Online" } },
 ] };
 const ICS = "BEGIN:VCALENDAR\r\nBEGIN:VTIMEZONE\r\nDTSTART:19700329T020000\r\nEND:VTIMEZONE\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20261118T183000\r\nSUMMARY:PyData Berlin\\, November edition\r\nLOCATION:Somewhere\\, Berlin\r\nURL:https://www.meetup.com/pydata-berlin/events/1/\r\nUID:ev1@meetup.com\r\nDESCRIPTION:Talks on pandas and LLMs\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+// OpenLigaDB: the team's games, home and away, one already played
+const game = (id, at, home, away, done = false) => ({ matchID: id, matchDateTime: at, leagueName: "2. Fußball-Bundesliga 2026/2027",
+  group: { groupName: `${id - 100}. Spieltag` }, team1: { teamName: home }, team2: { teamName: away }, location: null, matchIsFinished: done });
+const LIGA = [game(110, "2026-11-01T13:30:00", "Energie Cottbus", "SC Paderborn 07", true), game(111, "2026-11-14T20:30:00", "Hertha BSC", "Energie Cottbus"),
+  game(112, "2026-11-22T13:30:00", "Energie Cottbus", "Hertha BSC"), game(113, "2026-12-04T18:30:00", "Energie Cottbus", "VfL Osnabrück"),
+  game(114, "2027-01-31T13:30:00", "Energie Cottbus", "DSC Arminia Bielefeld")];
 const net = { tg: [], urls: [] };
 globalThis.fetch = async (url, init = {}) => {
   url = String(url); net.urls.push(url);
@@ -44,6 +50,9 @@ globalThis.fetch = async (url, init = {}) => {
   if (url.includes("b-tu.de")) return new Response(FIX("btu.html"));
   if (url.includes("devpost.com")) return Response.json(DEVPOST);
   if (url.includes("meetup.com")) return new Response(ICS);
+  if (url.includes("berlin.de/en/tickets/search")) return new Response(FIX("berlin-sport.html"));
+  if (url.includes("api.openligadb.de")) return Response.json(LIGA);
+  if (url.includes("buchsys.de")) return new Response(FIX("btu-sport.js"));
   throw new Error("unexpected fetch " + url);
 };
 
@@ -268,5 +277,94 @@ await ok("not in the config: switched off, nothing fetched", async () => {
   assert.equal(await E.eventsStep({ DB: DB2 }, st2, tg), "events: off");
   assert.equal(net.urls.length, n);
 });
+
+console.log("\n4. sport events (only when asked for)");
+await ok("berlin.de's ticket search: games in the city with date, venue, price and link; Berlin left out, no stock photo", () => {
+  const b = E.parseTicketSearch(FIX("berlin-sport.html"), "Cottbus", "sport");
+  assert.deepEqual(b.map((e) => e.title), ["LHC vs. HC Vorpommern-Greifswald", "LHC vs. Ribnitzer HV", "HVB-Pokal Final Four 2026/27"]);
+  const r = b[1];
+  assert.equal(r.starts, "2026-12-05T19:00"); assert.equal(r.place, "Lausitz-Arena (Cottbus)"); assert.equal(r.price, 11);
+  assert.equal(r.id, "berlin:465fb2aa-0ca1-43d0-a6bb-d67b4b0db506"); assert.match(r.url, /^https:\/\/www\.berlin\.de\/en\/tickets\/sport\//);
+  assert.equal(r.image, undefined);                                   // the category's stock photo
+  assert.match(b[0].image, /^https:\/\/imgproxy\.berlinonline\.net\//);   // its own picture
+  assert.equal(b[2].price, 18.55);
+});
+await ok("BTU sport (Buchsys): bookable courses only; kids', trainers' and full ones left out; women-only ones go out too", () => {
+  const B = "https://www.buchsys.de/b-tu/angebote/aktueller_zeitraum_0/";
+  const u = E.parseUniSport(FIX("btu-sport.js"), B);
+  assert.deepEqual(u.map((e) => e.title).sort(), ["Frauen - Fußball", "Fußball", "Impro - Sport der Bühne8", "Lauftreff"]);
+  const f = u.find((e) => e.title === "Fußball");
+  assert.match(f.note, /^Weekly: Wed 19:15-20:45 \(SP\) · Sun 10:30-12:00 \(SH F1-3\)/);   // 040 has a waiting list: not in it
+  assert.ok(!/Tue/.test(f.note));
+  assert.equal(f.url, B + "_Fussball.html"); assert.equal(f.starts, "2026-10-14"); assert.equal(f.ends, "2027-01-27");
+  assert.ok(f.price > 0 && f.price < 2, String(f.price));
+  assert.equal(u.find((e) => /Impro/.test(e.title)).price, 0);
+  assert.equal(E.courseFile("Healthy & strong body"), "_Healthy__und__strong_body.html");
+  assert.equal(E.courseFile("Tennis_Anfänger*innen"), "_Tennis_Anfaenger_innen.html");
+  assert.equal(E.courseFile("Bachata (Lateinamerikanischer Tanz)"), "_Bachata__Lateinamerikanischer_Tanz_.html");
+});
+await ok("OpenLigaDB: the club's home games still to come", () => {
+  const f = E.parseFootball(LIGA, "Energie Cottbus", "Cottbus", "https://shop.example/tickets");
+  assert.deepEqual(f.map((e) => e.title), ["Energie Cottbus – Hertha BSC", "Energie Cottbus – VfL Osnabrück", "Energie Cottbus – DSC Arminia Bielefeld"]);
+  assert.equal(f[0].starts, "2026-11-22T13:30"); assert.equal(f[0].note, "2. Fußball-Bundesliga, 12. Spieltag");
+  assert.equal(f[0].place, "home game in Cottbus"); assert.equal(f[0].price, null); assert.equal(f[0].url, "https://shop.example/tickets");
+});
+await ok("not asked for: no sport source is read, no sport topic", async () => {
+  const { normalize } = await import(SRC + "config.ts");
+  assert.equal(normalize(CONFIG).events.sport, false);
+  assert.ok(!net.urls.some((u) => u.includes("berlin.de") || u.includes("openligadb")));
+});
+{
+  const SCFG = { ...CFG, topics: { ...CFG.topics, sport_events: 1678 },
+    events: { ...CFG.events, sources: ["city_sport", "football", "btu_sport"], sport: true, culture: false, career: false,
+      football: { team: "Energie Cottbus", league: "bl2", tickets: "https://shop.example/tickets" } } };
+  const DB7 = makeDB(); const st7 = new Store(DB7); await st7.kvSet("config", JSON.stringify(SCFG));
+  const saved = NOW; NOW = Date.UTC(2026, 10, 10, 9, 1);
+  net.tg = []; net.urls = [];
+  for (let i = 0; i < 3; i++) { NOW += 10 * 60_000; await E.eventsStep({ DB: DB7 }, st7, tg); }
+  const sport = () => sent().filter((c) => c.body.message_thread_id === 1678);
+  await ok("to join in: BTU's weekly courses with places free, one card each, with the times and the price per session", () => {
+    const c = sport().find((x) => /Lauftreff/.test(x.body.text));
+    assert.ok(c, sport().map((x) => x.body.text.split("\n")[0]).join(" | "));
+    assert.match(c.body.text, /^🏃 <b>Lauftreff<\/b>\n\n📅 Thu 15 Oct – Thu 28 Jan\n📍 BTU sport, Cottbus\n💶 about 1,13 € a session\n\nWeekly: Thu 18:00-19:30 \(Lauf\)\n18 € for the whole term as a student, booked online\n\n<a href="https:\/\/www\.buchsys\.de\/b-tu\/angebote\/aktueller_zeitraum_0\/_Lauftreff\.html">details<\/a>$/);
+  });
+  await ok("the sport topic says hello: what comes, the club's home games, the budget", () => {
+    const h = sport().find((c) => /will be posted here/.test(c.body.text));
+    assert.ok(h); assert.match(h.body.text, /🏟 <b>Sport events<\/b> in Cottbus/); assert.match(h.body.text, /Energie Cottbus home games/);
+    assert.match(h.body.text, /up to 10 € or free/); assert.match(h.body.text, /\/events sport off/);
+  });
+  await ok("each source read once: berlin.de for Cottbus + Sport, OpenLigaDB for this season's games", () => {
+    assert.ok(net.urls.some((u) => /berlin\.de\/en\/tickets\/search\/\?q=Cottbus&categories%5B%5D=Sport/.test(u)));
+    assert.ok(net.urls.includes("https://api.openligadb.de/getmatchdata/bl2/2026/Energie%20Cottbus"));
+  });
+  await ok("a home game: ⚽ card with kick-off, league, 'price not listed' and the ticket shop", () => {
+    const c = sport().find((x) => /Hertha/.test(x.body.text));
+    assert.ok(c, sport().map((x) => x.body.text.split("\n")[0]).join(" | "));
+    assert.match(c.body.text, /^⚽ <b>Energie Cottbus – Hertha BSC<\/b>\n\n📅 Sun 22 Nov, 13:30\n📍 home game in Cottbus\n💶 price not listed\n\n2\. Fußball-Bundesliga, 12\. Spieltag\n\n<a href="https:\/\/shop\.example\/tickets">tickets<\/a>$/);
+  });
+  await ok("over the budget waits (handball from 11 €); further than 3 weeks waits too", () => {
+    assert.ok(!sport().some((x) => /LHC|Osnabrück|Bielefeld|Final Four/.test(x.body.text)));
+    assert.equal(DB7.raw.prepare("SELECT status FROM events WHERE title='LHC vs. HC Vorpommern-Greifswald'").get().status, "new");
+  });
+  await ok("/events budget 12 lets the handball out; /events shows sport with its pause button", async () => {
+    assert.match(await E.setEvents(st7, (await import(SRC + "config.ts")).normalize(SCFG), "budget", "12"), /Cultural and 🏟 sport events: up to 12 €/);
+    net.tg = []; NOW += 10 * 60_000; await E.eventsStep({ DB: DB7 }, st7, tg);
+    const h = sport().find((x) => /LHC vs\. HC Vorpommern/.test(x.body.text));
+    assert.ok(h); assert.match(h.body.text, /^🏟 /); assert.match(h.body.text, /💶 11 €/);
+    const [t, kb] = await E.eventsCard(st7, (await import(SRC + "config.ts")).normalize(SCFG));
+    assert.match(t, /Sport events: on, up to 12 €/); assert.ok(kb.flat().some((b) => b.callback_data === "ev:sport:off"));
+  });
+  await ok("a kick-off moved before it was posted: the card has the new time", async () => {
+    LIGA[3].matchDateTime = "2026-12-05T20:30:00";                     // Osnabrück, not posted yet
+    await st7.kvSet("events_checked:football", "0");
+    NOW += 10 * 60_000; await E.eventsStep({ DB: DB7 }, st7, tg);
+    assert.equal(DB7.raw.prepare("SELECT starts FROM events WHERE id='football:113'").get().starts, "2026-12-05T20:30");
+  });
+  await ok("/events sport off: paused", async () => {
+    assert.match(await E.setEvents(st7, (await import(SRC + "config.ts")).normalize(SCFG), "sport", "off"), /🏟 Sport events: paused/);
+    assert.match(await E.eventsLine(st7, DB7, (await import(SRC + "config.ts")).normalize(SCFG)), /🏟 paused$/);
+  });
+  NOW = saved;
+}
 
 console.log(`\nall ${pass} events checks passed`);

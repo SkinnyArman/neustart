@@ -32,13 +32,13 @@ interface State { chat: string; step: string; a: Answers }
 const MODULE_LABEL: Record<string, string> = { rooms: "🏠 WG rooms", finds: "🔎 Cheap & free finds", jobs: "💼 Jobs", casual_jobs: "🧺 Minijobs", events: "🎭 Events" };
 const ITEM_LABEL: Record<string, string> = { bike: "🚲 Bike", bed: "🛏 Bed", kommode: "🗄 Kommode", carpet: "🧶 Rug", washer: "🧼 Washing machine", chair: "🪑 Desk chair", free: "🎁 Free stuff" };
 const SOURCE_LABEL: Record<string, string> = { minijobs: "Minijobs (Jobbörse)", part_time: "Part-time jobs (Jobbörse)", kleinanzeigen: "Nebenjobs (Kleinanzeigen)" };
-const KIND_LABEL: Record<string, string> = { culture: "🎭 Cultural events", career: "🎤 Career events" };
+const KIND_LABEL: Record<string, string> = { culture: "🎭 Cultural events", career: "🎤 Career events", sport: "🏟 Sport events" };
 const COTTBUS_READERS = ["cottbus_theater", "gladhouse", "cottbus_city"];
 
 const fresh = (): Answers => ({
   modules: { rooms: true, finds: true, jobs: true, casual_jobs: true, events: false },
   f_items: { bike: true, bed: true, kommode: true, carpet: true, washer: false, chair: false, free: true },
-  people: [], c_sources: { minijobs: true, part_time: true, kleinanzeigen: true }, e_kinds: { culture: true, career: true },
+  people: [], c_sources: { minijobs: true, part_time: true, kleinanzeigen: true }, e_kinds: { culture: true, career: true, sport: false },
 });
 
 // ---------------------------------------------------------------- the questions
@@ -90,7 +90,7 @@ function ask(step: string, a: Answers): Ask {
     case "c_sources": return { text: "🧺 <b>Minijobs.</b> Where from?", buttons: multi(SOURCE_LABEL, a.c_sources) };
     case "c_only": return { text: `<b>Only in ${esc(city)} itself, or the towns around it too?</b>`, buttons: [[btn(`${city} only`, "only"), btn("Around it too (25 km)", "around")]] };
     case "e_kinds": return { text: "🎭 <b>Events.</b> Which ones?" + (slugify(city) === "cottbus" ? "" : `\n\n<i>The cultural-events readers only know Cottbus so far; for ${esc(city)} only career events (hackathons, meetups) can be found.</i>`), buttons: multi(KIND_LABEL, a.e_kinds) };
-    case "e_budget": return { text: "<b>Budget for cultural events</b>, in euros? Pricier ones are left out.", buttons: [[btn("10 €", "b:10"), btn("20 €", "b:20"), btn("Any", "b:500")]] };
+    case "e_budget": return { text: "<b>Budget for cultural and sport events</b>, in euros? Pricier ones are left out.", buttons: [[btn("10 €", "b:10"), btn("20 €", "b:20"), btn("Any", "b:500")]] };
     case "confirm": return { text: `<b>That's it.</b> Here's your setup:\n\n${esc(summary(build(a)))}\n\nSave it?`, buttons: [[btn("💾 Save", "save"), btn("Start over", "restart"), btn("Cancel", "cancel")]] };
   }
   return { text: "?" };
@@ -189,8 +189,9 @@ export function build(a: Answers): Record<string, any> {
     finds: { radius_km: a.f_radius ?? 30, items: Object.fromEntries(Object.entries(a.f_items).map(([k, on]) => [k, { on }])) },
     jobs: { student_permit: a.j_student ?? false, cities: (a.j_cities ?? [city]).map((name) => ({ name, radius_km: 50 })), people },
     casual_jobs: { radius_km: 25, only_city: a.c_only ?? false, sources: Object.keys(a.c_sources).filter((k) => a.c_sources[k]), worth_it: true },
-    events: { culture: a.e_kinds.culture && cottbus, career: a.e_kinds.career, max_price: a.e_budget ?? 10,
-      sources: [...(cottbus ? [...COTTBUS_READERS, "btu"] : []), "devpost"] },
+    // sport: berlin.de's ticket search covers Berlin and Brandenburg
+    events: { culture: a.e_kinds.culture && cottbus, career: a.e_kinds.career, sport: !!a.e_kinds.sport, max_price: a.e_budget ?? 10,
+      sources: [...(cottbus ? [...COTTBUS_READERS, "btu"] : []), "devpost", ...(a.e_kinds.sport ? ["city_sport"] : [])] },
   };
 }
 
@@ -204,7 +205,7 @@ function summary(raw: Record<string, any>): string {
     ...(c.modules.finds ? [`Finds within ${c.finds.radius_km} km: ${Object.entries(c.finds.items).filter(([, i]) => i.on).map(([k]) => ITEM_LABEL[k]).join(", ")}`] : []),
     ...(c.modules.jobs ? [`Jobs for ${c.jobs.people.map((p) => p.name).join(", ")} in ${c.jobs.cities.map((x) => x.name).join(", ")}${c.jobs.student_permit ? " (student permit)" : ""}`] : []),
     ...(c.modules.casual_jobs ? [`Minijobs: ${c.casual_jobs.only_city ? `${c.city} only` : "25 km around"}`] : []),
-    ...(c.modules.events ? [`Events: ${[c.events.culture ? `cultural up to ${c.events.max_price} €` : "", c.events.career ? "career" : ""].filter(Boolean).join(", ")}`] : []),
+    ...(c.modules.events ? [`Events: ${[c.events.culture ? `cultural up to ${c.events.max_price} €` : "", c.events.career ? "career" : "", c.events.sport ? `sport up to ${c.events.max_price} €` : ""].filter(Boolean).join(", ")}`] : []),
     ...c.problems.map((p) => `⚠️ ${p}`),
   ].join("\n");
 }

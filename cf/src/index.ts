@@ -738,7 +738,7 @@ async function handleEvents(update: any, tg: Telegram, store: Store, cfg: Config
   const no = !cfg ? NO_CONFIG : !cfg.modules.events ? "🎭 Events are switched off in the config." : "";
   if (no) { if (cq) await tg.answerCallback(cq.id, no); else await tg.send(no, sameTopic(update.message), chat); return; }
   if (cq) {
-    // ev:budget:<±n> · ev:culture|career:on|off · ev:noop
+    // ev:budget:<±n> · ev:culture|career|sport:on|off · ev:noop
     const [, what, val = ""] = String(cq.data).split(":");
     await tg.answerCallback(cq.id, what === "noop" ? "" : await setEvents(store, cfg!, what, val));
     try { const [t, kb] = await eventsCard(store, cfg!); await tg.editText(chat, cq.message.message_id, t, kb); } catch { /* unchanged */ }

@@ -217,7 +217,7 @@ Profiles and CV text are personal: they're in the gitignored `neustart.yaml`
 
 ### Events
 
-`src/events.ts` posts events to two topics, without AI: **cultural events**
+`src/events.ts` posts events to two topics (three with sport), without AI: **cultural events**
 (theatre, concerts, exhibitions) and **career events** (meetups, hackathons,
 the university's career and scholarship notices). Off unless the config's
 `modules.events` is on. Readers (`events.sources`): `cottbus_theater`
@@ -225,15 +225,27 @@ the university's career and scholarship notices). Off unless the config's
 (cottbus.de), `devpost` (hackathons, online or in Germany), `btu` (BTU's
 notices) and `meetup` (the `events.meetup_groups`' calendar feeds).
 
+A third topic, **sport events** (things to join and games to watch), is
+there when `events.sport` is on. Readers: `btu_sport` (BTU's university
+sport on Buchsys, Cottbus campus: one card per course with places free -
+running group, football, yoga, climbing… - with its weekly times and the
+student price for the term, also per session, which the budget is checked
+against; only kids' courses and the trainers' own are left out), `city_sport` (berlin.de's ticket search,
+category Sport, for the city: it covers Berlin and Brandenburg and gives a
+price) and `football` (`events.football`: a club's home games from
+OpenLigaDB, e.g. `{ team: Energie Cottbus, league: bl2, tickets: <shop> }`;
+no price is listed, so the card says so and links the ticket shop). A
+kick-off that moves before the card goes out is picked up.
+
 It has its own trigger (:01, :11, …), reads one source per tick, each about
 every 6-12 hours, and posts up to four cards a tick. Cultural events over
 the budget (`events.max_price`, 10 € by default) wait, in case the budget
-goes up before the date; ones without a listed price say so. A show on
+goes up before the date (sport events too); ones without a listed price say so. A show on
 several dates is posted once; kids' shows, markets and info for school
 leavers are left out. Events are posted when they're within
-`culture_days` / `career_days`, never once they're over.
+`culture_days` / `career_days` / `sport_days`, never once they're over.
 
-`/events` (anyone in the group): the budget and pausing either topic.
+`/events` (anyone in the group): the budget and pausing each topic.
 
 ### LinkedIn, from your own computer
 

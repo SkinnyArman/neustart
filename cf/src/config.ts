@@ -16,8 +16,8 @@ const OPTIONAL_MODULES: ModuleKey[] = ["events"];
 export type ItemKey = "bike" | "bed" | "kommode" | "carpet" | "washer" | "chair" | "free";
 export const ITEM_KEYS: ItemKey[] = ["bike", "bed", "kommode", "carpet", "washer", "chair", "free"];
 /** Where each kind of post goes: one forum topic per module, and per find. */
-export type TopicKey = "rooms" | ItemKey | "jobs" | "casual_jobs" | "culture_events" | "career_events";
-export const TOPIC_KEYS: TopicKey[] = ["rooms", ...ITEM_KEYS, "jobs", "casual_jobs", "culture_events", "career_events"];
+export type TopicKey = "rooms" | ItemKey | "jobs" | "casual_jobs" | "culture_events" | "career_events" | "sport_events";
+export const TOPIC_KEYS: TopicKey[] = ["rooms", ...ITEM_KEYS, "jobs", "casual_jobs", "culture_events", "career_events", "sport_events"];
 
 export interface Person {
   id: string;             // what commands and buttons use: /skills diba
@@ -67,9 +67,11 @@ export interface Config {
   };
   casual_jobs: { radius_km: number; only_city: boolean; sources: CasualSource[]; worth_it: boolean };
   events: {
-    culture: boolean; career: boolean;   // the two topics
-    max_price: number;                   // cultural events over this are left out
-    culture_days: number; career_days: number;   // how far ahead they're posted
+    culture: boolean; career: boolean;   // the topics; sport only when asked for
+    sport: boolean;
+    max_price: number;                   // cultural and sport events over this are left out
+    culture_days: number; career_days: number; sport_days: number;   // how far ahead they're posted
+    football: { team: string; league: string; tickets: string };   // a club's home games (OpenLigaDB names)
     sources: string[];                   // readers in events.ts
     meetup_groups: string[];             // meetup.com group names
   };
@@ -209,7 +211,10 @@ export function normalize(raw: unknown): Config {
   const e = r.events ?? {};
   const events = {
     culture: bool(e.culture?.on ?? e.culture, true), career: bool(e.career?.on ?? e.career, true),
+    sport: bool(e.sport?.on ?? e.sport, false),
     max_price: num(e.max_price, 10), culture_days: num(e.culture_days, 21), career_days: num(e.career_days, 60),
+    sport_days: num(e.sport_days, 21),
+    football: { team: str(e.football?.team), league: str(e.football?.league, "bl2"), tickets: str(e.football?.tickets) },
     sources: list(e.sources).length ? list(e.sources) : ["devpost"], meetup_groups: list(e.meetup_groups),
   };
   if (events.meetup_groups.length && !events.sources.includes("meetup")) events.sources.push("meetup");

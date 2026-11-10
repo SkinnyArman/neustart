@@ -12,7 +12,7 @@ import type { Telegram } from "./telegram.ts";
 export const TOPIC_NAMES: Record<TopicKey, string> = {
   rooms: "🏠 Rooms", bike: "🚲 Bikes", bed: "🛏 Bed", kommode: "🗄 Kommode", carpet: "🧶 Carpet",
   washer: "🧼 Washing machine", chair: "🪑 Desk chair", free: "🎁 Free stuff", jobs: "💼 Jobs", casual_jobs: "🧺 Casual jobs",
-  culture_events: "🎭 Cultural events", career_events: "🎤 Career events",
+  culture_events: "🎭 Cultural events", career_events: "🎤 Career events", sport_events: "🏟 Sport events",
 };
 const RETRY_AFTER = 6 * 3600;
 

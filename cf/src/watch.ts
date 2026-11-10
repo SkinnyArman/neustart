@@ -13,18 +13,18 @@ import { blockSecondsLeft, pauseState } from "./settings.ts";
 import type { Store } from "./store.ts";
 import { esc, type Telegram } from "./telegram.ts";
 
-export type Source = "rooms_wg" | "rooms_ka" | "finds" | "jobs_ba" | "jobs_arbeitnow" | "casual_ba" | "casual_ka" | "events_culture" | "events_career";
+export type Source = "rooms_wg" | "rooms_ka" | "finds" | "jobs_ba" | "jobs_arbeitnow" | "casual_ba" | "casual_ka" | "events_culture" | "events_career" | "events_sport";
 
 const NAME: Record<Source, string> = {
   rooms_wg: "WG-Gesucht (rooms)", rooms_ka: "Kleinanzeigen (rooms)", finds: "Kleinanzeigen (finds)",
   jobs_ba: "Jobbörse (jobs)", jobs_arbeitnow: "Arbeitnow (jobs)", casual_ba: "Jobbörse (casual jobs)",
-  casual_ka: "Kleinanzeigen (casual jobs)", events_culture: "Cultural events", events_career: "Career events",
+  casual_ka: "Kleinanzeigen (casual jobs)", events_culture: "Cultural events", events_career: "Career events", events_sport: "Sport events",
 };
 const STALE_HOURS = 12;
 // empty pages in a row that mean something's wrong; 0: empty is normal there
 // (a niche keyword search on the Jobbörse often finds nothing)
 const EMPTY_LIMIT: Record<Source, number> = {
-  rooms_wg: 12, rooms_ka: 8, finds: 8, jobs_ba: 0, jobs_arbeitnow: 3, casual_ba: 12, casual_ka: 6, events_culture: 4, events_career: 0,
+  rooms_wg: 12, rooms_ka: 8, finds: 8, jobs_ba: 0, jobs_arbeitnow: 3, casual_ba: 12, casual_ka: 6, events_culture: 4, events_career: 0, events_sport: 0,
 };
 const CHECK_EVERY = 3600;
 
@@ -79,6 +79,7 @@ async function watched(cfg: Config, store: Store): Promise<{ s: Source; skip: bo
     // its sources are each read every 6-12 hours, so a day without any is the sign
     if (cfg.events.culture) out.push({ s: "events_culture", skip: (await store.kvGet("events_culture_on")) === "0" });
     if (cfg.events.career) out.push({ s: "events_career", skip: (await store.kvGet("events_career_on")) === "0" });
+    if (cfg.events.sport) out.push({ s: "events_sport", skip: (await store.kvGet("events_sport_on")) === "0" });
   }
   return out;
 }

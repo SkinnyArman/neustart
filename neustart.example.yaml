@@ -24,7 +24,7 @@ modules:
   finds: true          # cheap or free bikes, a bed, a Kommode, a rug, free stuff
   jobs: true           # jobs for the people below, with an application tracker
   casual_jobs: true    # Minijobs around the city, with the pay
-  events: false        # cultural and career events (see events: below)
+  events: false        # cultural, career and sport events (see events: below)
 
 # Forum topics. Each new topic starts with a short note on what comes there,
 # the budget, and how to change it. Make the Telegram group a forum ("Topics" on) and the bot an
@@ -108,14 +108,20 @@ casual_jobs:
 #  EVENTS - two topics: cultural events, career events (no AI)
 # ============================================================
 events:
-  max_price: 10        # cultural events over this are left out (or wait for a higher budget)
+  max_price: 10        # cultural and sport events over this are left out (or wait for a higher budget)
   culture_days: 14     # posted when they're this close
   career_days: 60
+  sport: false         # a sport topic: groups to join and games to watch
+  sport_days: 21
+  # a club's home games (sources: football), names as OpenLigaDB has them:
+  #   football: { team: Energie Cottbus, league: bl2, tickets: https://... }
   # readers: cottbus_theater, gladhouse, cottbus_city (for Cottbus),
-  # devpost (hackathons, online or in Germany), btu (BTU's notices)
+  # devpost (hackathons, online or in Germany), btu (BTU's notices),
+  # btu_sport (BTU's university sport courses with places free),
+  # city_sport (berlin.de's ticket search: Berlin and Brandenburg), football
   sources: [devpost]
   meetup_groups: []    # meetup.com group names, e.g. pydata-berlin
-  # /events in Telegram changes the budget and pauses either topic.
+  # /events in Telegram changes the budget and pauses each topic.
 
 # ============================================================
 #  ROOMS - the room search and the replies it drafts
