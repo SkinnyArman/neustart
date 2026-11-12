@@ -22,7 +22,7 @@ import { noteOk, problems, watchdog } from "./watch.ts";
 import { setupActive, setupAnswer, setupButton, setupCommand } from "./wizard.ts";
 import { CASUAL_CRON, casualLine, casualSettings, casualStep, setCasual } from "./casual.ts";
 import { EVENTS_CRON, eventsCard, eventsLine, eventsStep, setEvents } from "./events.ts";
-import { JOBS_CRON, ingestJobs, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, skillsCommand, weeklyReport } from "./jobs.ts";
+import { JOBS_CRON, ingestJobs, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, sendTracker, sendTrackerCsv, sendWaitingList, skillsCommand, weeklyReport } from "./jobs.ts";
 import {
   FINDS_CRON, findsKeyboard, findsLine, findsStatus, findsStep, loadFindSettings,
   parseItem, setFindKm, setFindSetting, setItemOn, ITEMS, type ItemKey,
@@ -440,17 +440,26 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
   if ((bikeCmd || bikeBtn) && (isOwner || inGroup))
     return handleFinds(update, env, tg, store);
   // the jobs belong to everyone searching: open to the group too
-  const jobCmd = /^\/(jobs|skills|jobreport|cv)(@\w+)?(\s|$)/i.exec(text.trim());
+  // /waiting-list can't be a Telegram command (no "-" allowed): /waitinglist, /waiting_list and /waitlist work too
+  const jobCmd = /^\/(jobs|skills|jobreport|cv|tracker|waiting[-_]?list|waitlist)(@\w+)?(\s|$)/i.exec(text.trim());
   const jobBtn = String(update.callback_query?.data ?? "").startsWith("jb:");
   if ((jobCmd || jobBtn) && (isOwner || inGroup)) {
     if (jobBtn) return jobButton(env, store, tg, update.callback_query);
     const [, ...a] = text.trim().split(/\s+/);
     if (/^cv$/i.test(jobCmd![1])) return cvCommand(store, tg, update.message, a, sameTopic(update.message));
-    // https://t.me/c/<id> links to messages in a supergroup
-    const link = /^-100\d+$/.test(chatId) ? `https://t.me/c/${chatId.slice(4)}` : "";
-    const body = /skills/i.test(jobCmd![1]) ? await skillsCommand(store, a)
-      : /jobreport/i.test(jobCmd![1]) ? await weeklyReport(env.DB, store)
-      : await jobsBoard(env.DB, store, link);
+    if (/^(tracker|waiting[-_]?list|waitlist)$/i.test(jobCmd![1])) {
+      const cfg = await loadConfig(store);
+      if (!cfg?.modules.jobs) { await tg.send(cfg ? "💼 Jobs are switched off in the config." : NO_CONFIG, sameTopic(update.message), chatId); return; }
+      if (/tracker/i.test(jobCmd![1]) && /^(csv|excel|xlsx)$/i.test(a[0] ?? "")) await sendTrackerCsv(env.DB, store, tg, cfg);
+      else await (/tracker/i.test(jobCmd![1]) ? sendTracker : sendWaitingList)(env.DB, store, tg, cfg);
+      return;
+    }
+    if (/^jobs$/i.test(jobCmd![1])) {
+      const [t, kb] = await jobsBoard(env.DB, store);
+      await tg.send(t, { ...sameTopic(update.message), ...(kb.length ? tg.keyboard(kb) : {}) }, String(update.message.chat.id));
+      return;
+    }
+    const body = /skills/i.test(jobCmd![1]) ? await skillsCommand(store, a) : await weeklyReport(env.DB, store);
     await tg.send(body, sameTopic(update.message), String(update.message.chat.id));
     return;
   }
@@ -880,7 +889,9 @@ function commandMenus(cfg: Config) {
   const first = cfg.jobs.people[0]?.id ?? "name";
   const group = [
     ...(on.jobs ? [
-      { command: "jobs", description: "Job board - where each application stands" },
+      { command: "jobs", description: "Job stats per person" },
+      { command: "waitinglist", description: "Ads saved to apply later" },
+      { command: "tracker", description: "Applications and their status" },
       { command: "cv", description: "Send the CVs" },
       { command: "jobreport", description: "Jobs report: matches, answers, what to learn" },
       { command: "skills", description: `Skills list, e.g. /skills ${first} + Power BI` },
@@ -915,7 +926,7 @@ function helpLines(cfg: Config) {
   const on = cfg.modules;
   const first = cfg.jobs.people[0]?.id ?? "name";
   const finds = on.finds ? "/finds — bikes, bed, Kommode, carpet & free stuff alerts" : "";
-  const jobs = on.jobs ? `/jobs — job board and where each application stands · /cv — the CVs · /skills ${first} · /jobreport` : "";
+  const jobs = on.jobs ? `/jobs — job stats · /waitinglist — ads to apply later · /tracker — applications and their status · /cv — the CVs · /skills ${first} · /jobreport` : "";
   const casual = [on.casual_jobs ? "/casual — Minijobs: which town, how far around it (anyone in the group)" : "",
     on.events ? "/events — cultural and career events: budget, pause (anyone in the group)" : ""].filter(Boolean).join("\n");
   const start = on.rooms

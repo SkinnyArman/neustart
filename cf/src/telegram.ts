@@ -46,6 +46,17 @@ export class Telegram {
     return this.call("sendDocument", { chat_id: chatId ?? this.chatId, document, ...opts });
   }
 
+  /** A file made here (a CSV…), uploaded as a document. */
+  async sendFile(name: string, content: string | Uint8Array, type: string, opts: Record<string, unknown> = {}, chatId?: string) {
+    const form = new FormData();
+    form.append("chat_id", String(chatId ?? this.chatId));
+    for (const [k, v] of Object.entries(opts)) form.append(k, typeof v === "string" ? v : JSON.stringify(v));
+    form.append("document", new Blob([content], { type }), name);
+    const r = await fetch(`https://api.telegram.org/bot${this.token}/sendDocument`, { method: "POST", body: form });
+    if (!r.ok) throw new Error(`Telegram sendDocument ${r.status}: ${(await r.text()).slice(0, 200)}`);
+    return r.json();
+  }
+
   deleteMessage(messageId: number, chatId?: number | string) {
     return this.call("deleteMessage", { chat_id: chatId ?? this.chatId, message_id: messageId });
   }

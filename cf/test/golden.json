@@ -49,7 +49,7 @@
    "method": "POST",
    "body": {
     "chat_id": "1000001",
-    "text": "✅ <b>Running</b> — 2 busy searches every 15 min, 1 quiet one every 3 h.\n\nwg-gesucht     ✅ ok\nKleinanzeigen  ✅ ok\n\nSent this hour:  0 of 2\nWaiting to draft: 0\nLast ad sent:    nothing sent yet\nSearches:        3\nFinds:           ✅ 🚲 ≤ 30 € · 🛏 ≤ 100 € · 🗄 ≤ 35 € · 🧶 ≤ 30 € · 🎁 ⭐ ≥ 6\nJobs:            ✅ 0 open\nCasual jobs:     ✅ 0 posted within 25 km of Cottbus\n\nSeen so far: nothing yet\n\n/status — is it running\n/review — decide on ads you haven't answered\n/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n/filters — which ads qualify\n/settings — timing\n/stats — totals\n/finds — bikes, bed, Kommode, carpet & free stuff alerts",
+    "text": "✅ <b>Running</b> — 2 busy searches every 15 min, 1 quiet one every 3 h.\n\nwg-gesucht     ✅ ok\nKleinanzeigen  ✅ ok\n\nSent this hour:  0 of 2\nWaiting to draft: 0\nLast ad sent:    nothing sent yet\nSearches:        3\nFinds:           ✅ 🚲 ≤ 30 € · 🛏 ≤ 100 € · 🗄 ≤ 35 € · 🧶 ≤ 30 € · 🎁 ⭐ ≥ 6\nJobs:            ✅ 0 new, 0 on the waiting list\nCasual jobs:     ✅ 0 posted within 25 km of Cottbus\n\nSeen so far: nothing yet\n\n/status — is it running\n/review — decide on ads you haven't answered\n/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n/filters — which ads qualify\n/settings — timing\n/stats — totals\n/finds — bikes, bed, Kommode, carpet & free stuff alerts",
     "parse_mode": "HTML",
     "disable_web_page_preview": true
    }
@@ -258,7 +258,15 @@
     "commands": [
      {
       "command": "jobs",
-      "description": "Job board - where each application stands"
+      "description": "Job stats per person"
+     },
+     {
+      "command": "waitinglist",
+      "description": "Ads saved to apply later"
+     },
+     {
+      "command": "tracker",
+      "description": "Applications and their status"
      },
      {
       "command": "cv",
@@ -334,7 +342,15 @@
      },
      {
       "command": "jobs",
-      "description": "Job board - where each application stands"
+      "description": "Job stats per person"
+     },
+     {
+      "command": "waitinglist",
+      "description": "Ads saved to apply later"
+     },
+     {
+      "command": "tracker",
+      "description": "Applications and their status"
      },
      {
       "command": "cv",
@@ -415,7 +431,15 @@
      },
      {
       "command": "jobs",
-      "description": "Job board - where each application stands"
+      "description": "Job stats per person"
+     },
+     {
+      "command": "waitinglist",
+      "description": "Ads saved to apply later"
+     },
+     {
+      "command": "tracker",
+      "description": "Applications and their status"
      },
      {
       "command": "cv",
@@ -531,7 +555,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Werkstudent Data Analyst (m/w/d)</b>\nZalando SE · Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10001\">open the job</a>",
+    "text": "💼 <b>Werkstudent Data Analyst (m/w/d)</b>\n🏢 Zalando SE\n📍 Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10001\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -546,12 +570,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10001"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10001"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10001"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10001"
        },
        {
         "text": "⏭ Skip",
@@ -568,7 +596,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Werkstudent Frontend Entwicklung React (m/w/d)</b>\nN26 GmbH · Berlin · home office possible · via Jobbörse\n\n🧑‍💻 For Arman\n🎓 Werkstudent\n\n<i>React work fits</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10004\">open the job</a>",
+    "text": "💼 <b>Werkstudent Frontend Entwicklung React (m/w/d)</b>\n🏢 N26 GmbH\n📍 Berlin · home office possible · via Jobbörse\n\n🧑‍💻 For Arman · 🎓 Werkstudent\n\n<i>React work fits</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10004\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -583,12 +611,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:arman:ba:10004"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:arman:ba:10004"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:arman:ba:10004"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:arman:ba:10004"
        },
        {
         "text": "⏭ Skip",
@@ -605,7 +637,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Data Engineer (m/w/d) - Teilzeit</b>\nVattenfall GmbH · Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n⏱ Part-time\n\n<i>SQL pipelines</i>\n\n🗣 German: C1 · ⏱ 20 h · ⏳ apply by 30.11.\n\nGaps:\n• Airflow\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10006\">open the job</a>",
+    "text": "💼 <b>Data Engineer (m/w/d) - Teilzeit</b>\n🏢 Vattenfall GmbH\n📍 Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba · ⏱ Part-time\n\n<i>SQL pipelines</i>\n\n🗣 German: C1\n⏱ Hours: 20 h\n⏳ Apply by: 30.11.\n\n⚠️ <b>Gaps</b>\n• Airflow\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10006\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -620,12 +652,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10006"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10006"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10006"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10006"
        },
        {
         "text": "⏭ Skip",
@@ -885,7 +921,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Data Scientist (m/w/d)</b>\nStatista GmbH · Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10009\">open the job</a>",
+    "text": "💼 <b>Data Scientist (m/w/d)</b>\n🏢 Statista GmbH\n📍 Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10009\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -900,12 +936,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10009"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10009"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10009"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10009"
        },
        {
         "text": "⏭ Skip",
@@ -922,7 +962,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Werkstudent Data Science (m/w/d)</b>\nSAP SE · Cottbus · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10010\">open the job</a>",
+    "text": "💼 <b>Werkstudent Data Science (m/w/d)</b>\n🏢 SAP SE\n📍 Cottbus · home office possible · via Jobbörse\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10010\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -937,12 +977,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10010"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10010"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10010"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10010"
        },
        {
         "text": "⏭ Skip",
@@ -959,7 +1003,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Werkstudent Business Intelligence (m/w/d)</b>\nDeutsche Bahn AG · Cottbus · home office possible · via Jobbörse\n\n👥 For Diba & Arman\n🎓 Werkstudent\n\n<i>BI and dashboards for both</i>\n\n🗣 German: C1 · ⏳ apply by 01.12.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10011\">open the job</a>",
+    "text": "💼 <b>Werkstudent Business Intelligence (m/w/d)</b>\n🏢 Deutsche Bahn AG\n📍 Cottbus · home office possible · via Jobbörse\n\n👥 For Diba & Arman · 🎓 Werkstudent\n\n<i>BI and dashboards for both</i>\n\n🗣 German: C1\n⏳ Apply by: 01.12.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10011\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -982,9 +1026,7 @@
        {
         "text": "✅ Applied (Arman)",
         "callback_data": "jb:applied:arman:ba:10011"
-       }
-      ],
-      [
+       },
        {
         "text": "🔁 Already applied (Diba)",
         "callback_data": "jb:already:diba:ba:10011"
@@ -992,6 +1034,16 @@
        {
         "text": "🔁 Already applied (Arman)",
         "callback_data": "jb:already:arman:ba:10011"
+       }
+      ],
+      [
+       {
+        "text": "🔖 Apply later (Diba)",
+        "callback_data": "jb:later:diba:ba:10011"
+       },
+       {
+        "text": "🔖 Apply later (Arman)",
+        "callback_data": "jb:later:arman:ba:10011"
        },
        {
         "text": "⏭ Skip",
@@ -1117,7 +1169,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Working Student Machine Learning</b>\nAcme AI · Remote · remote · via Arbeitnow\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://arbeitnow.example/2\">open the job</a>",
+    "text": "💼 <b>Working Student Machine Learning</b>\n🏢 Acme AI\n📍 Remote · remote · via Arbeitnow\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://arbeitnow.example/2\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -1132,12 +1184,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:an:acme-working-student-ml"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:an:acme-working-student-ml"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:an:acme-working-student-ml"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:an:acme-working-student-ml"
        },
        {
         "text": "⏭ Skip",
@@ -1154,7 +1210,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Working Student Frontend (React)</b>\nLausitz Web · Cottbus · via Arbeitnow\n\n🧑‍💻 For Arman\n🎓 Werkstudent\n\n<i>React work fits</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap\n\n<a href=\"https://arbeitnow.example/3\">open the job</a>",
+    "text": "💼 <b>Working Student Frontend (React)</b>\n🏢 Lausitz Web\n📍 Cottbus · via Arbeitnow\n\n🧑‍💻 For Arman · 🎓 Werkstudent\n\n<i>React work fits</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n\n🔗 <a href=\"https://arbeitnow.example/3\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -1169,12 +1225,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:arman:an:web-cottbus"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:arman:an:web-cottbus"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:arman:an:web-cottbus"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:arman:an:web-cottbus"
        },
        {
         "text": "⏭ Skip",
@@ -5686,7 +5746,7 @@
    "method": "POST",
    "body": {
     "callback_query_id": "q",
-    "text": "✅ Applied",
+    "text": "✅ Moved to the tracker",
     "show_alert": false
    }
   },
@@ -5695,36 +5755,20 @@
    "method": "POST",
    "body": {
     "chat_id": -1001234567890,
-    "message_id": 1021,
-    "text": "💼 <b>Working Student Machine Learning</b>\nAcme AI · Remote · remote · via Arbeitnow\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://arbeitnow.example/2\">open the job</a>\n\n<b>✅ Applied by Diba · 27.10</b>",
+    "message_id": 7,
+    "text": "✅ Ad for <b>Working Student Machine Learning</b> at <b>Acme AI</b> moved to the tracker (applied by Diba).\n<i>/tracker - all of them</i>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
      "inline_keyboard": [
       [
        {
-        "text": "🗓 Interview",
-        "callback_data": "jb:interview:-:an:acme-working-student-ml"
-       },
-       {
-        "text": "❌ Rejected",
-        "callback_data": "jb:rejected:-:an:acme-working-student-ml"
-       },
-       {
-        "text": "🎉 Offer",
-        "callback_data": "jb:offer:-:an:acme-working-student-ml"
+        "text": "↩️ Undo",
+        "callback_data": "jb:undo:-:an:acme-working-student-ml"
        }
       ]
      ]
     }
-   }
-  },
-  {
-   "url": "https://api.telegram.org/botT/editMessageReplyMarkup",
-   "method": "POST",
-   "body": {
-    "chat_id": -1001234567890,
-    "message_id": 7
    }
   },
   {
@@ -5741,7 +5785,7 @@
    "method": "POST",
    "body": {
     "callback_query_id": "q",
-    "text": "🗓 Interview",
+    "text": "🗓 Interview set",
     "show_alert": false
    }
   },
@@ -5750,32 +5794,44 @@
    "method": "POST",
    "body": {
     "chat_id": -1001234567890,
-    "message_id": 1021,
-    "text": "💼 <b>Working Student Machine Learning</b>\nAcme AI · Remote · remote · via Arbeitnow\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://arbeitnow.example/2\">open the job</a>\n\n<b>🗓 Interview by Diba · 27.10</b>",
+    "message_id": 7,
+    "text": "📋 <b>Working Student Machine Learning</b>\n🏢 Acme AI · 📍 Remote · remote\n\n👩‍💻 Diba · applied 27.10 · updated 27.10\n\nStatus: <b>🗓 Interview set</b>\n\n🔗 <a href=\"https://arbeitnow.example/2\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
      "inline_keyboard": [
       [
        {
-        "text": "❌ Rejected",
-        "callback_data": "jb:rejected:-:an:acme-working-student-ml"
+        "text": "⏳ Waiting",
+        "callback_data": "jb:twait:-:an:acme-working-student-ml"
        },
        {
-        "text": "🎉 Offer",
-        "callback_data": "jb:offer:-:an:acme-working-student-ml"
+        "text": "❌ Rejected",
+        "callback_data": "jb:trej:-:an:acme-working-student-ml"
+       }
+      ],
+      [
+       {
+        "text": "• 🗓 Interview set •",
+        "callback_data": "jb:tint:-:an:acme-working-student-ml"
+       },
+       {
+        "text": "🎉 Offer received",
+        "callback_data": "jb:toff:-:an:acme-working-student-ml"
+       }
+      ],
+      [
+       {
+        "text": "🙅 Offer declined",
+        "callback_data": "jb:tdec:-:an:acme-working-student-ml"
+       },
+       {
+        "text": "🤝 Offer accepted",
+        "callback_data": "jb:tacc:-:an:acme-working-student-ml"
        }
       ]
      ]
     }
-   }
-  },
-  {
-   "url": "https://api.telegram.org/botT/editMessageReplyMarkup",
-   "method": "POST",
-   "body": {
-    "chat_id": -1001234567890,
-    "message_id": 7
    }
   },
   {
@@ -5792,7 +5848,7 @@
    "method": "POST",
    "body": {
     "callback_query_id": "q",
-    "text": "🔁 Applied before",
+    "text": "🔁 Moved to the tracker",
     "show_alert": false
    }
   },
@@ -5801,36 +5857,20 @@
    "method": "POST",
    "body": {
     "chat_id": -1001234567890,
-    "message_id": 1008,
-    "text": "💼 <b>Werkstudent Data Analyst (m/w/d)</b>\nZalando SE · Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10001\">open the job</a>\n\n<b>🔁 Applied before by Diba · 27.10</b>",
+    "message_id": 7,
+    "text": "🔁 Ad for <b>Werkstudent Data Analyst (m/w/d)</b> at <b>Zalando SE</b> moved to the tracker (Diba applied before).\n<i>/tracker - all of them</i>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
      "inline_keyboard": [
       [
        {
-        "text": "🗓 Interview",
-        "callback_data": "jb:interview:-:ba:10001"
-       },
-       {
-        "text": "❌ Rejected",
-        "callback_data": "jb:rejected:-:ba:10001"
-       },
-       {
-        "text": "🎉 Offer",
-        "callback_data": "jb:offer:-:ba:10001"
+        "text": "↩️ Undo",
+        "callback_data": "jb:undo:-:ba:10001"
        }
       ]
      ]
     }
-   }
-  },
-  {
-   "url": "https://api.telegram.org/botT/editMessageReplyMarkup",
-   "method": "POST",
-   "body": {
-    "chat_id": -1001234567890,
-    "message_id": 7
    }
   },
   {
@@ -5856,21 +5896,44 @@
    "method": "POST",
    "body": {
     "chat_id": -1001234567890,
-    "message_id": 1008,
-    "text": "💼 <b>Werkstudent Data Analyst (m/w/d)</b>\nZalando SE · Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10001\">open the job</a>\n\n<b>❌ Rejected by Diba · 27.10</b>",
+    "message_id": 7,
+    "text": "📋 <b>Werkstudent Data Analyst (m/w/d)</b>\n🏢 Zalando SE · 📍 Berlin · home office possible\n\n👩‍💻 Diba · applied 27.10 · updated 27.10\n\nStatus: <b>❌ Rejected</b>\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10001\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
-     "inline_keyboard": []
+     "inline_keyboard": [
+      [
+       {
+        "text": "⏳ Waiting",
+        "callback_data": "jb:twait:-:ba:10001"
+       },
+       {
+        "text": "• ❌ Rejected •",
+        "callback_data": "jb:trej:-:ba:10001"
+       }
+      ],
+      [
+       {
+        "text": "🗓 Interview set",
+        "callback_data": "jb:tint:-:ba:10001"
+       },
+       {
+        "text": "🎉 Offer received",
+        "callback_data": "jb:toff:-:ba:10001"
+       }
+      ],
+      [
+       {
+        "text": "🙅 Offer declined",
+        "callback_data": "jb:tdec:-:ba:10001"
+       },
+       {
+        "text": "🤝 Offer accepted",
+        "callback_data": "jb:tacc:-:ba:10001"
+       }
+      ]
+     ]
     }
-   }
-  },
-  {
-   "url": "https://api.telegram.org/botT/editMessageReplyMarkup",
-   "method": "POST",
-   "body": {
-    "chat_id": -1001234567890,
-    "message_id": 7
    }
   },
   {
@@ -5934,7 +5997,7 @@
    "method": "POST",
    "body": {
     "callback_query_id": "q",
-    "text": "✅ Applied",
+    "text": "✅ Moved to the tracker",
     "show_alert": false
    }
   },
@@ -5943,36 +6006,20 @@
    "method": "POST",
    "body": {
     "chat_id": -1001234567890,
-    "message_id": 1019,
-    "text": "💼 <b>Werkstudent Business Intelligence (m/w/d)</b>\nDeutsche Bahn AG · Cottbus · home office possible · via Jobbörse\n\n🧑‍💻 For Arman\n🎓 Werkstudent\n\n<i>BI and dashboards for both</i>\n\n🗣 German: C1 · ⏳ apply by 01.12.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10011\">open the job</a>\n\n<b>✅ Applied by Arman · 27.10</b>",
+    "message_id": 7,
+    "text": "✅ Ad for <b>Werkstudent Business Intelligence (m/w/d)</b> at <b>Deutsche Bahn AG</b> moved to the tracker (applied by Arman).\n<i>/tracker - all of them</i>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
      "inline_keyboard": [
       [
        {
-        "text": "🗓 Interview",
-        "callback_data": "jb:interview:-:ba:10011"
-       },
-       {
-        "text": "❌ Rejected",
-        "callback_data": "jb:rejected:-:ba:10011"
-       },
-       {
-        "text": "🎉 Offer",
-        "callback_data": "jb:offer:-:ba:10011"
+        "text": "↩️ Undo",
+        "callback_data": "jb:undo:-:ba:10011"
        }
       ]
      ]
     }
-   }
-  },
-  {
-   "url": "https://api.telegram.org/botT/editMessageReplyMarkup",
-   "method": "POST",
-   "body": {
-    "chat_id": -1001234567890,
-    "message_id": 7
    }
   },
   {
@@ -5998,21 +6045,20 @@
    "method": "POST",
    "body": {
     "chat_id": -1001234567890,
-    "message_id": 1022,
-    "text": "💼 <b>Working Student Frontend (React)</b>\nLausitz Web · Cottbus · via Arbeitnow\n\n🧑‍💻 For Arman\n🎓 Werkstudent\n\n<i>React work fits</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap\n\n<a href=\"https://arbeitnow.example/3\">open the job</a>\n\n<b>⏭ Skipped</b>",
+    "message_id": 7,
+    "text": "⏭ Ad for <b>Working Student Frontend (React)</b> at <b>Lausitz Web</b> skipped.",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
-     "inline_keyboard": []
+     "inline_keyboard": [
+      [
+       {
+        "text": "↩️ Undo",
+        "callback_data": "jb:undo:-:an:web-cottbus"
+       }
+      ]
+     ]
     }
-   }
-  },
-  {
-   "url": "https://api.telegram.org/botT/editMessageReplyMarkup",
-   "method": "POST",
-   "body": {
-    "chat_id": -1001234567890,
-    "message_id": 7
    }
   },
   {
@@ -6047,10 +6093,24 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Jobs</b> (Berlin, Cottbus, remote)\n\n👩‍💻 <b>Diba</b>: 3 open · 2 applied · 0 waiting · 1 interviews · 1 rejected · 0 offers\n🧑‍💻 <b>Arman</b>: 1 open · 1 applied · 1 waiting · 0 interviews · 0 rejected · 0 offers\n\n<b>Applications</b>\n✅ Applied · <b>Deutsche Bahn AG</b> - Werkstudent Business Intelligence (m/w/d) (Arman, 27.10) <a href=\"https://t.me/c/1234567890/1019\">↗</a>\n🗓 Interview · <b>Acme AI</b> - Working Student Machine Learning (Diba, 27.10) <a href=\"https://t.me/c/1234567890/1021\">↗</a>\n❌ Rejected · <b>Zalando SE</b> - Werkstudent Data Analyst (m/w/d) (Diba, 27.10) <a href=\"https://t.me/c/1234567890/1008\">↗</a>\n\n<i>/cv - the CVs · /skills diba - the skills list the bot matches against</i>",
+    "text": "💼 <b>Jobs</b>\n<i>Berlin, Cottbus, remote</i>\n\n👩‍💻 <b>Diba</b>\n<pre>🆕 New                 3\n🔖 Waiting list        0\n📋 Tracker             2\n   ⏳ Waiting          0\n   🗓 Interview set    1\n   🎉 Offer received   0\n   🤝 Accepted         0\n   🙅 Declined         0\n   ❌ Rejected         1</pre>\n\n🧑‍💻 <b>Arman</b>\n<pre>🆕 New                 1\n🔖 Waiting list        0\n📋 Tracker             1\n   ⏳ Waiting          1\n   🗓 Interview set    0\n   🎉 Offer received   0\n   🤝 Accepted         0\n   🙅 Declined         0\n   ❌ Rejected         0</pre>\n\n<i>/waitinglist · /tracker · /cv · /skills diba</i>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
-    "message_thread_id": 965
+    "message_thread_id": 965,
+    "reply_markup": {
+     "inline_keyboard": [
+      [
+       {
+        "text": "🔖 Waiting list (0)",
+        "callback_data": "jb:list:waiting:-"
+       },
+       {
+        "text": "📋 Tracker (3)",
+        "callback_data": "jb:list:tracker:-"
+       }
+      ]
+     ]
+    }
    }
   },
   {
@@ -6375,7 +6435,7 @@
     "chat_id": "-1001234567890",
     "document": "FILE-D",
     "message_thread_id": 965,
-    "reply_to_message_id": 1131,
+    "reply_to_message_id": 1125,
     "caption": "📎 Diba's CV"
    }
   },
@@ -6393,7 +6453,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "✅ <b>Running</b> — 2 busy searches every 15 min, 1 quiet one every 3 h.\n\nwg-gesucht     ✅ ok\nKleinanzeigen  ✅ ok\n\nSent this hour:  1 of 2\nWaiting to draft: 0\nLast ad sent:    1 min ago\nSearches:        3\nWaiting on you:  1  → /review\nFinds:           ✅ 🚲 ≤ 25 € · 🛏 ≤ 80 € · 🗄 ≤ 35 € · 🧶 ≤ 30 € · 🎁 ⭐ ≥ 7, checked 1 min ago\nJobs:            ✅ 4 open, last new one 2h 58m ago\nCasual jobs:     ✅ 3 posted within 25 km of Cottbus, checked 24 min ago\n\nSeen so far: approved 2, filtered 1, pending 1, skipped 1",
+    "text": "✅ <b>Running</b> — 2 busy searches every 15 min, 1 quiet one every 3 h.\n\nwg-gesucht     ✅ ok\nKleinanzeigen  ✅ ok\n\nSent this hour:  1 of 2\nWaiting to draft: 0\nLast ad sent:    1 min ago\nSearches:        3\nWaiting on you:  1  → /review\nFinds:           ✅ 🚲 ≤ 25 € · 🛏 ≤ 80 € · 🗄 ≤ 35 € · 🧶 ≤ 30 € · 🎁 ⭐ ≥ 7, checked 1 min ago\nJobs:            ✅ 4 new, 0 on the waiting list, last new one 2h 58m ago\nCasual jobs:     ✅ 3 posted within 25 km of Cottbus, checked 24 min ago\n\nSeen so far: approved 2, filtered 1, pending 1, skipped 1",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "message_thread_id": 597
@@ -6413,7 +6473,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "/start — start it (also un-pauses)\n/status — is it running\n/review — decide on ads you haven't answered\n/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n/filters — which ads qualify\n/settings — timing\n/stats — totals\n/retry — re-draft failed\n/finds — bikes, bed, Kommode, carpet & free stuff alerts (anyone in the group)\n/jobs — job board and where each application stands · /cv — the CVs · /skills diba · /jobreport\n/casual — Minijobs: which town, how far around it (anyone in the group)",
+    "text": "/start — start it (also un-pauses)\n/status — is it running\n/review — decide on ads you haven't answered\n/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n/filters — which ads qualify\n/settings — timing\n/stats — totals\n/retry — re-draft failed\n/finds — bikes, bed, Kommode, carpet & free stuff alerts (anyone in the group)\n/jobs — job stats · /waitinglist — ads to apply later · /tracker — applications and their status · /cv — the CVs · /skills diba · /jobreport\n/casual — Minijobs: which town, how far around it (anyone in the group)",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "message_thread_id": 597
@@ -6791,7 +6851,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "Started.\n\n✅ <b>Running</b> — 2 busy searches every 20 min, 1 quiet one every 3 h.\n\nwg-gesucht     ✅ ok\nKleinanzeigen  ✅ ok\n\nSent this hour:  1 of 2\nWaiting to draft: 0\nLast ad sent:    1 min ago\nSearches:        3\nWaiting on you:  1  → /review\nFinds:           ✅ 🚲 ≤ 25 € · 🛏 ≤ 80 € · 🗄 ≤ 35 € · 🧶 ≤ 30 € · 🎁 ⭐ ≥ 7, checked 1 min ago\nJobs:            ✅ 4 open, last new one 2h 58m ago\nCasual jobs:     ✅ 3 posted within 25 km of Cottbus, checked 24 min ago\n\nSeen so far: approved 2, filtered 1, pending 1, skipped 1\n\n/status — is it running\n/review — decide on ads you haven't answered\n/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n/filters — which ads qualify\n/settings — timing\n/stats — totals\n/finds — bikes, bed, Kommode, carpet & free stuff alerts",
+    "text": "Started.\n\n✅ <b>Running</b> — 2 busy searches every 20 min, 1 quiet one every 3 h.\n\nwg-gesucht     ✅ ok\nKleinanzeigen  ✅ ok\n\nSent this hour:  1 of 2\nWaiting to draft: 0\nLast ad sent:    1 min ago\nSearches:        3\nWaiting on you:  1  → /review\nFinds:           ✅ 🚲 ≤ 25 € · 🛏 ≤ 80 € · 🗄 ≤ 35 € · 🧶 ≤ 30 € · 🎁 ⭐ ≥ 7, checked 1 min ago\nJobs:            ✅ 4 new, 0 on the waiting list, last new one 2h 58m ago\nCasual jobs:     ✅ 3 posted within 25 km of Cottbus, checked 24 min ago\n\nSeen so far: approved 2, filtered 1, pending 1, skipped 1\n\n/status — is it running\n/review — decide on ads you haven't answered\n/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n/filters — which ads qualify\n/settings — timing\n/stats — totals\n/finds — bikes, bed, Kommode, carpet & free stuff alerts",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "message_thread_id": 597
@@ -6862,7 +6922,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "✅ <b>Running</b> — 2 busy searches every 20 min, 1 quiet one every 3 h.\n\nwg-gesucht     ✅ ok\nKleinanzeigen  ✅ ok\n\nSent this hour:  1 of 2\nWaiting to draft: 0\nLast ad sent:    1 min ago\nSearches:        3\nWaiting on you:  1  → /review\nFinds:           ✅ 🚲 ≤ 25 € · 🛏 ≤ 80 € · 🗄 ≤ 35 € · 🧶 ≤ 30 € · 🎁 ⭐ ≥ 7, checked 1 min ago\nJobs:            ✅ 4 open, last new one 2h 58m ago\nCasual jobs:     ✅ 3 posted within 25 km of Cottbus, checked 24 min ago\n\nSeen so far: approved 2, filtered 1, pending 1, skipped 1\n\n/status — is it running\n/review — decide on ads you haven't answered\n/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n/filters — which ads qualify\n/settings — timing\n/stats — totals\n/finds — bikes, bed, Kommode, carpet & free stuff alerts",
+    "text": "✅ <b>Running</b> — 2 busy searches every 20 min, 1 quiet one every 3 h.\n\nwg-gesucht     ✅ ok\nKleinanzeigen  ✅ ok\n\nSent this hour:  1 of 2\nWaiting to draft: 0\nLast ad sent:    1 min ago\nSearches:        3\nWaiting on you:  1  → /review\nFinds:           ✅ 🚲 ≤ 25 € · 🛏 ≤ 80 € · 🗄 ≤ 35 € · 🧶 ≤ 30 € · 🎁 ⭐ ≥ 7, checked 1 min ago\nJobs:            ✅ 4 new, 0 on the waiting list, last new one 2h 58m ago\nCasual jobs:     ✅ 3 posted within 25 km of Cottbus, checked 24 min ago\n\nSeen so far: approved 2, filtered 1, pending 1, skipped 1\n\n/status — is it running\n/review — decide on ads you haven't answered\n/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n/filters — which ads qualify\n/settings — timing\n/stats — totals\n/finds — bikes, bed, Kommode, carpet & free stuff alerts",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "message_thread_id": 597
@@ -7781,7 +7841,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Werkstudent Frontend Entwicklung React (m/w/d)</b>\nN26 GmbH · Berlin · home office possible · via Jobbörse\n\n🧑‍💻 For Arman\n🎓 Werkstudent\n\n<i>React work fits</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10004\">open the job</a>",
+    "text": "💼 <b>Werkstudent Frontend Entwicklung React (m/w/d)</b>\n🏢 N26 GmbH\n📍 Berlin · home office possible · via Jobbörse\n\n🧑‍💻 For Arman · 🎓 Werkstudent\n\n<i>React work fits</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10004\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -7796,12 +7856,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:arman:ba:10004"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:arman:ba:10004"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:arman:ba:10004"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:arman:ba:10004"
        },
        {
         "text": "⏭ Skip",
@@ -7818,7 +7882,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Data Engineer (m/w/d) - Teilzeit</b>\nVattenfall GmbH · Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n⏱ Part-time\n\n<i>SQL pipelines</i>\n\n🗣 German: C1 · ⏱ 20 h · ⏳ apply by 30.11.\n\nGaps:\n• Airflow\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10006\">open the job</a>",
+    "text": "💼 <b>Data Engineer (m/w/d) - Teilzeit</b>\n🏢 Vattenfall GmbH\n📍 Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba · ⏱ Part-time\n\n<i>SQL pipelines</i>\n\n🗣 German: C1\n⏱ Hours: 20 h\n⏳ Apply by: 30.11.\n\n⚠️ <b>Gaps</b>\n• Airflow\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10006\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -7833,12 +7897,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10006"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10006"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10006"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10006"
        },
        {
         "text": "⏭ Skip",
@@ -7855,7 +7923,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Data Scientist (m/w/d)</b>\nStatista GmbH · Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10009\">open the job</a>",
+    "text": "💼 <b>Data Scientist (m/w/d)</b>\n🏢 Statista GmbH\n📍 Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10009\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -7870,12 +7938,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10009"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10009"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10009"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10009"
        },
        {
         "text": "⏭ Skip",
@@ -7892,7 +7964,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Werkstudent Data Science (m/w/d)</b>\nSAP SE · Cottbus · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10010\">open the job</a>",
+    "text": "💼 <b>Werkstudent Data Science (m/w/d)</b>\n🏢 SAP SE\n📍 Cottbus · home office possible · via Jobbörse\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10010\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -7907,12 +7979,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10010"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10010"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10010"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10010"
        },
        {
         "text": "⏭ Skip",
@@ -8004,7 +8080,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "message_id": 1167
+    "message_id": 1161
    }
   },
   {
@@ -8012,7 +8088,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "message_id": 1168
+    "message_id": 1162
    }
   },
   {
@@ -8020,7 +8096,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "message_id": 1169
+    "message_id": 1163
    }
   },
   {
@@ -8028,7 +8104,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "message_id": 1170
+    "message_id": 1164
    }
   },
   {
@@ -8134,7 +8210,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Werkstudent Frontend Entwicklung React (m/w/d)</b>\nN26 GmbH · Berlin · home office possible · via Jobbörse\n\n🧑‍💻 For Arman\n🎓 Werkstudent\n\n<i>React work fits</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10004\">open the job</a>",
+    "text": "💼 <b>Werkstudent Frontend Entwicklung React (m/w/d)</b>\n🏢 N26 GmbH\n📍 Berlin · home office possible · via Jobbörse\n\n🧑‍💻 For Arman · 🎓 Werkstudent\n\n<i>React work fits</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10004\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -8149,12 +8225,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:arman:ba:10004"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:arman:ba:10004"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:arman:ba:10004"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:arman:ba:10004"
        },
        {
         "text": "⏭ Skip",
@@ -8171,7 +8251,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Data Engineer (m/w/d) - Teilzeit</b>\nVattenfall GmbH · Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n⏱ Part-time\n\n<i>SQL pipelines</i>\n\n🗣 German: C1 · ⏱ 20 h · ⏳ apply by 30.11.\n\nGaps:\n• Airflow\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10006\">open the job</a>",
+    "text": "💼 <b>Data Engineer (m/w/d) - Teilzeit</b>\n🏢 Vattenfall GmbH\n📍 Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba · ⏱ Part-time\n\n<i>SQL pipelines</i>\n\n🗣 German: C1\n⏱ Hours: 20 h\n⏳ Apply by: 30.11.\n\n⚠️ <b>Gaps</b>\n• Airflow\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10006\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -8186,12 +8266,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10006"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10006"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10006"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10006"
        },
        {
         "text": "⏭ Skip",
@@ -8208,7 +8292,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Data Scientist (m/w/d)</b>\nStatista GmbH · Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10009\">open the job</a>",
+    "text": "💼 <b>Data Scientist (m/w/d)</b>\n🏢 Statista GmbH\n📍 Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10009\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -8223,12 +8307,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10009"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10009"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10009"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10009"
        },
        {
         "text": "⏭ Skip",
@@ -8302,7 +8390,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Werkstudent Data Science (m/w/d)</b>\nSAP SE · Cottbus · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10010\">open the job</a>",
+    "text": "💼 <b>Werkstudent Data Science (m/w/d)</b>\n🏢 SAP SE\n📍 Cottbus · home office possible · via Jobbörse\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10010\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -8317,12 +8405,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10010"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10010"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10010"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10010"
        },
        {
         "text": "⏭ Skip",
@@ -8428,29 +8520,44 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "⏰ Arman, no answer from <b>Deutsche Bahn AG</b> for <i>Werkstudent Business Intelligence (m/w/d)</i> after 10 days. A short follow-up email often helps - or mark it below.",
+    "text": "⏰ <b>No answer after 10 days</b> - a short follow-up email often helps, or set the status below.\n\n📋 <b>Werkstudent Business Intelligence (m/w/d)</b>\n🏢 Deutsche Bahn AG · 📍 Cottbus · home office possible\n\n🧑‍💻 Arman · applied 27.10\n\nStatus: <b>⏳ Waiting for an answer</b>\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10011\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
      "inline_keyboard": [
       [
        {
-        "text": "🗓 Interview",
-        "callback_data": "jb:interview:-:ba:10011"
+        "text": "• ⏳ Waiting •",
+        "callback_data": "jb:twait:-:ba:10011"
        },
        {
         "text": "❌ Rejected",
-        "callback_data": "jb:rejected:-:ba:10011"
+        "callback_data": "jb:trej:-:ba:10011"
+       }
+      ],
+      [
+       {
+        "text": "🗓 Interview set",
+        "callback_data": "jb:tint:-:ba:10011"
        },
        {
-        "text": "🎉 Offer",
-        "callback_data": "jb:offer:-:ba:10011"
+        "text": "🎉 Offer received",
+        "callback_data": "jb:toff:-:ba:10011"
+       }
+      ],
+      [
+       {
+        "text": "🙅 Offer declined",
+        "callback_data": "jb:tdec:-:ba:10011"
+       },
+       {
+        "text": "🤝 Offer accepted",
+        "callback_data": "jb:tacc:-:ba:10011"
        }
       ]
      ]
     },
-    "message_thread_id": 965,
-    "reply_to_message_id": 1019
+    "message_thread_id": 965
    }
   },
   {
@@ -8816,10 +8923,24 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Jobs</b> (Berlin, Cottbus, remote)\n\n👩‍💻 <b>Diba</b>: 3 open · 2 applied · 0 waiting · 1 interviews · 1 rejected · 0 offers\n🧑‍💻 <b>Arman</b>: 1 open · 1 applied · 1 waiting · 0 interviews · 0 rejected · 0 offers\n\n<b>Applications</b>\n✅ Applied · <b>Deutsche Bahn AG</b> - Werkstudent Business Intelligence (m/w/d) (Arman, 27.10) <a href=\"https://t.me/c/1234567890/1019\">↗</a>\n🗓 Interview · <b>Acme AI</b> - Working Student Machine Learning (Diba, 27.10) <a href=\"https://t.me/c/1234567890/1021\">↗</a>\n❌ Rejected · <b>Zalando SE</b> - Werkstudent Data Analyst (m/w/d) (Diba, 27.10) <a href=\"https://t.me/c/1234567890/1008\">↗</a>\n\n<i>/cv - the CVs · /skills diba - the skills list the bot matches against</i>",
+    "text": "💼 <b>Jobs</b>\n<i>Berlin, Cottbus, remote</i>\n\n👩‍💻 <b>Diba</b>\n<pre>🆕 New                 3\n🔖 Waiting list        0\n📋 Tracker             2\n   ⏳ Waiting          0\n   🗓 Interview set    1\n   🎉 Offer received   0\n   🤝 Accepted         0\n   🙅 Declined         0\n   ❌ Rejected         1</pre>\n\n🧑‍💻 <b>Arman</b>\n<pre>🆕 New                 1\n🔖 Waiting list        0\n📋 Tracker             1\n   ⏳ Waiting          1\n   🗓 Interview set    0\n   🎉 Offer received   0\n   🤝 Accepted         0\n   🙅 Declined         0\n   ❌ Rejected         0</pre>\n\n<i>/waitinglist · /tracker · /cv · /skills diba</i>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
-    "message_thread_id": 965
+    "message_thread_id": 965,
+    "reply_markup": {
+     "inline_keyboard": [
+      [
+       {
+        "text": "🔖 Waiting list (0)",
+        "callback_data": "jb:list:waiting:-"
+       },
+       {
+        "text": "📋 Tracker (3)",
+        "callback_data": "jb:list:tracker:-"
+       }
+      ]
+     ]
+    }
    }
   },
   {
@@ -9324,7 +9445,15 @@
     "commands": [
      {
       "command": "jobs",
-      "description": "Job board - where each application stands"
+      "description": "Job stats per person"
+     },
+     {
+      "command": "waitinglist",
+      "description": "Ads saved to apply later"
+     },
+     {
+      "command": "tracker",
+      "description": "Applications and their status"
      },
      {
       "command": "cv",
@@ -9400,7 +9529,15 @@
      },
      {
       "command": "jobs",
-      "description": "Job board - where each application stands"
+      "description": "Job stats per person"
+     },
+     {
+      "command": "waitinglist",
+      "description": "Ads saved to apply later"
+     },
+     {
+      "command": "tracker",
+      "description": "Applications and their status"
      },
      {
       "command": "cv",
@@ -9481,7 +9618,15 @@
      },
      {
       "command": "jobs",
-      "description": "Job board - where each application stands"
+      "description": "Job stats per person"
+     },
+     {
+      "command": "waitinglist",
+      "description": "Ads saved to apply later"
+     },
+     {
+      "command": "tracker",
+      "description": "Applications and their status"
      },
      {
       "command": "cv",
@@ -9597,7 +9742,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Werkstudent Data Analyst (m/w/d)</b>\nZalando SE · Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10001\">open the job</a>",
+    "text": "💼 <b>Werkstudent Data Analyst (m/w/d)</b>\n🏢 Zalando SE\n📍 Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10001\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -9612,12 +9757,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10001"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10001"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10001"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10001"
        },
        {
         "text": "⏭ Skip",
@@ -9634,7 +9783,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Data Engineer (m/w/d) - Teilzeit</b>\nVattenfall GmbH · Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n⏱ Part-time\n\n<i>SQL pipelines</i>\n\n🗣 German: C1 · ⏱ 20 h · ⏳ apply by 30.11.\n\nGaps:\n• Airflow\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10006\">open the job</a>",
+    "text": "💼 <b>Data Engineer (m/w/d) - Teilzeit</b>\n🏢 Vattenfall GmbH\n📍 Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba · ⏱ Part-time\n\n<i>SQL pipelines</i>\n\n🗣 German: C1\n⏱ Hours: 20 h\n⏳ Apply by: 30.11.\n\n⚠️ <b>Gaps</b>\n• Airflow\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10006\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -9649,12 +9798,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10006"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10006"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10006"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10006"
        },
        {
         "text": "⏭ Skip",
@@ -9671,7 +9824,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Data Scientist (m/w/d)</b>\nStatista GmbH · Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10009\">open the job</a>",
+    "text": "💼 <b>Data Scientist (m/w/d)</b>\n🏢 Statista GmbH\n📍 Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10009\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -9686,12 +9839,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10009"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10009"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10009"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10009"
        },
        {
         "text": "⏭ Skip",
@@ -9951,7 +10108,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Werkstudent Data Science (m/w/d)</b>\nSAP SE · Cottbus · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10010\">open the job</a>",
+    "text": "💼 <b>Werkstudent Data Science (m/w/d)</b>\n🏢 SAP SE\n📍 Cottbus · home office possible · via Jobbörse\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10010\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -9966,12 +10123,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10010"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10010"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10010"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10010"
        },
        {
         "text": "⏭ Skip",
@@ -9988,7 +10149,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Werkstudent Business Intelligence (m/w/d)</b>\nDeutsche Bahn AG · Cottbus · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>BI and dashboards for both</i>\n\n🗣 German: C1 · ⏳ apply by 01.12.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10011\">open the job</a>",
+    "text": "💼 <b>Werkstudent Business Intelligence (m/w/d)</b>\n🏢 Deutsche Bahn AG\n📍 Cottbus · home office possible · via Jobbörse\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>BI and dashboards for both</i>\n\n🗣 German: C1\n⏳ Apply by: 01.12.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10011\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -10003,12 +10164,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10011"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10011"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10011"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10011"
        },
        {
         "text": "⏭ Skip",
@@ -10025,7 +10190,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Werkstudent Data Analytics (m/w/d)</b>\nBASF SE · Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10012\">open the job</a>",
+    "text": "💼 <b>Werkstudent Data Analytics (m/w/d)</b>\n🏢 BASF SE\n📍 Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10012\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -10040,12 +10205,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10012"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10012"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10012"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10012"
        },
        {
         "text": "⏭ Skip",
@@ -10151,7 +10320,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Working Student Machine Learning</b>\nAcme AI · Remote · remote · via Arbeitnow\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://arbeitnow.example/2\">open the job</a>",
+    "text": "💼 <b>Working Student Machine Learning</b>\n🏢 Acme AI\n📍 Remote · remote · via Arbeitnow\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://arbeitnow.example/2\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -10166,12 +10335,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:an:acme-working-student-ml"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:an:acme-working-student-ml"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:an:acme-working-student-ml"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:an:acme-working-student-ml"
        },
        {
         "text": "⏭ Skip",
@@ -10790,10 +10963,24 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Jobs</b> (Berlin, Cottbus, remote)\n\n👩‍💻 <b>Diba</b>: 7 open · 0 applied · 0 waiting · 0 interviews · 0 rejected · 0 offers\n\n<i>/cv - the CVs · /skills diba - the skills list the bot matches against</i>",
+    "text": "💼 <b>Jobs</b>\n<i>Berlin, Cottbus, remote</i>\n\n👩‍💻 <b>Diba</b>\n<pre>🆕 New                 7\n🔖 Waiting list        0\n📋 Tracker             0\n   ⏳ Waiting          0\n   🗓 Interview set    0\n   🎉 Offer received   0\n   🤝 Accepted         0\n   🙅 Declined         0\n   ❌ Rejected         0</pre>\n\n<i>/waitinglist · /tracker · /cv · /skills diba</i>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
-    "message_thread_id": 965
+    "message_thread_id": 965,
+    "reply_markup": {
+     "inline_keyboard": [
+      [
+       {
+        "text": "🔖 Waiting list (0)",
+        "callback_data": "jb:list:waiting:-"
+       },
+       {
+        "text": "📋 Tracker (0)",
+        "callback_data": "jb:list:tracker:-"
+       }
+      ]
+     ]
+    }
    }
   },
   {
@@ -10841,7 +11028,15 @@
     "commands": [
      {
       "command": "jobs",
-      "description": "Job board - where each application stands"
+      "description": "Job stats per person"
+     },
+     {
+      "command": "waitinglist",
+      "description": "Ads saved to apply later"
+     },
+     {
+      "command": "tracker",
+      "description": "Applications and their status"
      },
      {
       "command": "cv",
@@ -10917,7 +11112,15 @@
      },
      {
       "command": "jobs",
-      "description": "Job board - where each application stands"
+      "description": "Job stats per person"
+     },
+     {
+      "command": "waitinglist",
+      "description": "Ads saved to apply later"
+     },
+     {
+      "command": "tracker",
+      "description": "Applications and their status"
      },
      {
       "command": "cv",
@@ -10998,7 +11201,15 @@
      },
      {
       "command": "jobs",
-      "description": "Job board - where each application stands"
+      "description": "Job stats per person"
+     },
+     {
+      "command": "waitinglist",
+      "description": "Ads saved to apply later"
+     },
+     {
+      "command": "tracker",
+      "description": "Applications and their status"
      },
      {
       "command": "cv",
@@ -11114,7 +11325,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Werkstudent Data Analyst (m/w/d)</b>\nZalando SE · Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10001\">open the job</a>",
+    "text": "💼 <b>Werkstudent Data Analyst (m/w/d)</b>\n🏢 Zalando SE\n📍 Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10001\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -11129,12 +11340,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10001"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10001"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10001"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10001"
        },
        {
         "text": "⏭ Skip",
@@ -11151,7 +11366,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Data Engineer (m/w/d) - Teilzeit</b>\nVattenfall GmbH · Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n⏱ Part-time\n\n<i>SQL pipelines</i>\n\n🗣 German: C1 · ⏱ 20 h · ⏳ apply by 30.11.\n\nGaps:\n• Airflow\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10006\">open the job</a>",
+    "text": "💼 <b>Data Engineer (m/w/d) - Teilzeit</b>\n🏢 Vattenfall GmbH\n📍 Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba · ⏱ Part-time\n\n<i>SQL pipelines</i>\n\n🗣 German: C1\n⏱ Hours: 20 h\n⏳ Apply by: 30.11.\n\n⚠️ <b>Gaps</b>\n• Airflow\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10006\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -11166,12 +11381,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10006"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10006"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10006"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10006"
        },
        {
         "text": "⏭ Skip",
@@ -11188,7 +11407,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Data Scientist (m/w/d)</b>\nStatista GmbH · Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10009\">open the job</a>",
+    "text": "💼 <b>Data Scientist (m/w/d)</b>\n🏢 Statista GmbH\n📍 Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10009\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -11203,12 +11422,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10009"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10009"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10009"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10009"
        },
        {
         "text": "⏭ Skip",
@@ -11468,7 +11691,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Werkstudent Data Science (m/w/d)</b>\nSAP SE · Cottbus · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10010\">open the job</a>",
+    "text": "💼 <b>Werkstudent Data Science (m/w/d)</b>\n🏢 SAP SE\n📍 Cottbus · home office possible · via Jobbörse\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10010\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -11483,12 +11706,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10010"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10010"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10010"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10010"
        },
        {
         "text": "⏭ Skip",
@@ -11505,7 +11732,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Werkstudent Business Intelligence (m/w/d)</b>\nDeutsche Bahn AG · Cottbus · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>BI and dashboards for both</i>\n\n🗣 German: C1 · ⏳ apply by 01.12.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10011\">open the job</a>",
+    "text": "💼 <b>Werkstudent Business Intelligence (m/w/d)</b>\n🏢 Deutsche Bahn AG\n📍 Cottbus · home office possible · via Jobbörse\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>BI and dashboards for both</i>\n\n🗣 German: C1\n⏳ Apply by: 01.12.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10011\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -11520,12 +11747,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10011"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10011"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10011"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10011"
        },
        {
         "text": "⏭ Skip",
@@ -11542,7 +11773,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Werkstudent Data Analytics (m/w/d)</b>\nBASF SE · Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10012\">open the job</a>",
+    "text": "💼 <b>Werkstudent Data Analytics (m/w/d)</b>\n🏢 BASF SE\n📍 Berlin · home office possible · via Jobbörse\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://www.arbeitsagentur.de/jobsuche/jobdetail/10012\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -11557,12 +11788,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:ba:10012"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:ba:10012"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:ba:10012"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:ba:10012"
        },
        {
         "text": "⏭ Skip",
@@ -11668,7 +11903,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Working Student Machine Learning</b>\nAcme AI · Remote · remote · via Arbeitnow\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2 · ⏱ 20 h/week · 📅 start asap · ⏳ apply by 15.11.\n\nGaps:\n• Tableau - mention Power BI\n\n<a href=\"https://arbeitnow.example/2\">open the job</a>",
+    "text": "💼 <b>Working Student Machine Learning</b>\n🏢 Acme AI\n📍 Remote · remote · via Arbeitnow\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>Dashboards and SQL fit</i>\n\n🗣 German: B2\n⏱ Hours: 20 h/week\n📅 Start: asap\n⏳ Apply by: 15.11.\n\n⚠️ <b>Gaps</b>\n• Tableau - mention Power BI\n\n🔗 <a href=\"https://arbeitnow.example/2\">Open the job</a>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "reply_markup": {
@@ -11683,12 +11918,16 @@
        {
         "text": "✅ Applied",
         "callback_data": "jb:applied:diba:an:acme-working-student-ml"
+       },
+       {
+        "text": "🔁 Already applied",
+        "callback_data": "jb:already:diba:an:acme-working-student-ml"
        }
       ],
       [
        {
-        "text": "🔁 Already applied",
-        "callback_data": "jb:already:diba:an:acme-working-student-ml"
+        "text": "🔖 Apply later",
+        "callback_data": "jb:later:diba:an:acme-working-student-ml"
        },
        {
         "text": "⏭ Skip",
@@ -12089,10 +12328,24 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "💼 <b>Jobs</b> (Berlin, Cottbus, remote)\n\n👩‍💻 <b>Diba</b>: 7 open · 0 applied · 0 waiting · 0 interviews · 0 rejected · 0 offers\n\n<i>/cv - the CVs · /skills diba - the skills list the bot matches against</i>",
+    "text": "💼 <b>Jobs</b>\n<i>Berlin, Cottbus, remote</i>\n\n👩‍💻 <b>Diba</b>\n<pre>🆕 New                 7\n🔖 Waiting list        0\n📋 Tracker             0\n   ⏳ Waiting          0\n   🗓 Interview set    0\n   🎉 Offer received   0\n   🤝 Accepted         0\n   🙅 Declined         0\n   ❌ Rejected         0</pre>\n\n<i>/waitinglist · /tracker · /cv · /skills diba</i>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
-    "message_thread_id": 965
+    "message_thread_id": 965,
+    "reply_markup": {
+     "inline_keyboard": [
+      [
+       {
+        "text": "🔖 Waiting list (0)",
+        "callback_data": "jb:list:waiting:-"
+       },
+       {
+        "text": "📋 Tracker (0)",
+        "callback_data": "jb:list:tracker:-"
+       }
+      ]
+     ]
+    }
    }
   },
   {
@@ -12743,7 +12996,9 @@
     "replied_at": 1793098800,
     "reminded": 0,
     "msg_id": 1021,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": "{\"status\":\"posted\",\"person\":\"diba\"}"
    },
    {
     "id": "an:web-cottbus",
@@ -12767,7 +13022,9 @@
     "replied_at": null,
     "reminded": 0,
     "msg_id": 1022,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": "{\"status\":\"posted\",\"person\":\"arman\"}"
    },
    {
     "id": "ba:10001",
@@ -12791,7 +13048,9 @@
     "replied_at": 1793098800,
     "reminded": 0,
     "msg_id": 1008,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": "{\"status\":\"posted\",\"person\":\"diba\"}"
    },
    {
     "id": "ba:10002",
@@ -12815,7 +13074,9 @@
     "replied_at": null,
     "reminded": 0,
     "msg_id": null,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10004",
@@ -12838,8 +13099,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1175,
-    "checked_at": 1794207180
+    "msg_id": 1169,
+    "checked_at": 1794207180,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10005",
@@ -12863,7 +13126,9 @@
     "replied_at": null,
     "reminded": 0,
     "msg_id": null,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10006",
@@ -12886,8 +13151,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1176,
-    "checked_at": 1794207180
+    "msg_id": 1170,
+    "checked_at": 1794207180,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10008",
@@ -12911,7 +13178,9 @@
     "replied_at": null,
     "reminded": 0,
     "msg_id": null,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10009",
@@ -12934,8 +13203,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1177,
-    "checked_at": 1794207780
+    "msg_id": 1171,
+    "checked_at": 1794207780,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10010",
@@ -12958,8 +13229,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1178,
-    "checked_at": 1794207780
+    "msg_id": 1172,
+    "checked_at": 1794207780,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10011",
@@ -12983,7 +13256,9 @@
     "replied_at": null,
     "reminded": 1,
     "msg_id": 1019,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": "{\"status\":\"posted\",\"person\":\"both\"}"
    },
    {
     "id": "ba:10012",
@@ -13007,7 +13282,9 @@
     "replied_at": null,
     "reminded": 0,
     "msg_id": null,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    }
   ],
   "kv": [
@@ -13117,7 +13394,7 @@
    },
    {
     "k": "commands_sent",
-    "v": "[[{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"}],[{\"command\":\"status\",\"description\":\"Is it running\"},{\"command\":\"review\",\"description\":\"Decide on WG ads you haven't answered\"},{\"command\":\"scan\",\"description\":\"Check for WG ads now\"},{\"command\":\"more\",\"description\":\"Send more WG ads now\"},{\"command\":\"pause\",\"description\":\"Stop the WG search, e.g. /pause 2h\"},{\"command\":\"start\",\"description\":\"Start (also un-pauses)\"},{\"command\":\"filters\",\"description\":\"Which WG ads qualify\"},{\"command\":\"settings\",\"description\":\"Timing\"},{\"command\":\"stats\",\"description\":\"Totals\"},{\"command\":\"retry\",\"description\":\"Re-draft failed replies\"},{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"},{\"command\":\"help\",\"description\":\"All commands\"}]]"
+    "v": "[[{\"command\":\"jobs\",\"description\":\"Job stats per person\"},{\"command\":\"waitinglist\",\"description\":\"Ads saved to apply later\"},{\"command\":\"tracker\",\"description\":\"Applications and their status\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"}],[{\"command\":\"status\",\"description\":\"Is it running\"},{\"command\":\"review\",\"description\":\"Decide on WG ads you haven't answered\"},{\"command\":\"scan\",\"description\":\"Check for WG ads now\"},{\"command\":\"more\",\"description\":\"Send more WG ads now\"},{\"command\":\"pause\",\"description\":\"Stop the WG search, e.g. /pause 2h\"},{\"command\":\"start\",\"description\":\"Start (also un-pauses)\"},{\"command\":\"filters\",\"description\":\"Which WG ads qualify\"},{\"command\":\"settings\",\"description\":\"Timing\"},{\"command\":\"stats\",\"description\":\"Totals\"},{\"command\":\"retry\",\"description\":\"Re-draft failed replies\"},{\"command\":\"jobs\",\"description\":\"Job stats per person\"},{\"command\":\"waitinglist\",\"description\":\"Ads saved to apply later\"},{\"command\":\"tracker\",\"description\":\"Applications and their status\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"},{\"command\":\"help\",\"description\":\"All commands\"}]]"
    },
    {
     "k": "cookies",
@@ -13350,7 +13627,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "bike",
-    "msg_id": 1190,
+    "msg_id": 1184,
     "checked_at": null
    },
    {
@@ -13413,7 +13690,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "bike",
-    "msg_id": 1198,
+    "msg_id": 1192,
     "checked_at": null
    },
    {
@@ -13455,7 +13732,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "bike",
-    "msg_id": 1207,
+    "msg_id": 1201,
     "checked_at": null
    },
    {
@@ -13497,7 +13774,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "bed",
-    "msg_id": 1202,
+    "msg_id": 1196,
     "checked_at": null
    },
    {
@@ -13518,7 +13795,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "kommode",
-    "msg_id": 1203,
+    "msg_id": 1197,
     "checked_at": null
    },
    {
@@ -13581,7 +13858,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "free",
-    "msg_id": 1201,
+    "msg_id": 1195,
     "checked_at": null
    },
    {
@@ -13623,7 +13900,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "carpet",
-    "msg_id": 1200,
+    "msg_id": 1194,
     "checked_at": null
    },
    {
@@ -13665,7 +13942,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "carpet",
-    "msg_id": 1205,
+    "msg_id": 1199,
     "checked_at": null
    },
    {
@@ -13686,7 +13963,7 @@
     "notes": "[\"Size not stated - ask\"]",
     "rating_why": "Cheap",
     "item": "carpet",
-    "msg_id": 1204,
+    "msg_id": 1198,
     "checked_at": null
    },
    {
@@ -13724,7 +14001,7 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1192,
+    "msg_id": 1186,
     "checked_at": null
    },
    {
@@ -13739,7 +14016,7 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1193,
+    "msg_id": 1187,
     "checked_at": null
    },
    {
@@ -13784,7 +14061,7 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1194,
+    "msg_id": 1188,
     "checked_at": null
    }
   ],
@@ -13810,8 +14087,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1199,
-    "checked_at": null
+    "msg_id": 1193,
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "an:web-cottbus",
@@ -13835,7 +14114,9 @@
     "replied_at": null,
     "reminded": 0,
     "msg_id": null,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10001",
@@ -13858,8 +14139,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1186,
-    "checked_at": null
+    "msg_id": 1180,
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10002",
@@ -13883,7 +14166,9 @@
     "replied_at": null,
     "reminded": 0,
     "msg_id": null,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10004",
@@ -13907,7 +14192,9 @@
     "replied_at": null,
     "reminded": 0,
     "msg_id": null,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10005",
@@ -13931,7 +14218,9 @@
     "replied_at": null,
     "reminded": 0,
     "msg_id": null,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10006",
@@ -13954,8 +14243,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1187,
-    "checked_at": null
+    "msg_id": 1181,
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10008",
@@ -13979,7 +14270,9 @@
     "replied_at": null,
     "reminded": 0,
     "msg_id": null,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10009",
@@ -14002,8 +14295,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1188,
-    "checked_at": null
+    "msg_id": 1182,
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10010",
@@ -14026,8 +14321,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1195,
-    "checked_at": null
+    "msg_id": 1189,
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10011",
@@ -14050,8 +14347,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1196,
-    "checked_at": null
+    "msg_id": 1190,
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10012",
@@ -14074,8 +14373,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1197,
-    "checked_at": null
+    "msg_id": 1191,
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    }
   ],
   "kv": [
@@ -14129,7 +14430,7 @@
    },
    {
     "k": "commands_sent",
-    "v": "[[{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"}],[{\"command\":\"status\",\"description\":\"Is it running\"},{\"command\":\"review\",\"description\":\"Decide on WG ads you haven't answered\"},{\"command\":\"scan\",\"description\":\"Check for WG ads now\"},{\"command\":\"more\",\"description\":\"Send more WG ads now\"},{\"command\":\"pause\",\"description\":\"Stop the WG search, e.g. /pause 2h\"},{\"command\":\"start\",\"description\":\"Start (also un-pauses)\"},{\"command\":\"filters\",\"description\":\"Which WG ads qualify\"},{\"command\":\"settings\",\"description\":\"Timing\"},{\"command\":\"stats\",\"description\":\"Totals\"},{\"command\":\"retry\",\"description\":\"Re-draft failed replies\"},{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"},{\"command\":\"help\",\"description\":\"All commands\"}]]"
+    "v": "[[{\"command\":\"jobs\",\"description\":\"Job stats per person\"},{\"command\":\"waitinglist\",\"description\":\"Ads saved to apply later\"},{\"command\":\"tracker\",\"description\":\"Applications and their status\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"}],[{\"command\":\"status\",\"description\":\"Is it running\"},{\"command\":\"review\",\"description\":\"Decide on WG ads you haven't answered\"},{\"command\":\"scan\",\"description\":\"Check for WG ads now\"},{\"command\":\"more\",\"description\":\"Send more WG ads now\"},{\"command\":\"pause\",\"description\":\"Stop the WG search, e.g. /pause 2h\"},{\"command\":\"start\",\"description\":\"Start (also un-pauses)\"},{\"command\":\"filters\",\"description\":\"Which WG ads qualify\"},{\"command\":\"settings\",\"description\":\"Timing\"},{\"command\":\"stats\",\"description\":\"Totals\"},{\"command\":\"retry\",\"description\":\"Re-draft failed replies\"},{\"command\":\"jobs\",\"description\":\"Job stats per person\"},{\"command\":\"waitinglist\",\"description\":\"Ads saved to apply later\"},{\"command\":\"tracker\",\"description\":\"Applications and their status\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"},{\"command\":\"help\",\"description\":\"All commands\"}]]"
    },
    {
     "k": "cookies",
@@ -14314,7 +14615,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "bike",
-    "msg_id": 1218,
+    "msg_id": 1212,
     "checked_at": null
    },
    {
@@ -14377,7 +14678,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "bike",
-    "msg_id": 1226,
+    "msg_id": 1220,
     "checked_at": null
    },
    {
@@ -14419,7 +14720,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "bed",
-    "msg_id": 1230,
+    "msg_id": 1224,
     "checked_at": null
    },
    {
@@ -14440,7 +14741,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "kommode",
-    "msg_id": 1231,
+    "msg_id": 1225,
     "checked_at": null
    },
    {
@@ -14503,7 +14804,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "free",
-    "msg_id": 1229,
+    "msg_id": 1223,
     "checked_at": null
    },
    {
@@ -14545,7 +14846,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "carpet",
-    "msg_id": 1228,
+    "msg_id": 1222,
     "checked_at": null
    },
    {
@@ -14587,7 +14888,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "carpet",
-    "msg_id": 1233,
+    "msg_id": 1227,
     "checked_at": null
    },
    {
@@ -14608,7 +14909,7 @@
     "notes": "[\"Size not stated - ask\"]",
     "rating_why": "Cheap",
     "item": "carpet",
-    "msg_id": 1232,
+    "msg_id": 1226,
     "checked_at": null
    },
    {
@@ -14646,7 +14947,7 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1220,
+    "msg_id": 1214,
     "checked_at": null
    },
    {
@@ -14661,7 +14962,7 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1221,
+    "msg_id": 1215,
     "checked_at": null
    },
    {
@@ -14706,7 +15007,7 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1222,
+    "msg_id": 1216,
     "checked_at": null
    }
   ],
@@ -14732,8 +15033,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1227,
-    "checked_at": null
+    "msg_id": 1221,
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "an:web-cottbus",
@@ -14757,7 +15060,9 @@
     "replied_at": null,
     "reminded": 0,
     "msg_id": null,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10001",
@@ -14780,8 +15085,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1214,
-    "checked_at": null
+    "msg_id": 1208,
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10002",
@@ -14805,7 +15112,9 @@
     "replied_at": null,
     "reminded": 0,
     "msg_id": null,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10004",
@@ -14829,7 +15138,9 @@
     "replied_at": null,
     "reminded": 0,
     "msg_id": null,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10005",
@@ -14853,7 +15164,9 @@
     "replied_at": null,
     "reminded": 0,
     "msg_id": null,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10006",
@@ -14876,8 +15189,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1215,
-    "checked_at": null
+    "msg_id": 1209,
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10008",
@@ -14901,7 +15216,9 @@
     "replied_at": null,
     "reminded": 0,
     "msg_id": null,
-    "checked_at": null
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10009",
@@ -14924,8 +15241,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1216,
-    "checked_at": null
+    "msg_id": 1210,
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10010",
@@ -14948,8 +15267,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1223,
-    "checked_at": null
+    "msg_id": 1217,
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10011",
@@ -14972,8 +15293,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1224,
-    "checked_at": null
+    "msg_id": 1218,
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    },
    {
     "id": "ba:10012",
@@ -14996,8 +15319,10 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1225,
-    "checked_at": null
+    "msg_id": 1219,
+    "checked_at": null,
+    "approved_at": null,
+    "was": null
    }
   ],
   "kv": [
@@ -15043,7 +15368,7 @@
    },
    {
     "k": "commands_sent",
-    "v": "[[{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"}],[{\"command\":\"status\",\"description\":\"Is it running\"},{\"command\":\"review\",\"description\":\"Decide on WG ads you haven't answered\"},{\"command\":\"scan\",\"description\":\"Check for WG ads now\"},{\"command\":\"more\",\"description\":\"Send more WG ads now\"},{\"command\":\"pause\",\"description\":\"Stop the WG search, e.g. /pause 2h\"},{\"command\":\"start\",\"description\":\"Start (also un-pauses)\"},{\"command\":\"filters\",\"description\":\"Which WG ads qualify\"},{\"command\":\"settings\",\"description\":\"Timing\"},{\"command\":\"stats\",\"description\":\"Totals\"},{\"command\":\"retry\",\"description\":\"Re-draft failed replies\"},{\"command\":\"jobs\",\"description\":\"Job board - where each application stands\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"},{\"command\":\"help\",\"description\":\"All commands\"}]]"
+    "v": "[[{\"command\":\"jobs\",\"description\":\"Job stats per person\"},{\"command\":\"waitinglist\",\"description\":\"Ads saved to apply later\"},{\"command\":\"tracker\",\"description\":\"Applications and their status\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"}],[{\"command\":\"status\",\"description\":\"Is it running\"},{\"command\":\"review\",\"description\":\"Decide on WG ads you haven't answered\"},{\"command\":\"scan\",\"description\":\"Check for WG ads now\"},{\"command\":\"more\",\"description\":\"Send more WG ads now\"},{\"command\":\"pause\",\"description\":\"Stop the WG search, e.g. /pause 2h\"},{\"command\":\"start\",\"description\":\"Start (also un-pauses)\"},{\"command\":\"filters\",\"description\":\"Which WG ads qualify\"},{\"command\":\"settings\",\"description\":\"Timing\"},{\"command\":\"stats\",\"description\":\"Totals\"},{\"command\":\"retry\",\"description\":\"Re-draft failed replies\"},{\"command\":\"jobs\",\"description\":\"Job stats per person\"},{\"command\":\"waitinglist\",\"description\":\"Ads saved to apply later\"},{\"command\":\"tracker\",\"description\":\"Applications and their status\"},{\"command\":\"cv\",\"description\":\"Send the CVs\"},{\"command\":\"jobreport\",\"description\":\"Jobs report: matches, answers, what to learn\"},{\"command\":\"skills\",\"description\":\"Skills list, e.g. /skills diba + Power BI\"},{\"command\":\"finds\",\"description\":\"Bike, bed, Kommode, carpet & free stuff alerts\"},{\"command\":\"casual\",\"description\":\"Minijobs: which town, how far around it\"},{\"command\":\"help\",\"description\":\"All commands\"}]]"
    },
    {
     "k": "cookies",

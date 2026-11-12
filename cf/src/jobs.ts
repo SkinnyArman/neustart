@@ -22,6 +22,7 @@ import { loadConfig, NO_CONFIG, type Config, type Person } from "./config.ts";
 import { fmtLeft } from "./settings.ts";
 import type { Store } from "./store.ts";
 import { esc, inTopic, type Button, type Telegram } from "./telegram.ts";
+import { xlsx } from "./xlsx.ts";
 import { introduce, topicOf } from "./topics.ts";
 import { noteError, noteOk } from "./watch.ts";
 
@@ -123,13 +124,15 @@ const COLUMNS: Record<string, string> = {
   dkey: "TEXT",                  // dedupeKey across sources
   source: "TEXT", title: "TEXT", company: "TEXT", place: "TEXT", url: "TEXT",
   remote: "INTEGER", kind: "TEXT", text: "TEXT",
-  status: "TEXT NOT NULL",       // new → ready → posted → applied → interview → offer | rejected; skipped
+  status: "TEXT NOT NULL",       // new → ready → posted → (approved: waiting list →) applied|already → interview → offer → accepted|declined | rejected; skipped
   why: "TEXT", person: "TEXT",   // a person's id, "both"/"all", or "a,b"; who applied, once applied
   facts: "TEXT",                 // JSON from the AI: why, gaps, german, hours, start, deadline, lang, skills
   attempts: "INTEGER NOT NULL DEFAULT 0",
   first_seen: "INTEGER NOT NULL", posted_at: "INTEGER", applied_at: "INTEGER",
   replied_at: "INTEGER", reminded: "INTEGER NOT NULL DEFAULT 0", msg_id: "INTEGER",
   checked_at: "INTEGER",         // when a posted job was last looked up again
+  approved_at: "INTEGER",        // put on the waiting list (🔖 Apply later)
+  was: "TEXT",                   // JSON {status, person} before the last button: what ↩️ Undo goes back to
 };
 const ready = new WeakSet<D1Database>();
 async function ensureTable(db: D1Database) {
@@ -149,7 +152,7 @@ export interface JobRow {
   url: string; remote: number; kind: string | null; text: string | null; status: string;
   why: string | null; person: string | null; facts: string | null; attempts: number;
   first_seen: number; posted_at: number | null; applied_at: number | null;
-  replied_at: number | null; reminded: number; msg_id: number | null;
+  replied_at: number | null; reminded: number; msg_id: number | null; approved_at?: number | null; was?: string | null;
 }
 interface Facts {
   for: string;   // a person's id, everyone ("both"/"all"), some ("a,b"), or "none"
@@ -446,9 +449,18 @@ const KIND: Record<string, string> = {
   "part-time": "⏱ Part-time", junior: "💼 Junior", other: "💼 Job",
 };
 const STATUS: Record<string, string> = {
-  posted: "", applied: "✅ Applied", already: "🔁 Applied before", interview: "🗓 Interview",
-  rejected: "❌ Rejected", offer: "🎉 Offer", skipped: "⏭ Skipped", expired: "🚫 No longer listed",
+  posted: "", approved: "🔖 On the waiting list", applied: "⏳ Waiting for an answer", already: "⏳ Waiting for an answer",
+  interview: "🗓 Interview set", rejected: "❌ Rejected", offer: "🎉 Offer received", declined: "🙅 Offer declined",
+  accepted: "🤝 Offer accepted", skipped: "⏭ Skipped", expired: "🚫 No longer listed",
 };
+/** The tracker's statuses, in order, with the button that sets each. */
+const TRACK: [string, string, string][] = [
+  ["wait", "applied", "⏳ Waiting"], ["rej", "rejected", "❌ Rejected"], ["int", "interview", "🗓 Interview set"],
+  ["off", "offer", "🎉 Offer received"], ["dec", "declined", "🙅 Offer declined"], ["acc", "accepted", "🤝 Offer accepted"],
+];
+const TRACKED = ["applied", "already", "interview", "rejected", "offer", "declined", "accepted"];
+/** A table row in <pre>: the label padded by what's seen (an emoji is one), then the number. */
+const rowOf = (label: string, n: number, width = 20) => `${label}${" ".repeat(Math.max(2, width - [...label].length))}${n}`;
 
 const forWhom = (j: Jobs, person: string | null) => {
   const one = single(j, person);
@@ -459,25 +471,22 @@ const forWhom = (j: Jobs, person: string | null) => {
 
 export function card(row: JobRow, j: Jobs): string {
   const f: Partial<Facts> = row.facts ? JSON.parse(row.facts) : {};
-  const facts = [
-    f.german ? `🗣 German: ${f.german}` : "", f.hours ? `⏱ ${f.hours}` : "",
-    f.start ? `📅 start ${f.start}` : "", f.deadline ? `⏳ apply by ${f.deadline}` : "",
-  ].filter(Boolean).join(" · ");
   const st = STATUS[row.status] ?? "";
-  const who = row.status !== "posted" && single(j, row.person) && row.applied_at
-    ? ` by ${nameOf(j, row.person!)}` : "";
-  // one block per thing, a blank line between: who and what kind, why,
-  // the requirements, the gaps, the link, then where the application stands
-  const blocks = [
-    `💼 <b>${esc(row.title)}</b>\n${esc(row.company)}${row.place ? ` · ${esc(row.place)}` : ""} · via ${row.source}`,
-    `${forWhom(j, row.person)}\n${KIND[f.kind ?? "other"] ?? KIND.other}`,
+  const by = single(j, row.person) && (row.applied_at || row.approved_at) && row.status !== "posted" ? ` by ${nameOf(j, row.person!)}` : "";
+  const when = row.replied_at ?? row.applied_at ?? row.approved_at;
+  // one section per thing, a blank line between: what and where, who it's
+  // for, why, the requirements (one per line), the gaps, the link, the status
+  const sections = [
+    [`💼 <b>${esc(row.title)}</b>`, `🏢 ${esc(row.company)}`, `📍 ${[row.place ? esc(row.place) : "", `via ${esc(row.source)}`].filter(Boolean).join(" · ")}`].join("\n"),
+    [forWhom(j, row.person), KIND[f.kind ?? "other"] ?? KIND.other].filter(Boolean).join(" · "),
     f.why ? `<i>${esc(f.why)}</i>` : "",
-    facts ? esc(facts) : "",
-    f.gaps?.length ? `Gaps:\n${f.gaps.map((g) => `• ${esc(g)}`).join("\n")}` : "",
-    `<a href="${esc(row.url)}">open the job</a>`,
-    st ? `<b>${st}${who}${row.applied_at ? ` · ${day(row.applied_at)}` : ""}</b>` : "",
+    [f.german ? `🗣 German: ${esc(f.german)}` : "", f.hours ? `⏱ Hours: ${esc(f.hours)}` : "",
+      f.start ? `📅 Start: ${esc(f.start)}` : "", f.deadline ? `⏳ Apply by: ${esc(f.deadline)}` : ""].filter(Boolean).join("\n"),
+    f.gaps?.length ? `⚠️ <b>Gaps</b>\n${f.gaps.map((g) => `• ${esc(g)}`).join("\n")}` : "",
+    `🔗 <a href="${esc(row.url)}">Open the job</a>`,
+    st ? `<b>${st}${by}${when ? ` · ${day(when)}` : ""}</b>` : "",
   ];
-  return blocks.filter(Boolean).join("\n\n");
+  return sections.filter(Boolean).join("\n\n");
 }
 
 // Telegram allows 64 bytes of data on a button, and Arbeitnow's ids can be
@@ -498,18 +507,31 @@ export function jobKeyboard(row: JobRow, j: Jobs): Button[][] {
   const each = (a: string, label: string) => many.length
     ? many.map((w) => ({ text: `${label} (${nameOf(j, w)})`, callback_data: buttonData(a, w, id) }))
     : [{ text: label, callback_data: buttonData(a, row.person, id) }];
-  switch (row.status) {
-    case "posted":
-      return [each("letter", "✍️ Cover letter"), each("applied", "✅ Applied"),
-        [...each("already", "🔁 Already applied"), { text: "⏭ Skip", callback_data: buttonData("skip", "-", id) }]];
-    case "applied": case "already":
-      return [[{ text: "🗓 Interview", callback_data: buttonData("interview", "-", id) },
-        { text: "❌ Rejected", callback_data: buttonData("rejected", "-", id) }, { text: "🎉 Offer", callback_data: buttonData("offer", "-", id) }]];
-    case "interview":
-      return [[{ text: "❌ Rejected", callback_data: buttonData("rejected", "-", id) }, { text: "🎉 Offer", callback_data: buttonData("offer", "-", id) }]];
-    default:
-      return [];
+  const skip = { text: "⏭ Skip", callback_data: buttonData("skip", "-", id) };
+  if (row.status === "posted")
+    return [each("letter", "✍️ Cover letter"), [...each("applied", "✅ Applied"), ...each("already", "🔁 Already applied")],
+      [...each("later", "🔖 Apply later"), skip]];
+  if (row.status === "approved")
+    return [each("letter", "✍️ Cover letter"), [...each("applied", "✅ Applied"), ...each("already", "🔁 Already applied")], [skip]];
+  if (TRACKED.includes(row.status)) {
+    const now = row.status === "already" ? "applied" : row.status;
+    const b = TRACK.map(([code, st, label]) => ({ text: st === now ? `• ${label} •` : label, callback_data: buttonData(`t${code}`, "-", id) }));
+    return [b.slice(0, 2), b.slice(2, 4), b.slice(4, 6)];
   }
+  return [];
+}
+
+/** A job in the tracker: short, with its status and the buttons to change it. */
+export function trackerCard(row: JobRow, j: Jobs, note = ""): string {
+  const who = single(j, row.person) ? `${byId(j, row.person!)!.icon} ${nameOf(j, row.person!)}` : forWhom(j, row.person);
+  return [
+    note,
+    [`📋 <b>${esc(row.title)}</b>`, `🏢 ${esc(row.company)}${row.place ? ` · 📍 ${esc(row.place)}` : ""}`].join("\n"),
+    [who, row.applied_at ? `applied ${day(row.applied_at)}` : "", row.replied_at && row.status !== "applied" && row.status !== "already" ? `updated ${day(row.replied_at)}` : ""]
+      .filter(Boolean).join(" · "),
+    `Status: <b>${STATUS[row.status] ?? row.status}</b>`,
+    `🔗 <a href="${esc(row.url)}">Open the job</a>`,
+  ].filter(Boolean).join("\n\n");
 }
 
 const topic = async (cfg: Config, store: Store, tg: Telegram) => inTopic(await topicOf(cfg, store, tg, "jobs"));
@@ -544,8 +566,20 @@ async function post(env: JobsEnv, store: Store, tg: Telegram, cfg: Config): Prom
  */
 async function repost(db: D1Database, store: Store, tg: Telegram, j: Jobs): Promise<number> {
   const mode = await store.kvGet("jobs_repost");
-  if (mode !== "1" && mode !== "recheck") return 0;
+  if (mode !== "1" && mode !== "recheck" && mode !== "all") return 0;
   await store.kvSet("jobs_repost", "0");
+  // all: every job message the bot knows of comes down (tracked ones stay
+  // tracked, in /jobs); the open ones go out again in the current layout
+  if (mode === "all") {
+    const { results } = await db.prepare("SELECT id, status, msg_id FROM jobs WHERE msg_id IS NOT NULL").all<{ id: string; status: string; msg_id: number }>();
+    let stuck = 0;
+    for (const r of results ?? []) {
+      try { await tg.deleteMessage(r.msg_id); } catch { stuck++; }
+      await setJob(db, r.id, r.status === "posted" ? { status: "ready", msg_id: null } : { msg_id: null });
+    }
+    await store.kvSet("jobs_repost_stuck", String(stuck));
+    return results?.length ?? 0;
+  }
   const active = await activePeople(store, j);
   const { results } = await db.prepare("SELECT id, msg_id, title, kind FROM jobs WHERE status='posted'")
     .all<{ id: string; msg_id: number | null; title: string; kind: string | null }>();
@@ -570,7 +604,7 @@ async function recheck(env: JobsEnv, store: Store, tg: Telegram, cfg: Config): P
   const db = env.DB;
   const t = now();
   const { results } = await db.prepare(
-    `SELECT * FROM jobs WHERE status='posted' AND (id LIKE 'ba:%' OR id LIKE 'an:%') AND posted_at < ? AND COALESCE(checked_at, 0) < ?
+    `SELECT * FROM jobs WHERE status IN ('posted','approved') AND (id LIKE 'ba:%' OR id LIKE 'an:%') AND posted_at < ? AND COALESCE(checked_at, 0) < ?
      ORDER BY COALESCE(checked_at, posted_at) LIMIT 2`).bind(t - RECHECK_AFTER, t - RECHECK_AFTER).all<JobRow>();
   let gone = 0;
   for (const row of results ?? []) {
@@ -580,8 +614,9 @@ async function recheck(env: JobsEnv, store: Store, tg: Telegram, cfg: Config): P
     try { status = (await fetch(url, row.id.startsWith("ba:") ? { headers: BA_KEY } : { redirect: "manual" })).status; } catch { /* try again later */ }
     if (status !== 404 && status !== 410) { if (status) await setJob(db, row.id, { checked_at: t }); continue; }
     const expired = { ...row, status: "expired" };
-    await setJob(db, row.id, { status: "expired", checked_at: t });
-    if (row.msg_id) try { await tg.editText(tg.chat, row.msg_id, card(expired, cfg.jobs), []); } catch { /* too old, or deleted */ }
+    await setJob(db, row.id, { status: "expired", checked_at: t, msg_id: null });
+    if (row.msg_id) try { await tg.deleteMessage(row.msg_id); }
+    catch { try { await tg.editText(tg.chat, row.msg_id, card(expired, cfg.jobs), []); } catch { /* gone already */ } }
     gone++;
   }
   return gone;
@@ -593,11 +628,8 @@ async function remind(env: JobsEnv, store: Store, tg: Telegram, cfg: Config): Pr
     `SELECT * FROM jobs WHERE status IN ('applied','already') AND reminded=0 AND applied_at < ? LIMIT 3`)
     .bind(now() - FOLLOW_UP_DAYS * 86400).all<JobRow>();
   for (const row of results ?? []) {
-    const who = single(cfg.jobs, row.person) ? `${nameOf(cfg.jobs, row.person!)}, ` : "";
-    await tg.send(
-      `⏰ ${who}no answer from <b>${esc(row.company)}</b> for <i>${esc(row.title)}</i> after ${FOLLOW_UP_DAYS} days. ` +
-      `A short follow-up email often helps - or mark it below.`,
-      { ...tg.keyboard(jobKeyboard(row, cfg.jobs)), ...(await topic(cfg, store, tg)), ...(row.msg_id ? { reply_to_message_id: row.msg_id } : {}) });
+    await tg.send(trackerCard(row, cfg.jobs, `⏰ <b>No answer after ${FOLLOW_UP_DAYS} days</b> - a short follow-up email often helps, or set the status below.`),
+      { ...tg.keyboard(jobKeyboard(row, cfg.jobs)), ...(await topic(cfg, store, tg)) });
     await setJob(db, row.id, { reminded: 1 });
   }
   return results?.length ?? 0;
@@ -611,8 +643,17 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
   if (!cfg?.modules.jobs) { await tg.answerCallback(cq.id, cfg ? "Jobs are switched off" : NO_CONFIG); return; }
   const j = cfg.jobs;
   await ensureTable(db);
-  const [, act, who, ...rest] = String(cq.data).split(":");
+  const [, raw, who, ...rest] = String(cq.data).split(":");
+  // buttons on cards from before the tracker still work
+  const act = ({ interview: "tint", rejected: "trej", offer: "toff", approve: "later" } as Record<string, string>)[raw] ?? raw;
   const ref = rest.join(":");
+  // jb:list:<waiting|tracker>:- - the board's buttons: the same as the commands
+  if (act === "csv") { await tg.answerCallback(cq.id, "Making the CSV…"); await sendTrackerCsv(db, store, tg, cfg); return; }
+  if (act === "list") {
+    await tg.answerCallback(cq.id);
+    await (who === "tracker" ? sendTracker : sendWaitingList)(db, store, tg, cfg);
+    return;
+  }
   // "~…": the end of a long id (see buttonData)
   const row = ref.startsWith("~")
     ? await db.prepare("SELECT * FROM jobs WHERE substr(id, -?) = ?").bind(ref.length - 1, ref.slice(1)).first<JobRow>()
@@ -638,23 +679,152 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
   }
 
   const t = now();
-  const next: Record<string, Record<string, unknown>> = {
-    applied: { status: "applied", applied_at: t, person: who },
-    already: { status: "already", applied_at: t, person: who },
-    skip: { status: "skipped", why: "skipped by you" },
-    interview: { status: "interview", replied_at: row.replied_at ?? t },
-    rejected: { status: "rejected", replied_at: row.replied_at ?? t },
-    offer: { status: "offer", replied_at: row.replied_at ?? t },
+  const chat = cq.message?.chat?.id, msg = cq.message?.message_id;
+  const edit = async (text: string, kb: Button[][]) => { try { await tg.editText(chat, msg, text, kb); } catch { /* unchanged */ } };
+  const undoBtn = [[{ text: "↩️ Undo", callback_data: buttonData("undo", "-", id) }]];
+  const what = `ad for <b>${esc(row.title)}</b> at <b>${esc(row.company)}</b>`;
+
+  // tracker statuses: the message changes in place
+  const track = TRACK.find(([code]) => act === `t${code}`);
+  if (track) {
+    const st = track[1];
+    await setJob(db, id, { status: st, replied_at: st === "applied" ? null : t });
+    const updated = { ...row, status: st, replied_at: st === "applied" ? null : t } as JobRow;
+    await tg.answerCallback(cq.id, STATUS[st]);
+    await edit(trackerCard(updated, j), jobKeyboard(updated, j));
+    return;
+  }
+
+  // ↩️ Undo: back to where it was, the full card again
+  if (act === "undo") {
+    const was: { status?: string; person?: string | null } = row.was ? JSON.parse(row.was) : {};
+    if (!was.status) { await tg.answerCallback(cq.id, "Nothing to undo"); return; }
+    const back = { status: was.status, person: was.person ?? row.person, was: null,
+      ...(TRACKED.includes(row.status) && !TRACKED.includes(was.status) ? { applied_at: null } : {}),
+      ...(row.status === "approved" && was.status !== "approved" ? { approved_at: null } : {}),
+      ...(row.status === "skipped" ? { why: null } : {}) };
+    await setJob(db, id, back);
+    const updated = { ...row, ...back } as JobRow;
+    await tg.answerCallback(cq.id, "↩️ Undone");
+    await edit(card(updated, j), jobKeyboard(updated, j));
+    return;
+  }
+
+  // skip, applied, already applied, apply later: the card turns into one line with an Undo
+  const moves: Record<string, [Record<string, unknown>, string]> = {
+    skip: [{ status: "skipped", why: "skipped by you" }, `⏭ The ${what} skipped.`],
+    applied: [{ status: "applied", applied_at: t, replied_at: null, person: who }, `✅ The ${what} moved to the tracker${byId(j, who) ? ` (applied by ${nameOf(j, who)})` : ""}.\n<i>/tracker - all of them</i>`],
+    already: [{ status: "already", applied_at: t, replied_at: null, person: who }, `🔁 The ${what} moved to the tracker${byId(j, who) ? ` (${nameOf(j, who)} applied before)` : ""}.\n<i>/tracker - all of them</i>`],
+    later: [{ status: "approved", approved_at: t, person: who }, `🔖 The ${what} moved to the waiting list${byId(j, who) ? ` (for ${nameOf(j, who)})` : ""}.\n<i>/waitinglist - all of them</i>`],
   };
-  if (!next[act]) { await tg.answerCallback(cq.id); return; }
-  await setJob(db, id, next[act]);
-  const updated = { ...row, ...next[act] } as JobRow;
-  await tg.answerCallback(cq.id, STATUS[updated.status] || "Saved");
-  const msgId = row.msg_id ?? cq.message?.message_id;
-  try { await tg.editText(cq.message.chat.id, msgId, card(updated, j), jobKeyboard(updated, j)); } catch { /* unchanged or too old */ }
-  // the reminder message itself loses its buttons once answered
-  if (cq.message?.message_id && cq.message.message_id !== msgId)
-    try { await tg.clearKeyboard(cq.message.chat.id, cq.message.message_id); } catch { /* fine */ }
+  const m = moves[act];
+  if (!m) { await tg.answerCallback(cq.id); return; }
+  await setJob(db, id, { ...m[0], was: JSON.stringify({ status: row.status, person: row.person }) });
+  await tg.answerCallback(cq.id, { skip: "⏭ Skipped", applied: "✅ Moved to the tracker", already: "🔁 Moved to the tracker", later: "🔖 Moved to the waiting list" }[act]);
+  await edit(m[1].replace("The ad for", "Ad for"), undoBtn);
+}
+
+/** /waitinglist: every ad on the waiting list, as its card - ready to apply. */
+export async function sendWaitingList(db: D1Database, store: Store, tg: Telegram, cfg: Config): Promise<void> {
+  await ensureTable(db);
+  const { results } = await db.prepare("SELECT * FROM jobs WHERE status='approved' ORDER BY approved_at LIMIT 20").all<JobRow>();
+  const where = await topic(cfg, store, tg);
+  const rows = results ?? [];
+  await tg.send(rows.length ? `🔖 <b>Waiting list</b> · ${rows.length} ad${rows.length > 1 ? "s" : ""} to apply to` : "🔖 <b>Waiting list</b>\n\nNothing on it. 🔖 Apply later on a job card puts it here.", where);
+  for (const r of rows) {
+    const sent = await tg.send(card(r, cfg.jobs), { ...tg.keyboard(jobKeyboard(r, cfg.jobs)), ...where });
+    await setJob(db, r.id, { msg_id: sent?.result?.message_id ?? null });
+  }
+}
+
+// ---------------------------------------------------------------- the tracker as a spreadsheet
+/** "remote", "hybrid" or "on-site", from the listing's remote flag, its place and text. */
+export function workMode(row: Pick<JobRow, "remote" | "place" | "text" | "title">): string {
+  const t = `${row.place ?? ""} ${row.title ?? ""} ${row.text ?? ""}`.toLowerCase();
+  if (/hybrid|home ?office|homeoffice|mobiles? arbeit|teilweise remote|remote[- ]anteil|\d+ ?tage? (remote|home)/.test(t)) return "hybrid";
+  if (row.remote || /\bremote\b|100 ?% remote|fully remote|vollständig remote/.test(t)) return "remote";
+  return "on-site";
+}
+/**
+ * German, from what the AI read in the ad (it comes with the match, no extra
+ * call) or else from the ad's text: [required?, level]. "not stated" when
+ * neither says - a LinkedIn job has only its title.
+ */
+export function germanOf(german: string | undefined, text = ""): [string, string] {
+  const g = (german ?? "").trim();
+  if (/not (required|needed)|^none$|^no\b|nicht (erforderlich|notwendig)|english only|optional|nice to have|von vorteil|^plus$/i.test(g)) return ["no", ""];
+  const level = (s: string) => /\b([ABC][12])\b/i.exec(s)?.[1]?.toUpperCase()
+    ?? (/native|mutterspr/i.test(s) ? "native" : /fluent|fließend|verhandlungssicher|sehr gut|excellent/i.test(s) ? "fluent (C1+)"
+      : /good|gut/i.test(s) ? "good (B2)" : /basic|grund/i.test(s) ? "basic (A2-B1)" : "");
+  if (g && !/not (stated|mentioned)|unknown|unclear/i.test(g)) return ["yes", level(g) || g.slice(0, 40)];
+  // the ad's own words: "sehr gute Deutschkenntnisse", "German (C1)", "fließend Deutsch"
+  const m = /[^.\n]{0,60}(deutschkenntnisse|deutsch(?:e|en)? sprach|german (?:skills|language|is required|proficiency)|fließend(?:es)? deutsch|deutsch (?:in wort und schrift|fließend|auf [abc][12])|\bgerman\b[^.\n]{0,20}\b[abc][12]\b|\bdeutsch\b[^.\n]{0,20}\b[abc][12]\b)[^.\n]{0,40}/i.exec(text);
+  if (m) return /von vorteil|wünschenswert|nice to have|a plus|ein plus|optional/i.test(m[0]) ? ["no", ""] : ["yes", level(m[0]) || "stated, no level"];
+  return ["not stated", ""];
+}
+/**
+ * Every application in the tracker, one row each. "Career-centered": a role
+ * in the person's own field that builds the career - Werkstudent, internship,
+ * thesis or junior (the AI's kind) with an on-topic title; "general": a
+ * part-time or other job on the side.
+ */
+export function trackerRows(rows: JobRow[], j: Jobs): string[][] {
+  const field = (r: JobRow, kind = "") => {
+    const ps = peopleOf(j, r.person).map((w) => byId(j, w)).filter(Boolean) as Person[];
+    const onTopic = ps.some((p) => topicRx(p).test(r.title.toLowerCase()));
+    return onTopic && ["werkstudent", "internship", "thesis", "junior"].includes(kind) ? "career-centered" : "general";
+  };
+  return rows.map((r) => {
+    const f: Partial<Facts> = r.facts ? JSON.parse(r.facts) : {};
+    const [need, lvl] = germanOf(f.german, r.text ?? "");
+    const city = (r.place ?? "").split(/[,·(]/)[0].trim();
+    return [r.title, r.company, city, workMode(r), (STATUS[r.status] ?? r.status).replace(/^\S+\s/, ""), field(r, f.kind ?? r.kind ?? ""), need, lvl];
+  });
+}
+const HEAD: { title: string; fill: string; width: number }[] = [
+  { title: "Title", fill: "BFDBFE", width: 44 }, { title: "Company", fill: "C7D2FE", width: 26 },
+  { title: "City", fill: "BBF7D0", width: 14 }, { title: "Remote / hybrid / on-site", fill: "A7F3D0", width: 22 },
+  { title: "Status", fill: "FDE68A", width: 22 }, { title: "General or career-centered", fill: "FBCFE8", width: 24 },
+  { title: "German required", fill: "FED7AA", width: 16 }, { title: "German level", fill: "FECACA", width: 16 },
+];
+/** Each status its own light colour, so the column reads at a glance. */
+const STATUS_FILL: Record<string, string> = {
+  "Waiting for an answer": "FEF9C3", "Interview set": "DBEAFE", "Offer received": "DCFCE7", "Offer accepted": "BBF7D0",
+  "Offer declined": "F3F4F6", "Rejected": "FEE2E2",
+};
+export const trackerXlsx = (rows: JobRow[], j: Jobs) => xlsx({ name: "Tracker", head: HEAD, rows: trackerRows(rows, j),
+  cellFill: (_r, c, v) => (c === 4 ? STATUS_FILL[v] : undefined) });
+const csvCell = (v: string) => (/[",\n;]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+/** The same as plain CSV (no colours: a CSV can't hold them). */
+export const trackerCsv = (rows: JobRow[], j: Jobs) =>
+  "\ufeff" + [HEAD.map((h) => h.title), ...trackerRows(rows, j)].map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
+export async function sendTrackerCsv(db: D1Database, store: Store, tg: Telegram, cfg: Config): Promise<void> {
+  await ensureTable(db);
+  const { results } = await db.prepare(
+    `SELECT * FROM jobs WHERE status IN (${TRACKED.map(() => "?").join(",")}) ORDER BY COALESCE(applied_at, posted_at)`).bind(...TRACKED).all<JobRow>();
+  const where = await topic(cfg, store, tg);
+  if (!results?.length) { await tg.send("📋 Nothing in the tracker yet - no CSV to make.", where); return; }
+  await tg.sendFile(`tracker-${new Date(Date.now()).toISOString().slice(0, 10)}.xlsx`, trackerXlsx(results, cfg.jobs),
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    { ...where, caption: `📥 Tracker · ${results.length} application${results.length > 1 ? "s" : ""}` });
+}
+
+/** /tracker: the counts, then every application with its status and the buttons to change it. */
+export async function sendTracker(db: D1Database, store: Store, tg: Telegram, cfg: Config): Promise<void> {
+  await ensureTable(db);
+  const { results } = await db.prepare(
+    `SELECT * FROM jobs WHERE status IN (${TRACKED.map(() => "?").join(",")}) ORDER BY COALESCE(replied_at, applied_at) DESC LIMIT 25`)
+    .bind(...TRACKED).all<JobRow>();
+  const rows = results ?? [];
+  const where = await topic(cfg, store, tg);
+  if (!rows.length) { await tg.send("📋 <b>Tracker</b>\n\nNothing in it yet. ✅ Applied on a job card puts it here.", where); return; }
+  const n = (st: string[]) => rows.filter((r) => st.includes(r.status)).length;
+  await tg.send(`📋 <b>Tracker</b> · ${rows.length} application${rows.length > 1 ? "s" : ""}\n\n<pre>` + [
+    ["⏳ Waiting", n(["applied", "already"])], ["🗓 Interview set", n(["interview"])], ["🎉 Offer received", n(["offer"])],
+    ["🤝 Offer accepted", n(["accepted"])], ["🙅 Offer declined", n(["declined"])], ["❌ Rejected", n(["rejected"])],
+  ].map(([l, c]) => rowOf(String(l), Number(c))).join("\n") + "</pre>",
+    { ...where, ...tg.keyboard([[{ text: "📥 Download as Excel", callback_data: "jb:csv:-:-" }]]) });
+  for (const r of rows) await tg.send(trackerCard(r, cfg.jobs), { ...tg.keyboard(jobKeyboard(r, cfg.jobs)), ...where });
 }
 
 // Words that make a letter read as machine-written (or as a template) in either language.
@@ -682,44 +852,46 @@ async function coverLetter(env: JobsEnv, store: Store, row: JobRow, w: string, j
 }
 
 // ---------------------------------------------------------------- /jobs, /skills
-const DONE = ["applied", "already", "interview", "rejected", "offer"];
+const DONE = TRACKED;
 /** "Berlin, Cottbus, remote" */
 const where = (j: Jobs) => [...j.cities.map((c) => c.name), ...(j.remote ? ["remote"] : [])].join(", ");
 
-/** chatLink: https://t.me/c/<id> for the group, so the board can link to each card. */
-export async function jobsBoard(db: D1Database, store: Store, chatLink = ""): Promise<string> {
+/**
+ * /jobs: per person, where everything stands, as a table; then buttons for
+ * the waiting list and the tracker (the same as /waitinglist and /tracker).
+ */
+export async function jobsBoard(db: D1Database, store: Store): Promise<[string, Button[][]]> {
   const cfg = await loadConfig(store);
-  if (!cfg) return NO_CONFIG;
-  if (!cfg.modules.jobs) return "💼 Jobs are switched off in the config.";
+  if (!cfg) return [NO_CONFIG, []];
+  if (!cfg.modules.jobs) return ["💼 Jobs are switched off in the config.", []];
   const j = cfg.jobs;
   await ensureTable(db);
   const { results } = await db.prepare(
-    `SELECT person, status, COUNT(*) n FROM jobs WHERE status IN ('posted','applied','already','interview','rejected','offer')
+    `SELECT person, status, COUNT(*) n FROM jobs WHERE status IN ('posted','approved',${TRACKED.map((x) => `'${x}'`).join(",")})
      GROUP BY person, status`).all<{ person: string; status: string; n: number }>();
   const by: Record<string, Record<string, number>> = {};
+  const total: Record<string, number> = {};
   for (const r of results ?? []) {
-    const ps = peopleOf(j, r.person);
-    for (const p of ps) (by[p] ??= {})[r.status] = (by[p][r.status] ?? 0) + r.n;
+    total[r.status] = (total[r.status] ?? 0) + r.n;
+    for (const p of peopleOf(j, r.person)) (by[p] ??= {})[r.status] = (by[p][r.status] ?? 0) + r.n;
   }
-  const line = (w: string) => {
-    const s = by[w] ?? {};
-    const applied = DONE.reduce((a, k) => a + (s[k] ?? 0), 0);
-    const answered = (s.interview ?? 0) + (s.rejected ?? 0) + (s.offer ?? 0);
-    return `${byId(j, w)!.icon} <b>${nameOf(j, w)}</b>: ${s.posted ?? 0} open · ${applied} applied · ` +
-      `${applied - answered} waiting · ${s.interview ?? 0} interviews · ${s.rejected ?? 0} rejected · ${s.offer ?? 0} offers`;
+  const table = (s: Record<string, number>) => {
+    const c = (...k: string[]) => k.reduce((a, x) => a + (s[x] ?? 0), 0);
+    const rows: [string, number][] = [
+      ["🆕 New", c("posted")], ["🔖 Waiting list", c("approved")], ["📋 Tracker", c(...TRACKED)],
+      ["   ⏳ Waiting", c("applied", "already")], ["   🗓 Interview set", c("interview")], ["   🎉 Offer received", c("offer")],
+      ["   🤝 Accepted", c("accepted")], ["   🙅 Declined", c("declined")], ["   ❌ Rejected", c("rejected")],
+    ];
+    return `<pre>${rows.map(([l, n]) => rowOf(l, n, 22)).join("\n")}</pre>`;
   };
   const active = await activePeople(store, j);
-  const { results: going } = await db.prepare(
-    `SELECT * FROM jobs WHERE status IN ('applied','already','interview','offer','rejected')
-     ORDER BY COALESCE(replied_at, applied_at) DESC LIMIT 15`).all<JobRow>();
-  const list = (going ?? []).map((r) => {
-    const link = r.msg_id && chatLink ? ` <a href="${chatLink}/${r.msg_id}">↗</a>` : "";
-    const who = single(j, r.person) ? `${nameOf(j, r.person!)}, ` : "";
-    return `${STATUS[r.status]} · <b>${esc(r.company)}</b> - ${esc(r.title.slice(0, 60))} (${who}${day(r.replied_at ?? r.applied_at ?? now())})${link}`;
-  });
-  return `💼 <b>Jobs</b> (${where(j)})\n\n${active.map(line).join("\n")}` +
-    (list.length ? `\n\n<b>Applications</b>\n${list.join("\n")}` : "") +
-    `\n\n<i>/cv - the CVs · /skills ${active[0]} - the skills list the bot matches against</i>`;
+  const text = [`💼 <b>Jobs</b>\n<i>${esc(where(j))}</i>`,
+    ...active.map((w) => `${byId(j, w)!.icon} <b>${nameOf(j, w)}</b>\n${table(by[w] ?? {})}`),
+    `<i>/waitinglist · /tracker · /cv · /skills ${active[0]}</i>`].join("\n\n");
+  return [text, [[
+    { text: `🔖 Waiting list (${total.approved ?? 0})`, callback_data: "jb:list:waiting:-" },
+    { text: `📋 Tracker (${TRACKED.reduce((a, x) => a + (total[x] ?? 0), 0)})`, callback_data: "jb:list:tracker:-" },
+  ]]];
 }
 
 /** /skills diba · /skills diba + Power BI · /skills arman - Vue */
@@ -839,6 +1011,6 @@ export async function weeklyReport(db: D1Database, store: Store): Promise<string
 export async function jobsLine(store: Store, db: D1Database): Promise<string> {
   if ((await store.kvGet("jobs_on")) === "0") return "Jobs:            ⏸ paused";
   await ensureTable(db);
-  const r = await db.prepare("SELECT MAX(first_seen) t, SUM(status='posted') open FROM jobs").first<{ t: number | null; open: number | null }>();
-  return `Jobs:            ✅ ${r?.open ?? 0} open` + (r?.t ? `, last new one ${fmtLeft(Math.max(0, now() - r.t))} ago` : "");
+  const r = await db.prepare("SELECT MAX(first_seen) t, SUM(status='posted') open, SUM(status='approved') saved FROM jobs").first<{ t: number | null; open: number | null; saved: number | null }>();
+  return `Jobs:            ✅ ${r?.open ?? 0} new, ${r?.saved ?? 0} on the waiting list` + (r?.t ? `, last new one ${fmtLeft(Math.max(0, now() - r.t))} ago` : "");
 }

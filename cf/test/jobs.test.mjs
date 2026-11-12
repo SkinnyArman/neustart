@@ -80,7 +80,10 @@ globalThis.fetch = async (url, init = {}) => {
   }
   if (url.includes("api.telegram.org")) {
     const method = url.split("/").pop();
-    const body = JSON.parse(init.body);
+    // an upload (a CSV) comes as a form: its fields, and the file's name and text
+    const body = init.body instanceof FormData
+      ? Object.fromEntries(await Promise.all([...init.body.entries()].map(async ([k, v]) => [k, typeof v === "string" ? v : { name: v.name, text: await v.text() }])))
+      : JSON.parse(init.body);
     // like the real one: a button's data is 64 bytes at most
     for (const b of (body.reply_markup?.inline_keyboard ?? []).flat())
       if (new TextEncoder().encode(b.callback_data).length > 64)
@@ -166,18 +169,19 @@ const cardOf = (t) => sent().find((c) => c.body.text.startsWith("💼") && c.bod
 await ok("card: who it's for, Werkstudent, why, gaps, German level, hours, deadline - no rating", () => {
   const c = cardOf("Werkstudent Data Analyst").body.text;
   console.log("   card:\n     " + c.split("\n").join("\n     "));
-  assert.match(c, /\n\n👩‍💻 For Diba\n🎓 Werkstudent\n\n/);
-  assert.match(c, /\n\nGaps:\n• Tableau - mention Power BI and Metabase\n\n/);
-  assert.match(c, /German: B2 · ⏱ 20 h\/week · 📅 start asap · ⏳ apply by 15\.11\./);
+  assert.match(c, /^💼 <b>[^<]+<\/b>\n🏢 [^\n]+\n📍 [^\n]*via [^\n]+\n\n👩‍💻 For Diba · 🎓 Werkstudent\n\n<i>/);
+  assert.match(c, /\n\n⚠️ <b>Gaps<\/b>\n• Tableau - mention Power BI and Metabase\n\n/);
+  assert.match(c, /\n\n🗣 German: B2\n⏱ Hours: 20 h\/week\n📅 Start: asap\n⏳ Apply by: 15\.11\.\n\n/);
+  assert.match(c, /\n\n🔗 <a href="[^"]+">Open the job<\/a>$/);
   assert.ok(!/⭐|\b\d+\/10\b/.test(c));
 });
 await ok("a part-time job says so; Arman's React job is his", () => {
   assert.match(cardOf("Data Engineer").body.text, /⏱ Part-time/);
   assert.match(cardOf("Frontend").body.text, /🧑‍💻 For Arman/);
 });
-await ok("buttons on a new card: cover letter, applied, already applied, skip", () => {
-  const kb = cardOf("Werkstudent Data Analyst").body.reply_markup.inline_keyboard.flat().map((b) => b.text);
-  assert.deepEqual(kb, ["✍️ Cover letter", "✅ Applied", "🔁 Already applied", "⏭ Skip"]);
+await ok("buttons on a new card: cover letter, applied, already applied, apply later, skip", () => {
+  const kb = cardOf("Werkstudent Data Analyst").body.reply_markup.inline_keyboard.map((r) => r.map((b) => b.text));
+  assert.deepEqual(kb, [["✍️ Cover letter"], ["✅ Applied", "🔁 Already applied"], ["🔖 Apply later", "⏭ Skip"]]);
 });
 
 // ---------------------------------------------------------------- 3. buttons
@@ -214,32 +218,138 @@ await ok("…and once her CV is saved, it comes right under the letter", () => {
   assert.equal(d.body.message_thread_id, 965);
   assert.ok(d.body.reply_to_message_id);
 });
-calls = await press(`jb:applied:diba:${analyst}`);
-await ok("✅ Applied (pressed by Diba, a group member): card edited in place, next stage's buttons", () => {
-  const e = calls.find((c) => c.method === "editMessageText");
-  assert.match(e.body.text, /✅ Applied by Diba · \d\d\.\d\d/);
-  assert.deepEqual(e.body.reply_markup.inline_keyboard.flat().map((b) => b.text), ["🗓 Interview", "❌ Rejected", "🎉 Offer"]);
-  assert.equal(row(DB, analyst).status, "applied");
+const cardMsg = row(DB, analyst).msg_id;
+const editOf = (c) => c.find((x) => x.method === "editMessageText");
+const kbOf = (m) => m.body.reply_markup.inline_keyboard.flat().map((b) => b.text);
+calls = await press(`jb:applied:diba:${analyst}`, 555, -100, cardMsg);
+await ok("✅ Applied: the card becomes 'Ad for … at … moved to the tracker' with an Undo button", () => {
+  assert.equal(row(DB, analyst).status, "applied"); assert.equal(row(DB, analyst).person, "diba");
+  const e = editOf(calls);
+  assert.equal(e.body.message_id, cardMsg);
+  assert.match(e.body.text, /^✅ Ad for <b>Werkstudent Data Analyst[^<]*<\/b> at <b>[^<]+<\/b> moved to the tracker \(applied by Diba\)\.\n<i>\/tracker - all of them<\/i>$/);
+  assert.deepEqual(kbOf(e), ["↩️ Undo"]);
+  assert.match(calls.find((c) => c.method === "answerCallbackQuery").body.text, /Moved to the tracker/);
 });
-calls = await press(`jb:interview:-:${analyst}`);
-await ok("🗓 Interview → only Rejected / Offer left", () => {
+calls = await press(editOf(calls).body.reply_markup.inline_keyboard[0][0].callback_data, 555, -100, cardMsg);
+await ok("↩️ Undo: back to a new job, the full card and its buttons again", () => {
+  const r = row(DB, analyst);
+  assert.deepEqual([r.status, r.applied_at], ["posted", null]);
+  const e = editOf(calls);
+  assert.match(e.body.text, /^💼 <b>Werkstudent Data Analyst/);
+  assert.deepEqual(kbOf(e), ["✍️ Cover letter", "✅ Applied", "🔁 Already applied", "🔖 Apply later", "⏭ Skip"]);
+});
+calls = await press(`jb:skip:-:ba:10004`, 555, -100, row(DB, "ba:10004").msg_id);
+await ok("⏭ Skip: 'Ad for … at … skipped', with Undo", () => {
+  assert.equal(row(DB, "ba:10004").status, "skipped");
+  assert.match(editOf(calls).body.text, /^⏭ Ad for <b>.+<\/b> at <b>.+<\/b> skipped\.$/);
+  assert.deepEqual(kbOf(editOf(calls)), ["↩️ Undo"]);
+});
+const later = DB.raw.prepare("SELECT id FROM jobs WHERE status='posted' AND id NOT IN ('ba:10001','ba:10006') ORDER BY id LIMIT 1").get().id;
+calls = await press(`jb:later:diba:${later}`, 555, -100, row(DB, later).msg_id);
+await ok("🔖 Apply later: 'moved to the waiting list', with Undo", () => {
+  const r = row(DB, later);
+  assert.deepEqual([r.status, r.person], ["approved", "diba"]); assert.ok(r.approved_at);
+  assert.match(editOf(calls).body.text, /^🔖 Ad for <b>.+<\/b> moved to the waiting list \(for Diba\)\.\n<i>\/waitinglist - all of them<\/i>$/);
+});
+const say0 = async (text) => { net.tg = []; await worker.fetch(new Request("https://w/", { method: "POST",
+  headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" },
+  body: JSON.stringify({ message: { text, from: { id: 555 }, chat: { id: -100 }, message_thread_id: 965, is_topic_message: true } }) }), E); return net.tg; };
+calls = await say0("/waiting-list");
+await ok("/waiting-list (or /waitinglist): every waitlisted ad as its card, to apply from", () => {
+  const m = calls.filter((c) => c.method === "sendMessage");
+  assert.match(m[0].body.text, /^🔖 <b>Waiting list<\/b> · 1 ad to apply to$/);
+  assert.match(m[1].body.text, /^💼 /); assert.match(m[1].body.text, /🔖 On the waiting list by Diba/);
+  assert.deepEqual(kbOf(m[1]), ["✍️ Cover letter", "✅ Applied", "🔁 Already applied", "⏭ Skip"]);
+  assert.ok(m.every((x) => x.body.message_thread_id === 965));
+});
+calls = await press(`jb:applied:diba:${later}`, 555, -100, row(DB, later).msg_id);
+calls = await press(`jb:applied:diba:${analyst}`, 555, -100, cardMsg);
+calls = await say0("/tracker");
+await ok("/tracker: the counts, then each application with its status and the six status buttons (current one marked)", () => {
+  const m = calls.filter((c) => c.method === "sendMessage");
+  assert.match(m[0].body.text, /^📋 <b>Tracker<\/b> · 2 applications\n\n<pre>⏳ Waiting {11}2\n🗓 Interview set {5}0\n🎉 Offer received {4}0\n/);
+  const t = m.find((x) => /Werkstudent Data Analyst/.test(x.body.text));
+  assert.match(t.body.text, /^📋 <b>Werkstudent Data Analyst[\s\S]*\n\n👩‍💻 Diba · applied \d\d\.\d\d\n\nStatus: <b>⏳ Waiting for an answer<\/b>\n\n🔗 <a /);
+  assert.deepEqual(t.body.reply_markup.inline_keyboard.map((r) => r.map((b) => b.text)),
+    [["• ⏳ Waiting •", "❌ Rejected"], ["🗓 Interview set", "🎉 Offer received"], ["🙅 Offer declined", "🤝 Offer accepted"]]);
+});
+const tcard = calls.find((x) => /Werkstudent Data Analyst/.test(x.body.text ?? ""));
+const tbtn = (label) => tcard.body.reply_markup.inline_keyboard.flat().find((b) => b.text.includes(label)).callback_data;
+calls = await press(tbtn("Interview set"), 555, -100, 4321);
+const pressed = calls;
+await ok("/tracker has a 'Download as Excel' button", async () => {
+  const t = await say0("/tracker");
+  assert.deepEqual(kbOf(t.find((c) => c.method === "sendMessage")), ["📥 Download as Excel"]);
+});
+const csvCalls = await say0("/tracker csv");
+await ok("/tracker csv (or excel): an .xlsx of every application, coloured headers, sent into the topic", () => {
+  const d = csvCalls.find((c) => c.method === "sendDocument");
+  assert.ok(d, csvCalls.map((c) => c.method).join(" "));
+  assert.match(d.body.document.name, /^tracker-\d{4}-\d\d-\d\d\.xlsx$/);
+  assert.equal(d.body.message_thread_id, "965"); assert.match(d.body.caption, /Tracker · 2 applications/);
+  assert.ok(d.body.document.text.startsWith("PK"), "a zip");
+  assert.match(d.body.document.text, /<fgColor rgb="FFBFDBFE"\/>/);                 // the Title column's colour
+  assert.match(d.body.document.text, /<pane ySplit="1"[^>]*state="frozen"\/>/);
+});
+await ok("…with the columns asked for, one row each (the same rows as the plain CSV)", () => {
+  const rows = DB.raw.prepare("SELECT * FROM jobs WHERE status IN ('applied','already','interview','rejected','offer','declined','accepted')").all();
+  const lines = J.trackerCsv(rows, JOBS).replace(/^\ufeff/, "").trim().split("\r\n");
+  assert.equal(lines[0], "Title,Company,City,Remote / hybrid / on-site,Status,General or career-centered,German required,German level");
+  assert.equal(lines.length, 3);
+  const a = lines.find((l) => l.startsWith("Werkstudent Data Analyst"));
+  assert.match(a, /,Berlin,hybrid,Interview set,career-centered,yes,B2$/);
+  const other = lines.find((l) => l !== a && l !== lines[0]);
+  assert.match(other, /,(general|career-centered),(yes|no),/);
+});
+await ok("career-centered: an on-topic Werkstudent, internship, thesis or junior role; general: part-time and the rest", () => {
+  const r = (kind, title = "Data Analyst") => J.trackerCsv([{ id: "x:1", title, company: "C", place: "Berlin", remote: 0, text: "", status: "applied", person: "diba", facts: JSON.stringify({ kind }) }], JOBS).split("\r\n")[1];
+  assert.match(r("werkstudent"), /,career-centered,/); assert.match(r("internship"), /,career-centered,/);
+  assert.match(r("part-time"), /,general,/); assert.match(r("other"), /,general,/);
+});
+await ok("the CSV's guesses: work mode, German and its level", () => {
+  assert.equal(J.workMode({ remote: 1, place: "Remote", text: "", title: "" }), "remote");
+  assert.equal(J.workMode({ remote: 0, place: "Berlin · home office possible", text: "", title: "" }), "hybrid");
+  assert.equal(J.workMode({ remote: 0, place: "Berlin", text: "2 Tage remote pro Woche", title: "" }), "hybrid");
+  assert.equal(J.workMode({ remote: 0, place: "Cottbus", text: "Vor Ort im Büro", title: "" }), "on-site");
+  assert.deepEqual(J.germanOf("B2"), ["yes", "B2"]); assert.deepEqual(J.germanOf("fließend (C1)"), ["yes", "C1"]);
+  assert.deepEqual(J.germanOf("fluent"), ["yes", "fluent (C1+)"]); assert.deepEqual(J.germanOf("not stated"), ["not stated", ""]);
+  assert.deepEqual(J.germanOf(""), ["not stated", ""]); assert.deepEqual(J.germanOf("nice to have"), ["no", ""]);
+  // nothing from the AI: the ad's own words
+  assert.deepEqual(J.germanOf("", "Sehr gute Deutschkenntnisse (C1) erforderlich."), ["yes", "C1"]);
+  assert.deepEqual(J.germanOf("not stated", "Fließend Deutsch in Wort und Schrift."), ["yes", "fluent (C1+)"]);
+  assert.deepEqual(J.germanOf("", "Deutschkenntnisse sind von Vorteil."), ["no", ""]);
+  assert.deepEqual(J.germanOf("", "We work in English."), ["not stated", ""]);
+});
+await ok("a title with a comma or quotes stays one cell", () => {
+  const csv = J.trackerCsv([{ id: "x:1", title: 'Data Analyst, "Junior"', company: "A; B", place: "Berlin", remote: 0, text: "", status: "applied", person: "diba", facts: null }], JOBS);
+  assert.match(csv, /\r\n"Data Analyst, ""Junior""","A; B",Berlin,on-site,/);
+});
+calls = pressed;
+await ok("a status button: saved, and that message shows the new status in place", () => {
   assert.equal(row(DB, analyst).status, "interview");
-  assert.deepEqual(calls.find((c) => c.method === "editMessageText").body.reply_markup.inline_keyboard.flat().map((b) => b.text), ["❌ Rejected", "🎉 Offer"]);
+  const e = editOf(calls);
+  assert.equal(e.body.message_id, 4321);
+  assert.match(e.body.text, /Status: <b>🗓 Interview set<\/b>/);
+  assert.ok(kbOf(e).includes("• 🗓 Interview set •"));
 });
-await press(`jb:skip:-:ba:10004`);
-await ok("⏭ Skip", () => assert.equal(row(DB, "ba:10004").status, "skipped"));
+for (const [label, st] of [["Offer received", "offer"], ["Offer accepted", "accepted"], ["Offer declined", "declined"], ["Rejected", "rejected"], ["Waiting", "applied"]]) {
+  await press(tbtn(label), 555, -100, 4321);
+  await ok(`… ${label} → ${st}`, () => assert.equal(row(DB, analyst).status, st));
+}
+await press(tbtn("Interview set"), 555, -100, 4321);
 await press(`jb:already:diba:ba:10006`);
 DB.raw.prepare("UPDATE jobs SET applied_at = ? WHERE id='ba:10006'").run(Math.floor(Date.now() / 1000) - 11 * 86400);
 net.tg = [];
 await J.jobsStep(E, st, tg);
-await ok("no answer after 10 days: one reminder, as a reply to the card, with the answer buttons", () => {
-  const m = sent().find((c) => /no answer from/.test(c.body.text));
-  assert.ok(m); assert.ok(m.body.reply_to_message_id);
-  assert.match(m.body.text, /Diba, no answer from <b>Vattenfall GmbH<\/b>/);
+await ok("no answer after 10 days: one reminder, as its tracker card with the status buttons", () => {
+  const m = sent().find((c) => /No answer after 10 days/.test(c.body.text));
+  assert.ok(m); assert.ok(!m.body.reply_to_message_id);
+  assert.ok(m.body.reply_markup.inline_keyboard.flat().map((x) => x.text).includes("🗓 Interview set"));
+  assert.match(m.body.text, /🏢 Vattenfall GmbH/);
   assert.equal(row(DB, "ba:10006").reminded, 1);
 });
 net.tg = []; await J.jobsStep(E, st, tg);
-await ok("…and only once", () => assert.ok(!sent().some((c) => /no answer from/.test(c.body.text))));
+await ok("…and only once", () => assert.ok(!sent().some((c) => /No answer after/.test(c.body.text))));
 
 // ---------------------------------------------------------------- 4. commands
 console.log("\n4. /jobs, /skills, /jobreport, permissions");
@@ -251,12 +361,11 @@ const say = async (text, from = 555, chat = -100) => {
   return net.tg;
 };
 calls = await say("/jobs");
-await ok("/jobs: the board per person and where each application stands, in the Jobs topic", () => {
+await ok("/jobs: a table per person - new, waiting list, tracker and each tracker status - and the two list buttons", () => {
   const t = calls[0].body.text;
   console.log("   /jobs ->\n     " + t.split("\n").join("\n     "));
-  assert.match(t, /Diba<\/b>: \d+ open · 2 applied · 1 waiting · 1 interviews/);
-  assert.match(t, /<b>Applications<\/b>\n🗓 Interview · <b>[^<]+<\/b> - .+ \(Diba, \d\d\.\d\d\)/);
-  assert.match(t, /🔁 Applied before · <b>Vattenfall GmbH<\/b>/);
+  assert.match(t, /👩‍💻 <b>Diba<\/b>\n<pre>🆕 New {17}\d+\n🔖 Waiting list {8}0\n📋 Tracker {13}3\n {3}⏳ Waiting {10}2\n {3}🗓 Interview set {4}1\n/);
+  assert.deepEqual(calls[0].body.reply_markup.inline_keyboard.flat().map((b) => b.text), ["🔖 Waiting list (0)", "📋 Tracker (3)"]);
   assert.equal(calls[0].body.message_thread_id, 965);
 });
 const sayMsg = async (message) => {
@@ -320,13 +429,24 @@ await ok("kv jobs_repost=1: untouched cards are deleted and posted again, once; 
   net.tg = []; await J.jobsStep(E, st, tg);
   const del = net.tg.filter((c) => c.method === "deleteMessage").map((c) => c.body.message_id).sort();
   assert.deepEqual(del, open.map((r) => r.msg_id).filter(Boolean).sort());
-  assert.equal(sent().filter((c) => /open the job/.test(c.body.text)).length, Math.min(open.length, 4));
+  assert.equal(sent().filter((c) => /Open the job/.test(c.body.text)).length, Math.min(open.length, 4));
   assert.equal(row(DB, analyst).status, "interview");
   assert.equal(await st.kvGet("jobs_repost"), "0");
   net.tg = []; await J.jobsStep(E, st, tg);
   assert.ok(!net.tg.some((c) => c.method === "deleteMessage"));
 });
 
+await ok("kv jobs_repost=all: every job message the bot knows of is deleted; new ones go out again, tracked ones stay tracked", async () => {
+  DB.raw.prepare("UPDATE jobs SET msg_id=777 WHERE id=?").run(analyst);            // a tracked one with a message
+  const withMsg = DB.raw.prepare("SELECT id, status, msg_id FROM jobs WHERE msg_id IS NOT NULL").all();
+  const open = withMsg.filter((r) => r.status === "posted").length;
+  await st.kvSet("jobs_repost", "all");
+  net.tg = []; await J.jobsStep(E, st, tg);
+  assert.deepEqual(net.tg.filter((c) => c.method === "deleteMessage").map((c) => c.body.message_id).sort(), withMsg.map((r) => r.msg_id).sort());
+  assert.equal(row(DB, analyst).msg_id, null); assert.equal(row(DB, analyst).status, "interview");
+  assert.equal(sent().filter((c) => /^💼 /.test(c.body.text)).length, Math.min(open, 4));
+  assert.equal(await st.kvGet("jobs_repost"), "0");
+});
 await ok("kv jobs_repost=recheck: full-time cards come down for good; the rest are matched again and re-posted", async () => {
   const open = DB.raw.prepare("SELECT id FROM jobs WHERE status='posted'").all().map((r) => r.id);
   const keep = open.find((id) => id !== "ba:10001");
@@ -346,7 +466,7 @@ await ok('the "/" menu: shared commands for the group, all of them for the owner
   const c = net.tg.filter((x) => x.method === "setMyCommands");
   assert.equal(c.length, 3);
   const group = c.find((x) => x.body.scope.type === "chat" && x.body.scope.chat_id === "-100");
-  assert.deepEqual(group.body.commands.map((x) => x.command), ["jobs", "cv", "jobreport", "skills", "finds", "casual"]);
+  assert.deepEqual(group.body.commands.map((x) => x.command), ["jobs", "waitinglist", "tracker", "cv", "jobreport", "skills", "finds", "casual"]);
   const mine = c.find((x) => x.body.scope.type === "chat_member");
   assert.equal(mine.body.scope.user_id, 1000001);
   assert.ok(mine.body.commands.some((x) => x.command === "review") && mine.body.commands.some((x) => x.command === "jobs"));
@@ -405,11 +525,11 @@ console.log("\n6. a job with a very long id");
   let c = await tap(btn("✍️ Cover letter"));
   await ok("its cover letter button finds the job", () => assert.match(c.find((x) => x.method === "sendMessage").body.text, /Cover letter for Diba<\/b> - AgentixLake/));
   c = await tap(btn("✅ Applied"));
-  await ok("Applied updates that job, and the next buttons fit too", () => {
+  await ok("Applied finds that job, and its Undo and tracker buttons fit too", () => {
     assert.equal(row(DB3, id).status, "applied");
     const e = c.find((x) => x.method === "editMessageText");
-    assert.match(e.body.text, /Applied by Diba/);
     assert.ok(e.body.reply_markup.inline_keyboard.flat().every((b) => new TextEncoder().encode(b.callback_data).length <= 64));
+    for (const b of J.jobKeyboard(row(DB3, id), JOBS).flat()) assert.ok(new TextEncoder().encode(b.callback_data).length <= 64, b.callback_data);
   });
   c = await tap("jb:skip:-:~no-such-job-ends-like-this");
   await ok("a shortened id that matches nothing is just unknown", () => assert.equal(c[0].body.text, "Unknown job"));
@@ -451,7 +571,7 @@ console.log("\n7. jobs handed in from outside (LinkedIn, via the Mac)");
   for (let i = 0; i < 4; i++) await J.jobsStep(E4, st4, tg);
   await ok("…then matched and posted like the rest, via LinkedIn", () => {
     const c = sent().find((x) => /Working Student Analytics/.test(x.body.text));
-    assert.ok(c); assert.match(c.body.text, /Acme Berlin · Berlin, Berlin, Germany · via LinkedIn/);
+    assert.ok(c); assert.match(c.body.text, /🏢 Acme Berlin\n📍 Berlin, Berlin, Germany · via LinkedIn/);
     assert.match(c.body.text, /href="https:\/\/www\.linkedin\.com\/jobs\/view\/2"/);
   });
   await ok("nonsense is refused, not stored", async () => {

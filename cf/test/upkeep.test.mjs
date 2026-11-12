@@ -153,10 +153,9 @@ const secs = () => Math.floor(NOW / 1000);
   await J.jobsStep(E(DB), st, tg); await J.jobsStep(E(DB), st, tg);
   globalThis.fetch = f0;
   const row = (id) => DB.raw.prepare("SELECT status, checked_at FROM jobs WHERE id=?").get(id);
-  await ok("jobs: posted 3+ days ago and taken down → 'No longer listed', card edited, buttons gone", () => {
+  await ok("jobs: posted 3+ days ago and taken down → 'No longer listed', and its card deleted", () => {
     assert.equal(row("ba:1").status, "expired");
-    const e = net.tg.find((c) => c.method === "editMessageText" && /Werkstudent ba:1/.test(c.body.text));
-    assert.ok(e); assert.match(e.body.text, /<b>🚫 No longer listed<\/b>$/); assert.deepEqual(e.body.reply_markup.inline_keyboard, []);
+    assert.ok(net.tg.some((c) => c.method === "deleteMessage" && c.body.message_id === 500 + "ba:1".length));
     assert.equal(row("an:x").status, "expired");
   });
   await ok("…still listed: only noted as checked; too new, applied to, or LinkedIn: not looked up", () => {
@@ -164,7 +163,7 @@ const secs = () => Math.floor(NOW / 1000);
     assert.equal(row("ba:3").checked_at, null); assert.equal(row("ba:4").status, "applied"); assert.equal(row("li:9").checked_at, null);
     assert.ok(!asked.some((u) => /linkedin/.test(u)));
   });
-  await ok("/jobs counts only what's open", async () => assert.match(await J.jobsBoard(DB, st), /Diba<\/b>: 3 open/));
+  await ok("/jobs counts only what's open", async () => assert.match((await J.jobsBoard(DB, st))[0], /Diba<\/b>\n<pre>🆕 New {17}3\n/));
 }
 {
   const C = await import(SRC + "casual.ts");

@@ -233,8 +233,8 @@ const LEIPZIG = {
     assert.match(m[1].content, /^Searching right now: SAM only/);
   });
   await ok("the card is for Sam, in a Jobs topic of its own", () => {
-    const c = tgCalls("sendMessage").find((x) => /^💼/.test(x.body.text) && /open the job/.test(x.body.text));
-    assert.match(c.body.text, /\n\n🧑‍💻 For Sam\n/);
+    const c = tgCalls("sendMessage").find((x) => /^💼/.test(x.body.text) && /Open the job/.test(x.body.text));
+    assert.match(c.body.text, /\n\n🧑‍💻 For Sam · /);
     const hello = tgCalls("sendMessage").find((x) => /will be posted here/.test(x.body.text) && /Jobs for Sam/.test(x.body.text));
     assert.match(hello.body.text, /^💼 <b>Jobs for Sam<\/b> will be posted here: jobs in Leipzig, .*\n\n\/jobs - the board · \/skills sam/);
     assert.equal(hello.body.message_thread_id, c.body.message_thread_id);
@@ -242,7 +242,7 @@ const LEIPZIG = {
   });
   net.calls = [];
   await send(E, "/jobs");
-  await ok("/jobs: the board names Leipzig only", () => assert.match(texts()[0], /^💼 <b>Jobs<\/b> \(Leipzig\)\n\n🧑‍💻 <b>Sam<\/b>/));
+  await ok("/jobs: the board names Leipzig only", () => assert.match(texts()[0], /^💼 <b>Jobs<\/b>\n<i>Leipzig<\/i>\n\n🧑‍💻 <b>Sam<\/b>\n<pre>/));
   net.calls = [];
   await send(E, "/jobreport");
   await ok("/jobreport counts per configured city", () => assert.match(texts()[0], /New matches this week: \d+ \(Leipzig \d+\)/));
@@ -306,7 +306,7 @@ console.log("\n4. modules switched off, no config at all");
   await tick(E, 13);
   await ok("the '/' menu leaves them out", () => {
     const owner = tgCalls("setMyCommands").find((c) => c.body.scope.type === "chat_member").body.commands.map((x) => x.command);
-    assert.deepEqual(owner, ["status", "start", "jobs", "cv", "jobreport", "skills", "help"]);
+    assert.deepEqual(owner, ["status", "start", "jobs", "waitinglist", "tracker", "cv", "jobreport", "skills", "help"]);
   });
   net.calls = [];
   await send(E, "/status");
