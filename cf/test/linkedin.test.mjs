@@ -82,45 +82,50 @@ function harness({ limitAt = Infinity, unknown } = {}) {
 const cfg = normalize(CONFIG);
 {
   const h = harness();
-  const r = await L.run(cfg, h.deps);
-  await ok("searches, then asks the bot what's new, opens only new jobs that pass the rules, hands them in", () => {
+  const prog = [];
+  const r = await L.run(cfg, { ...h.deps, progress: (p) => prog.push({ ...p }) });
+  await ok("searches only, and after each one hands the new jobs straight to the bot", () => {
     const searches = h.calls.filter((u) => u.includes("seeMoreJobPostings"));
-    const pages = h.calls.filter((u) => u.includes("/jobPosting/"));
-    assert.equal(searches.length, 4);
-    assert.ok(searches.every((u) => /f_TPR=r86400/.test(u) && !/cookie/i.test(u)));
-    assert.deepEqual(pages.map((u) => u.split("/").pop()).sort(), ["101", "103"]);   // not the senior one, not marketing
-    const add = h.posted.find((p) => p.op === "add");
-    assert.ok(add.jobs.every((j) => j.source === "LinkedIn" && /^li:\d+$/.test(j.id)));
-    const j101 = add.jobs.find((j) => j.id === "li:101");
-    assert.equal(j101.url, "https://www.linkedin.com/jobs/view/101"); assert.equal(j101.kind, "Teilzeit"); assert.match(j101.text, /SQL & Python/);
-    assert.ok(add.jobs.find((j) => j.id === "li:102"), "rule-rejected ones are handed in too, so they're known next time");
+    assert.equal(searches.length, 4); assert.equal(h.calls.length, 4);              // no job pages
+    assert.ok(searches.every((u) => /f_TPR=r604800/.test(u) && !/cookie/i.test(u)));   // first run: the past week
+    const add = h.posted.filter((p) => p.op === "add");
+    assert.equal(add.length, 1, "the same jobs in later searches aren't handed in twice");
+    assert.ok(add[0].jobs.every((j) => j.source === "LinkedIn" && /^li:\d+$/.test(j.id)));
+    assert.equal(add[0].jobs.find((j) => j.id === "li:101").url, "https://www.linkedin.com/jobs/view/101");
     assert.equal(r.status, "done");
   });
-  await ok("gentle: 20-40 s between LinkedIn requests, at most 10 a run", () => {
-    assert.ok(h.waits.length >= h.calls.length - 1);
-    assert.ok(h.waits.every((ms) => ms >= 20000 && ms <= 40000));
+  await ok("progress: searches done, found, handed to the bot", () => {
+    assert.deepEqual(prog[0], { done: 0, total: 4, found: 0, handed: 0 });
+    assert.equal(prog.at(-1).done, 4); assert.ok(prog.at(-1).handed >= 1);
+  });
+  await ok("gentle: 60-90 s between LinkedIn requests, at most 10 a run", () => {
+    assert.equal(h.waits.length, h.calls.length - 1);
+    assert.ok(h.waits.every((ms) => ms >= 60000 && ms <= 90000));
     assert.ok(h.calls.length <= 10);
   });
 }
 {
   const h = harness({ unknown: [] });
   await L.run(cfg, h.deps);
-  await ok("nothing new: no job page is opened", () => assert.equal(h.calls.filter((u) => u.includes("/jobPosting/")).length, 0));
+  await ok("nothing new: nothing handed in", () => assert.equal(h.posted.filter((p) => p.op === "add").length, 0));
 }
 {
   const h = harness({ limitAt: 2 });
   const r = await L.run(cfg, h.deps);
-  await ok("LinkedIn says 'too many requests': stops at once and sits out a day", () => {
+  await ok("LinkedIn says 'too many requests': stops at once, and what the first search found is with the bot already", () => {
     assert.equal(h.calls.length, 2);
     assert.equal(r.status, "limited");
-    const st = JSON.parse(readFileSync(h.deps.state, "utf8"));
-    assert.equal(st.pausedUntil, Date.UTC(2026, 10, 9, 9, 0));
-  });
-  const again = await L.run(cfg, h.deps);
-  await ok("…the next run inside that day doesn't touch LinkedIn", () => {
-    assert.equal(again.status, "paused"); assert.equal(h.calls.length, 2);
+    assert.equal(h.posted.filter((p) => p.op === "add").length, 1); assert.ok(r.new >= 1);
+    assert.equal(JSON.parse(readFileSync(h.deps.state, "utf8")).lastResult, "limited");
   });
 }
+await ok("how far back: since the last run, at least a day, at most a week", () => {
+  const t = Date.UTC(2026, 10, 12, 12);
+  assert.equal(L.lookBack(undefined, t), 604800);
+  assert.equal(L.lookBack(t - 3 * 3600_000, t), 86400);
+  assert.equal(L.lookBack(t - 3 * 86400_000, t), 3 * 86400 + 3600);
+  assert.equal(L.lookBack(t - 30 * 86400_000, t), 604800);
+});
 await ok("jobs switched off in the config, or no secret: nothing is fetched", async () => {
   const h = harness();
   assert.equal((await L.run(normalize({ ...CONFIG, modules: { ...CONFIG.modules, jobs: false } }), h.deps)).status, "off");
@@ -128,17 +133,5 @@ await ok("jobs switched off in the config, or no secret: nothing is fetched", as
   assert.equal(h.calls.length, 0);
 });
 
-// ---------------------------------------------------------------- the schedule
-console.log("\n3. the schedule");
-await ok("a launchd job at 9:00 and 18:00, low priority, logging to a file", () => {
-  const p = L.plist("/usr/local/bin/node", "/x/cf/scripts/linkedin.mjs", "/x/cf", "/tmp/li.log", ["09:00", "18:00"]);
-  assert.match(p, /<string>de\.neustart\.linkedin<\/string>/);
-  assert.match(p, /<string>\/usr\/local\/bin\/node<\/string>\s*<string>--no-warnings<\/string>\s*<string>\/x\/cf\/scripts\/linkedin\.mjs<\/string>\s*<string>run<\/string>/);
-  assert.match(p, /<key>Hour<\/key><integer>9<\/integer><key>Minute<\/key><integer>0<\/integer>/);
-  assert.match(p, /<key>Hour<\/key><integer>18<\/integer>/);
-  assert.match(p, /<key>ProcessType<\/key><string>Background<\/string>/);
-  assert.match(p, /<key>LowPriorityIO<\/key><true\/>/);
-  assert.ok(!/RunAtLoad<\/key><true/.test(p) && !/KeepAlive/.test(p), "runs at the set times only");
-});
 
 console.log(`\nall ${pass} linkedin checks passed`);

@@ -1,42 +1,36 @@
-// npm run linkedin -- on | off | status | run
+// npm run linkedin - one search, now
 //
 // LinkedIn jobs, fetched from this computer: LinkedIn refuses requests from
-// Cloudflare, but answers a home connection. Twice a day (macOS's launchd,
-// no process left running in between) this searches LinkedIn's public guest
-// pages - no login, no cookies, no account involved - asks the bot which jobs
-// are new, opens only the new ones that pass the bot's rules, and hands them
-// to the Worker (POST /ingest/jobs), which matches and posts them like the
-// rest.
+// Cloudflare, but answers a home connection. Run when you want it (nothing is
+// scheduled, nothing keeps running): this searches LinkedIn's public guest
+// pages - no login, no cookies, no account involved - and after each search
+// hands the new jobs to the Worker (POST /ingest/jobs), which matches and
+// posts them like the rest.
 //
-// Gentle on purpose: at most 10 LinkedIn requests a run, 20-40 s apart. If
-// LinkedIn says no (429, 999, a login wall), the run stops at once and the
-// next day is skipped.
+// Gentle on purpose: at most 10 LinkedIn searches a run, 60-90 s apart, and
+// no job pages (the bot matches on title, company and place). If
+// LinkedIn says no (429, 999, a login wall), the run stops at once.
 //
 // neustart.yaml, optional:
 //   jobs:
 //     linkedin:
-//       times: ["09:00", "18:00"]
 //       searches: ["Werkstudent Data", "Data Analyst"]   # default: the people's own searches
 // .env: NEUSTART_URL (the Worker's address) and INGEST_SECRET (also a Worker secret).
-import { appendFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { CF, check, readConfigFile, readEnv } from "./lib.mjs";
 
 const { jobRejectReason } = await import(resolve(CF, "src/jobs.ts"));
 const { unescapeHtml } = await import(resolve(CF, "src/scraper.ts"));
 
-const LABEL = "de.neustart.linkedin";
 const MAX_REQUESTS = 10;
-const GAP_MS = [20_000, 40_000];
-const PAUSE_MS = 24 * 3600_000;
+const GAP_MS = [60_000, 90_000];
 const TERMS_PER_QUERY = 4;
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36";
 const STATE = join(homedir(), ".neustart", "linkedin.json");
 const LOG = join(homedir(), "Library", "Logs", "neustart-linkedin.log");
-const PLIST = join(homedir(), "Library", "LaunchAgents", `${LABEL}.plist`);
 
 // ---------------------------------------------------------------- LinkedIn's pages
 const text = (html) => unescapeHtml(html.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
@@ -71,8 +65,10 @@ export function queriesFor(cfg, active, opts = {}) {
   return groups.flatMap((keywords) => cfg.jobs.cities.map((c) => ({ keywords, location: c.name })));
 }
 
-const searchUrl = (q) => "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?" +
-  new URLSearchParams({ keywords: q.keywords, location: q.location, f_TPR: "r86400" });
+// posted since: the seconds back to the last run, at least a day, at most a week
+const searchUrl = (q, since = 86400) => "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?" +
+  new URLSearchParams({ keywords: q.keywords, location: q.location, f_TPR: `r${since}` });
+export const lookBack = (lastRun, t) => Math.min(7 * 86400, Math.max(86400, Math.ceil((t - (lastRun ?? 0)) / 1000) + 3600));
 const jobUrl = (id) => `https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${id}`;
 
 // ---------------------------------------------------------------- one run
@@ -80,26 +76,13 @@ class Limited extends Error {}
 const readState = (p) => { try { return JSON.parse(readFileSync(p, "utf8")); } catch { return {}; } };
 const saveState = (p, s) => { mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, JSON.stringify(s, null, 1)); };
 
-export async function run(cfg, { fetch, sleep, now, state = STATE, env, log = () => {}, opts = {} }) {
+export async function run(cfg, { fetch, sleep, now, state = STATE, env, log = () => {}, progress = () => {}, opts = {} }) {
   const st = readState(state);
-  const done = (status, extra = {}) => { saveState(state, { ...st, lastRun: now(), lastResult: status, ...extra }); return { status, ...extra }; };
-  if ((st.pausedUntil ?? 0) > now()) return { status: "paused" };
+  const done = (status, extra = {}) => { saveState(state, { lastRun: now(), lastResult: status, ...extra }); return { status, ...extra }; };
   if (!cfg.modules.jobs) return { status: "off" };
   if (!env.INGEST_SECRET || !env.NEUSTART_URL) return { status: "no secret" };
   const active = cfg.jobs.people.filter((p) => p.active).map((p) => p.id);
   if (!active.length) active.push(cfg.jobs.people[0].id);
-
-  let budget = MAX_REQUESTS, first = true;
-  const linkedin = async (url) => {
-    if (budget <= 0) return null;
-    if (!first) await sleep(GAP_MS[0] + Math.random() * (GAP_MS[1] - GAP_MS[0]));
-    first = false; budget--;
-    const r = await fetch(url, { headers: { "User-Agent": UA, "Accept-Language": "de-DE,de;q=0.9,en;q=0.8" }, redirect: "manual" });
-    if (r.status !== 200) throw new Limited(`LinkedIn answered ${r.status}`);
-    const html = await r.text();
-    if (/authwall|uas\/login/.test(html.slice(0, 3000))) throw new Limited("LinkedIn wants a login");
-    return html;
-  };
   const bot = async (body) => {
     const r = await fetch(`${env.NEUSTART_URL.replace(/\/$/, "")}/ingest/jobs`, {
       method: "POST", headers: { "Content-Type": "application/json", "X-Ingest-Secret": env.INGEST_SECRET }, body: JSON.stringify(body),
@@ -108,111 +91,81 @@ export async function run(cfg, { fetch, sleep, now, state = STATE, env, log = ()
     return r.json();
   };
 
+  const queries = queriesFor(cfg, active, opts).slice(0, MAX_REQUESTS);
+  const since = lookBack(st.lastRun, now());
+  const p = { done: 0, total: queries.length, found: 0, handed: 0 };
+  progress(p);
+  const seen = new Set();
   try {
-    const cards = new Map();
-    for (const q of queriesFor(cfg, active, opts)) {
-      const html = await linkedin(searchUrl(q));
-      if (html === null) break;
-      for (const c of parseSearch(html)) cards.set(c.id, c);
+    for (const q of queries) {
+      if (p.done) { const ms = GAP_MS[0] + Math.random() * (GAP_MS[1] - GAP_MS[0]); await sleep(ms, p); }
+      log(`search ${p.done + 1}/${p.total}: ${q.keywords.slice(0, 70)} in ${q.location}`);
+      const r = await fetch(searchUrl(q, since), { headers: { "User-Agent": UA, "Accept-Language": "de-DE,de;q=0.9,en;q=0.8" }, redirect: "manual" });
+      p.done++;
+      if (r.status !== 200) throw new Limited(`LinkedIn answered ${r.status}`);
+      const html = await r.text();
+      if (/authwall|uas\/login/.test(html.slice(0, 3000))) throw new Limited("LinkedIn wants a login");
+      // handed to the bot at once: a refusal later loses nothing
+      const jobs = parseSearch(html).filter((c) => !seen.has(c.id)).map((c) => {
+        seen.add(c.id);
+        return { id: `li:${c.id}`, source: "LinkedIn", title: c.title, company: c.company, place: c.place,
+          url: `https://www.linkedin.com/jobs/view/${c.id}`, remote: /remote/i.test(c.place), kind: "" };
+      });
+      p.found += jobs.length;
+      if (jobs.length) {
+        const unknown = new Set((await bot({ op: "known", jobs })).unknown);
+        const fresh = jobs.filter((j) => unknown.has(j.id));
+        if (fresh.length) await bot({ op: "add", jobs: fresh });
+        p.handed += fresh.length;
+        log(`  ${jobs.length} found, ${fresh.length} new → handed to the bot`);
+      } else log("  nothing found");
+      progress(p);
     }
-    const jobs = [...cards.values()].map((c) => ({
-      id: `li:${c.id}`, source: "LinkedIn", title: c.title, company: c.company, place: c.place,
-      url: `https://www.linkedin.com/jobs/view/${c.id}`, remote: /remote/i.test(c.place), kind: "",
-    }));
-    if (!jobs.length) return done("done", { found: 0 });
-    const unknown = new Set((await bot({ op: "known", jobs })).unknown);
-    const fresh = jobs.filter((j) => unknown.has(j.id));
-    // the rule-rejected are handed in as they are (so they're known next time);
-    // only the rest get their page opened, while the budget lasts
-    const rejected = fresh.filter((j) => jobRejectReason(j.title, cfg.jobs, active, ""));
-    const detailed = [];
-    for (const j of fresh.filter((x) => !rejected.includes(x))) {
-      const html = await linkedin(jobUrl(j.id.slice(3)));
-      if (html === null) break;
-      detailed.push({ ...j, ...parseJob(html) });
-    }
-    const add = [...rejected, ...detailed];
-    const r = add.length ? await bot({ op: "add", jobs: add }) : { fresh: 0, keep: 0 };
-    log(`found ${jobs.length}, new ${fresh.length}, opened ${detailed.length}, handed in ${add.length} (to match: ${r.keep})`);
-    return done("done", { found: jobs.length, new: fresh.length, to_match: r.keep });
+    return done("done", { found: p.found, new: p.handed });
   } catch (e) {
     if (!(e instanceof Limited)) throw e;
-    log(`${e.message} - stopping, and skipping the next day`);
-    return done("limited", { pausedUntil: now() + PAUSE_MS });
+    progress(p);
+    log(`${e.message} - stopping here; the ${p.handed} new job(s) found so far are with the bot`);
+    return done("limited", { found: p.found, new: p.handed });
   }
-}
-
-// ---------------------------------------------------------------- the schedule
-/** A launchd job that runs this at the given times, at low priority, and nothing else. */
-export function plist(node, script, cwd, log, times) {
-  const at = times.map((t) => {
-    const [h, m] = t.split(":").map(Number);
-    return `      <dict><key>Hour</key><integer>${h}</integer><key>Minute</key><integer>${m || 0}</integer></dict>`;
-  }).join("\n");
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key><string>${LABEL}</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>${node}</string>
-    <string>--no-warnings</string>
-    <string>${script}</string>
-    <string>run</string>
-  </array>
-  <key>WorkingDirectory</key><string>${cwd}</string>
-  <key>StartCalendarInterval</key>
-  <array>
-${at}
-  </array>
-  <key>ProcessType</key><string>Background</string>
-  <key>LowPriorityIO</key><true/>
-  <key>Nice</key><integer>10</integer>
-  <key>StandardOutPath</key><string>${log}</string>
-  <key>StandardErrorPath</key><string>${log}</string>
-</dict>
-</plist>
-`;
 }
 
 // ---------------------------------------------------------------- the command
-async function main(cmd) {
-  const uid = process.getuid();
-  const launchctl = (...a) => spawnSync("launchctl", a, { encoding: "utf8" });
+async function main() {
   const raw = existsSync(resolve(CF, "..", "neustart.yaml")) ? readConfigFile() : {};
-  const opts = raw.jobs?.linkedin ?? {};
-  const times = opts.times ?? ["09:00", "18:00"];
-  if (cmd === "on") {
-    mkdirSync(dirname(PLIST), { recursive: true }); mkdirSync(dirname(LOG), { recursive: true });
-    writeFileSync(PLIST, plist(process.execPath, resolve(CF, "scripts/linkedin.mjs"), CF, LOG, times));
-    launchctl("bootout", `gui/${uid}/${LABEL}`);
-    const r = launchctl("bootstrap", `gui/${uid}`, PLIST);
-    if (r.status !== 0) { console.error(`launchctl: ${r.stderr.trim()}`); process.exit(1); }
-    console.log(`On: LinkedIn is searched at ${times.join(" and ")} (a missed time runs when the Mac wakes). Log: ${LOG}`);
-  } else if (cmd === "off") {
-    launchctl("bootout", `gui/${uid}/${LABEL}`);
-    if (existsSync(PLIST)) unlinkSync(PLIST);
-    console.log("Off: LinkedIn isn't searched any more. npm run linkedin -- on to start again.");
-  } else if (cmd === "status") {
-    const on = launchctl("print", `gui/${uid}/${LABEL}`).status === 0;
-    const st = readState(STATE);
-    const when = (t) => (t ? new Date(t).toLocaleString("de-DE") : "never");
-    console.log(`${on ? `On, at ${times.join(" and ")}` : "Off"}. Last run: ${when(st.lastRun)} (${st.lastResult ?? "-"})` +
-      ((st.pausedUntil ?? 0) > Date.now() ? `. LinkedIn said no - paused until ${when(st.pausedUntil)}` : ""));
-    if (existsSync(LOG)) console.log(readFileSync(LOG, "utf8").trim().split("\n").slice(-5).join("\n"));
-  } else if (cmd === "run") {
-    mkdirSync(dirname(LOG), { recursive: true });
-    // keep the log small: its last 300 lines
-    if (existsSync(LOG)) { const l = readFileSync(LOG, "utf8").split("\n"); if (l.length > 400) writeFileSync(LOG, l.slice(-300).join("\n")); }
-    const log = (m) => { const line = `${new Date().toISOString()} ${m}`; console.log(line); appendFileSync(LOG, line + "\n"); };
-    const r = await run(await check(raw), {
-      fetch, sleep: (ms) => new Promise((ok) => setTimeout(ok, ms)), now: Date.now, env: readEnv(), log, opts,
+  mkdirSync(dirname(LOG), { recursive: true });
+  // keep the log small: its last 300 lines
+  if (existsSync(LOG)) { const l = readFileSync(LOG, "utf8").split("\n"); if (l.length > 400) writeFileSync(LOG, l.slice(-300).join("\n")); }
+  const log = (m) => { const line = `${new Date().toISOString()} ${m}`; console.log(line); appendFileSync(LOG, line + "\n"); };
+  console.log("Searching LinkedIn once: up to 10 searches, 60-90 s apart (about 10-15 minutes).");
+  // the progress bar, on its own line, redrawn in place (only in a terminal)
+  const tty = process.stdout.isTTY;
+  let last = { done: 0, total: 0, found: 0, handed: 0 }, wait = "";
+  const bar = () => {
+    if (!tty || !last.total) return;
+    const w = 20, f = Math.round((last.done / last.total) * w);
+    process.stdout.write(`\r\x1b[2K[${"█".repeat(f)}${"░".repeat(w - f)}] ${last.done}/${last.total} searches · ${last.found} found · ${last.handed} to the bot${wait}`);
+  };
+  const say = (m) => { if (tty) process.stdout.write("\r\x1b[2K"); log(m); bar(); };
+  const sleep = async (ms) => {
+    for (let left = Math.ceil(ms / 1000); left > 0; left--) { wait = ` · next in ${left}s`; bar(); await new Promise((ok) => setTimeout(ok, 1000)); }
+    wait = "";
+  };
+  let r;
+  try {
+    r = await run(await check(raw), {
+      fetch, sleep, now: Date.now, env: readEnv(), log: say, progress: (p) => { last = { ...p }; bar(); }, opts: raw.jobs?.linkedin ?? {},
     });
-    if (r.status !== "done") log(`run: ${r.status}`);
-  } else {
-    console.log("npm run linkedin -- on | off | status | run");
+    if (tty) process.stdout.write("\n");
+  } catch (e) {
+    if (tty) process.stdout.write("\n");
+    log(`failed: ${e?.cause?.message ?? e?.message ?? e}`);
+    process.exitCode = 1;
+    return;
   }
+  if (r.status !== "done") log(`run: ${r.status}`);
+  else if (!r.found) log("nothing found");
+  else log(`done - ${r.new} new job(s) went to the bot; the ones that fit show up in the jobs topic within the next half hour`);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main(process.argv[2]);
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();

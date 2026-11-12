@@ -252,24 +252,25 @@ leavers are left out. Events are posted when they're within
 LinkedIn refuses requests from Cloudflare (429 on the first one), but
 answers a home connection. `scripts/linkedin.mjs` runs on a Mac:
 
-    npm run linkedin -- on       # twice a day via launchd (9:00 and 18:00)
-    npm run linkedin -- off
-    npm run linkedin -- status   # on/off, the last run, the last log lines
-    npm run linkedin -- run      # once, now
+    npm run linkedin             # one run, now (about 10-15 minutes, with a progress bar)
+
+Nothing is scheduled and nothing keeps running: it searches once when you
+run it.
 
 Each run searches LinkedIn's public guest pages - no login, no cookies, no
 account involved - with each active person's searches (a few terms per
-query) in the config's cities, last 24 hours. It asks the Worker which jobs
-are new (`POST /ingest/jobs`, with the `INGEST_SECRET` header), opens only
-the new ones that pass the rules, and hands them in; the Worker matches and
-posts them like any other job, "via LinkedIn". At most 10 LinkedIn requests
-a run, 20-40 s apart; if LinkedIn says no (429, 999, a login wall) the run
-stops and the next day is skipped. Nothing stays running between runs; a
-time missed while the Mac sleeps runs when it wakes.
+query) in the config's cities, for jobs posted since the last run (at
+least a day, at most a week back). After each search the new jobs go
+straight to the Worker (`POST /ingest/jobs`, with the `INGEST_SECRET`
+header), which matches them on title, company and place and posts them like
+any other job, "via LinkedIn" - so a run LinkedIn cuts short still delivers
+what it found. At most 10 searches a run, 60-90 s apart, and no job pages;
+if LinkedIn says no (429, 999, a login wall) the run stops at once. Run it
+from a home connection, not through a VPN: LinkedIn refuses data-centre
+addresses.
 
 Needs `NEUSTART_URL` (the Worker's address) and `INGEST_SECRET` in `../.env`,
 and the same `INGEST_SECRET` as a Worker secret. Optional in the config:
-`jobs.linkedin.times` (default `["09:00", "18:00"]`) and
 `jobs.linkedin.searches` (default: the people's own searches).
 
 ### Casual jobs
