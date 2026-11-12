@@ -48,6 +48,9 @@ const date = (iso?: string) => (iso ? iso.slice(0, 10).split("-").reverse().slic
 // ---------------------------------------------------------------- rules
 // needs a qualification or a licence nobody gets on the side
 const QUALIFIED = /fachkraft|pflegekraft|pflegefach|altenpfleg|krankenpfleg|therapeut|physio|logopäd|erzieher|(?<!nachhilfe)lehrer|ausbilder|dozent|arzt|ärzt|apothek|hebamme|sozialpäd|psycholog|berufskraftfahrer|\blkw\b|bus ?fahrer|baumaschin|baugerät|geräteführer|kranführer|elektri|mechani|mechatron|(?<!haus)meister|ingenieur|steuerfach|buchhalt|bilanz|medizinische|zahnmed|nageldesign|wimpern|kosmetik|friseur|anwalt|jurist/;
+// leading people or a site: wants training and experience, not a side job
+// (named one by one: "-leiter" alone would catch Alltagsbegleiter)
+const LEAD = /objektleit|teamleit|schichtleit|filialleit|marktleit|bereichsleit|abteilungsleit|projektleit|standortleit|betriebsleit|niederlassungsleit|gruppenleit|kolonnenführ|vorarbeiter|polier|führungskraft|supervisor|team ?lead|manager|stellv(\.|ertret)|disponent/;
 const FULL_TIME = /vollzeit|full[- ]?time/;
 const CASUAL = /mini-?job|aushilf|teilzeit|nebenjob|werkstudent/;
 
@@ -55,6 +58,7 @@ const CASUAL = /mini-?job|aushilf|teilzeit|nebenjob|werkstudent/;
 export function casualRejectReason(title: string): string | null {
   const t = title.toLowerCase();
   if (QUALIFIED.test(t)) return "needs a qualification";
+  if (LEAD.test(t)) return "a lead role";
   if (/\b(ausbildung|azubi|duales studium)\b/.test(t)) return "apprenticeship";
   if (FULL_TIME.test(t) && !CASUAL.test(t)) return "full-time";
   return null;

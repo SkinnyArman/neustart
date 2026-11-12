@@ -85,8 +85,15 @@ await ok("trades, licences, apprenticeships and plain full-time titles are left 
     assert.ok(C.casualRejectReason(t), t);
   for (const t of ["Aushilfe im Verkauf (m/w/d)", "Minijob als Reinigungskraft", "Mini-Job, Teilzeit, Vollzeit Zusteller (m/w/d)",
     "Küchenhilfe (m/w/d)", "Hausmeister (m/w/d) Minijob", "Ordnungsdienst für Veranstaltungen (m/w/d)",
-    "Gebäudereiniger (m/w/d) Cottbus Kolkwitz", "Minijob - Zeitung austragen in Kolkwitz"])
+    "Gebäudereiniger (m/w/d) Cottbus Kolkwitz", "Minijob - Zeitung austragen in Kolkwitz",
+    "Alltagsbegleiter (m/w/d) Minijob", "Schulbegleiter als Aushilfe"])
     assert.equal(C.casualRejectReason(t), null, t);
+});
+await ok("lead roles are left out: they want training and experience, not a student on the side", () => {
+  for (const t of ["Objektleiter Reinigung (m/w/d) ab 19,00 €/h", "Teamleiter Lager (m/w/d) Teilzeit", "Schichtleitung Gastronomie Minijob",
+    "Stellv. Filialleiter (m/w/d) Teilzeit", "Vorarbeiter Reinigung (m/w/d)", "Shift Manager (m/w/d) Teilzeit", "Supervisor Sicherheitsdienst"])
+    assert.equal(C.casualRejectReason(t), "a lead role", t);
+  assert.equal(C.partTimeRejectReason("Objektleiter Reinigung (m/w/d) ab 19,00 €/h"), "a lead role");
 });
 await ok("pay: the wage field, else a euro amount in the text, else nothing", () => {
   assert.equal(C.payOf({ verguetungsangabe: "STUNDENLOHN", festgehalt: 15 }, ""), "€15/h");
