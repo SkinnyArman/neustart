@@ -23,6 +23,7 @@ import { fmtLeft } from "./settings.ts";
 import type { Store } from "./store.ts";
 import { esc, inTopic, type Button, type Telegram } from "./telegram.ts";
 import { xlsx } from "./xlsx.ts";
+import { nudgeStep } from "./nudge.ts";
 import { introduce, topicOf } from "./topics.ts";
 import { noteError, noteOk } from "./watch.ts";
 
@@ -324,6 +325,7 @@ export async function jobsStep(env: JobsEnv, store: Store, tg: Telegram): Promis
     const due = await remind(env, store, tg, cfg);
     if (due) did.push(`${due} reminders`);
     if (await weekly(env, store, tg, cfg)) did.push("weekly report");
+    did.push(await nudgeStep(db, store, tg, cfg));
     return `jobs: ${did.filter(Boolean).join(", ")}`;
   } finally {
     await store.kvSet("jobs_lock", "0");
@@ -768,17 +770,19 @@ export function germanOf(german: string | undefined, text = ""): [string, string
  * thesis or junior (the AI's kind) with an on-topic title; "general": a
  * part-time or other job on the side.
  */
+/** A role in the person's own field that builds the career: Werkstudent, internship, thesis or junior, with an on-topic title. */
+export function isCareer(r: Pick<JobRow, "person" | "title" | "facts" | "kind">, j: Jobs): boolean {
+  const f: Partial<Facts> = r.facts ? JSON.parse(r.facts) : {};
+  const ps = peopleOf(j, r.person).map((w) => byId(j, w)).filter(Boolean) as Person[];
+  return ps.some((p) => topicRx(p).test(r.title.toLowerCase())) && ["werkstudent", "internship", "thesis", "junior"].includes(f.kind ?? r.kind ?? "");
+}
 export function trackerRows(rows: JobRow[], j: Jobs): string[][] {
-  const field = (r: JobRow, kind = "") => {
-    const ps = peopleOf(j, r.person).map((w) => byId(j, w)).filter(Boolean) as Person[];
-    const onTopic = ps.some((p) => topicRx(p).test(r.title.toLowerCase()));
-    return onTopic && ["werkstudent", "internship", "thesis", "junior"].includes(kind) ? "career-centered" : "general";
-  };
+  const field = (r: JobRow) => (isCareer(r, j) ? "career-centered" : "general");
   return rows.map((r) => {
     const f: Partial<Facts> = r.facts ? JSON.parse(r.facts) : {};
     const [need, lvl] = germanOf(f.german, r.text ?? "");
     const city = (r.place ?? "").split(/[,·(]/)[0].trim();
-    return [r.title, r.company, city, workMode(r), (STATUS[r.status] ?? r.status).replace(/^\S+\s/, ""), field(r, f.kind ?? r.kind ?? ""), need, lvl];
+    return [r.title, r.company, city, workMode(r), (STATUS[r.status] ?? r.status).replace(/^\S+\s/, ""), field(r), need, lvl];
   });
 }
 const HEAD: { title: string; fill: string; width: number }[] = [

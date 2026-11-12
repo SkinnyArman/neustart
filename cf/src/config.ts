@@ -64,6 +64,8 @@ export interface Config {
     remote: boolean;
     arbeitnow: boolean;
     people: Person[];
+    // a daily nudge to apply to one career-centered job (nudge.ts); off without a person and a mention
+    nudge: { person: string; mention: string; at: string };
   };
   casual_jobs: { radius_km: number; only_city: boolean; sources: CasualSource[]; worth_it: boolean };
   events: {
@@ -206,6 +208,8 @@ export function normalize(raw: unknown): Config {
     remote: bool(j.remote, true),
     arbeitnow: bool(j.arbeitnow, true),
     people,
+    nudge: { person: str(j.nudge?.person).toLowerCase(), mention: str(j.nudge?.mention),
+      at: /^\d{2}:\d{2}$/.test(str(j.nudge?.at)) ? str(j.nudge?.at) : "10:00" },
   };
 
   const e = r.events ?? {};
