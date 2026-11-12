@@ -423,6 +423,16 @@ console.log("\n6. worth it or not");
     assert.equal(await st3.kvGet("casual_repost"), "0");
     assert.ok(cards().length >= 1);
   });
+  // a card that went out before a rule left its kind out
+  DB3.raw.prepare(`INSERT INTO casual (id,dkey,title,company,place,status,first_seen,posted_at,msg_id)
+    VALUES ('bt:9999','x','Objektleiter Reinigung (m/w/d) ab 19,00 €/h','Neo Temp GmbH','Cottbus','posted',0,0,4242)`).run();
+  net.tg = []; await run3(47);
+  await ok("a posted job a rule now leaves out: its card is deleted and the job skipped", () => {
+    assert.ok(net.tg.some((c) => c.method === "deleteMessage" && c.body.message_id === 4242));
+    const r = DB3.raw.prepare("SELECT status, why, msg_id FROM casual WHERE id='bt:9999'").get();
+    assert.deepEqual([r.status, r.why, r.msg_id], ["skipped", "a lead role", null]);
+    assert.ok(DB3.raw.prepare("SELECT COUNT(*) n FROM casual WHERE status='posted'").get().n >= 1, "the others stay");
+  });
   globalThis.fetch = f0;
   await ok("without worth_it in the config: no AI at all, as before", async () => {
     const { normalize } = await import(SRC + "config.ts");

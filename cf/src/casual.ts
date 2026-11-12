@@ -160,6 +160,8 @@ export async function casualStep(env: CasualEnv, store: Store, tg: Telegram): Pr
   }
   if (src.includes("kleinanzeigen") && now() - Number((await store.kvGet("casual_ka_at")) ?? 0) >= KA_EVERY)
     did.push(await searchKleinanzeigen(db, store, w, cfg));
+  const ruled = await takeDownRuledOut(db, tg);
+  if (ruled) did.push(`${ruled} taken down by a rule`);
   const gone = await recheck(db, store, tg);
   if (gone) did.push(`${gone} no longer listed`);
   const n = await post(env, store, tg, cfg, w);
@@ -504,6 +506,24 @@ async function recheck(db: D1Database, store: Store, tg: Telegram): Promise<numb
     gone++;
   }
   return gone;
+}
+
+/**
+ * Posted cards a title rule now leaves out (one added after they went out,
+ * like lead roles): the message is deleted and the job skipped. No fetching.
+ */
+async function takeDownRuledOut(db: D1Database, tg: Telegram): Promise<number> {
+  const { results } = await db.prepare("SELECT id, title, msg_id FROM casual WHERE status='posted'")
+    .all<{ id: string; title: string; msg_id: number | null }>();
+  let n = 0;
+  for (const r of results ?? []) {
+    const why = r.id.startsWith("bt:") ? partTimeRejectReason(r.title) : r.id.startsWith("kj:") ? kaJobRejectReason(r.title) : casualRejectReason(r.title);
+    if (!why) continue;
+    if (r.msg_id) try { await tg.deleteMessage(r.msg_id); } catch { /* already gone, or older than 48 h */ }
+    await setRow(db, r.id, { status: "skipped", why, msg_id: null });
+    n++;
+  }
+  return n;
 }
 
 /** Posted cards from outside the city, when only the city itself counts: deleted. */
