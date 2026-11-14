@@ -103,12 +103,17 @@ export function nudgeText(l: Line, mention: string, waiting: { fresh: number; la
   ].join("\n\n");
 }
 
-/** The fitting lines for today, freshest first; one not used lately, at random. */
+/**
+ * Today's line, at random from the ones not sent yet: one that fits the day
+ * if any of those is left, else any unsent one. A line comes back only once
+ * every line has gone out.
+ */
 export function pickLine(ctx: { rejected: boolean; monday: boolean; pile: boolean; quiet: boolean; only?: When },
   used: string[], rnd: () => number = Math.random): Line {
   const want: When | null = ctx.only ?? (ctx.rejected ? "R" : ctx.pile ? "P" : ctx.quiet ? "S" : ctx.monday ? "M" : null);
-  const unused = (ls: Line[]) => { const u = ls.filter((l) => !used.includes(l.id)); return u.length ? u : ls; };
-  const pool = unused(want ? LINES.filter((l) => l.when?.includes(want)) : LINES);
+  const unsent = LINES.filter((l) => !used.includes(l.id));
+  const fitting = want ? unsent.filter((l) => l.when?.includes(want)) : unsent;
+  const pool = fitting.length ? fitting : unsent.length ? unsent : LINES;
   return pool[Math.floor(rnd() * pool.length)] ?? LINES[0];
 }
 
@@ -151,8 +156,10 @@ export async function nudgeStep(db: D1Database, store: Store, tg: Telegram, cfg:
   const used: string[] = JSON.parse((await store.kvGet("nudge_used")) ?? "[]");
   const line = pickLine(ctx, used);
   await tg.send(nudgeText(line, n.mention, { fresh, later }), inTopic(await topicOf(cfg, store, tg, "jobs")));
-  // remembered until every line has had its turn
-  const next = [...used.filter((x) => x !== line.id), line.id];
+  // sent lines stay out until every line has had its turn; then a new round
+  // (without the one just sent, so it can't come twice in a row)
+  const ids = new Set(LINES.map((l) => l.id));
+  const next = [...new Set([...used.filter((x) => ids.has(x)), line.id])];
   await store.kvSet("nudge_used", JSON.stringify(next.length >= LINES.length ? [line.id] : next));
   return `nudge: sent "${line.id}"`;
 }

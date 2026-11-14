@@ -43,11 +43,18 @@ await ok("the line fits the day: a rejection, a pile on the waiting list, a quie
     assert.ok(pick({ only: "F" }).when.includes("F"));
   }
 });
-await ok("no line twice until all of a kind have had their turn", () => {
-  const used = [], ctx = { rejected: false, monday: false, pile: false, quiet: false, only: "F" };
-  const funny = N.LINES.filter((l) => l.when?.includes("F")).length;
-  for (let i = 0; i < funny; i++) used.push(N.pickLine(ctx, used).id);
-  assert.equal(new Set(used).size, funny);
+await ok("no line twice until every line has gone out - even when the day keeps asking for the same kind", () => {
+  for (const ctx of [{}, { rejected: true }, { pile: true }, { quiet: true }, { monday: true }, { only: "F" }]) {
+    const used = [];
+    for (let i = 0; i < N.LINES.length; i++) used.push(N.pickLine({ rejected: false, monday: false, pile: false, quiet: false, ...ctx }, used).id);
+    assert.equal(new Set(used).size, N.LINES.length, JSON.stringify(ctx));
+  }
+});
+await ok("…the fitting ones first, while any are left", () => {
+  const used = [], ctx = { rejected: true, monday: false, pile: false, quiet: false };
+  const fit = N.LINES.filter((l) => l.when?.includes("R")).length;
+  for (let i = 0; i < fit; i++) used.push(N.pickLine(ctx, used).id);
+  assert.ok(used.every((id) => N.LINES.find((l) => l.id === id).when?.includes("R")));
 });
 
 console.log("\nwhen it goes out");
@@ -95,6 +102,21 @@ console.log("\nwhen it goes out");
     await N.nudgeStep(w.db, w.store, w.tg, cfg);
     assert.equal(w.sent.length, 1); assert.match(w.sent[0].text, /^😄 /);
     assert.equal(w.kv.get("nudge_now"), "0"); assert.equal(w.kv.get("nudge_day"), undefined, "today's own nudge still comes");
+  });
+}
+{
+  const w = world([job("a", "posted"), job("r", "rejected", { replied_at: 2e9, applied_at: 1e9 })]);   // a rejection every day
+  const ids = [];
+  for (let d = 0; d < N.LINES.length + 1; d++) {
+    at(new Date(Date.UTC(2026, 11, 1 + d, 9, 13)).toISOString());
+    await N.nudgeStep(w.db, w.store, w.tg, cfg);
+    ids.push(JSON.parse(w.kv.get("nudge_used")).at(-1));
+  }
+  await ok(`${N.LINES.length} days in a row: ${N.LINES.length} different lines, then a new round`, () => {
+    assert.equal(w.sent.length, N.LINES.length + 1);
+    assert.equal(new Set(ids.slice(0, N.LINES.length)).size, N.LINES.length);
+    assert.notEqual(ids.at(-1), ids.at(-2), "not the same twice in a row across rounds");
+    assert.equal(JSON.parse(w.kv.get("nudge_used")).length, 2);
   });
 }
 await ok("without a person and a mention in the config: off", async () => {
