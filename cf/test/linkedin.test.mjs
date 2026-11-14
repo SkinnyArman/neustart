@@ -101,7 +101,7 @@ const cfg = normalize(CONFIG);
     assert.equal(r.status, "done");
   });
   await ok("progress: requests done, found, handed to the bot, pages read", () => {
-    assert.deepEqual(prog[0], { done: 0, total: 6, found: 0, handed: 0, pages: 0 });
+    assert.deepEqual(prog[0], { done: 0, total: 6, found: 0, handed: 0, pages: 0, saved: 0 });
     assert.equal(prog.at(-1).done, 6); assert.ok(prog.at(-1).handed >= 1);
   });
   await ok("gentle: 60-90 s between LinkedIn requests, at most 14 a run", () => {
@@ -120,7 +120,7 @@ const cfg = normalize(CONFIG);
     assert.equal(pages[0], "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/900");
     const texts = h.posted.filter((p) => p.op === "text");
     assert.equal(texts.length, 8); assert.match(texts[0].jobs[0].text, /SQL & Python/); assert.equal(texts[0].jobs[0].kind, "Teilzeit");
-    assert.equal(r.pages, 8);
+    assert.equal(r.pages, 8); assert.equal(r.saved, 8);   // what the bot says it saved
   });
 }
 {

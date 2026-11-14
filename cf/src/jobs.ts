@@ -484,7 +484,7 @@ export async function ingestJobs(db: D1Database, store: Store, body: any): Promi
   if (body?.op === "needtext") {
     await ensureTable(db);
     const { results } = await db.prepare(
-      `SELECT id FROM jobs WHERE id LIKE 'li:%' AND text IS NULL AND status IN ('new','ready','posted','approved')
+      `SELECT id FROM jobs WHERE id LIKE 'li:%' AND COALESCE(text, '') = '' AND status IN ('new','ready','posted','approved')
        ORDER BY CASE status WHEN 'approved' THEN 0 WHEN 'posted' THEN 1 ELSE 2 END, first_seen DESC LIMIT 20`).all<{ id: string }>();
     return { status: 200, json: { ids: (results ?? []).map((r) => r.id) } };
   }
@@ -492,9 +492,11 @@ export async function ingestJobs(db: D1Database, store: Store, body: any): Promi
     await ensureTable(db);
     const items = Array.isArray(body.jobs) ? body.jobs.filter((f: any) => typeof f?.id === "string" && /^li:\d+$/.test(f.id) && typeof f.text === "string").slice(0, 50) : null;
     if (!items) return { status: 400, json: { error: "expected {op: text, jobs: [{id, text}]}" } };
-    for (const f of items) await db.prepare("UPDATE jobs SET text=?, kind=COALESCE(NULLIF(kind,''), ?) WHERE id=? AND text IS NULL")
-      .bind(String(f.text).slice(0, 6000), String(f.kind ?? "").slice(0, 100), f.id).run();
-    return { status: 200, json: { saved: items.length } };
+    // only a job without a description yet ("" counts as none); the answer says how many really were
+    let saved = 0;
+    for (const f of items) saved += (await db.prepare("UPDATE jobs SET text=?, kind=COALESCE(NULLIF(kind,''), ?) WHERE id=? AND COALESCE(text, '') = ''")
+      .bind(String(f.text).slice(0, 6000), String(f.kind ?? "").slice(0, 100), f.id).run()).meta?.changes ?? 0;
+    return { status: 200, json: { saved } };
   }
   const list = Array.isArray(body?.jobs) ? body.jobs : null;
   const str = (x: unknown) => typeof x === "string";
@@ -529,12 +531,12 @@ async function assess(env: JobsEnv, store: Store, tg: Telegram, j: Jobs): Promis
       const text = row.text ?? (row.id.startsWith("ba:") ? await detailsBA(row.id) : "");
       const f = await match(env, j, p, row, text, active);
       await aiWorked(store);
-      if (f.for === "none") { none++; await setJob(db, row.id, { status: "skipped", why: `ai: ${f.reason || "not a fit"}`, text: text.slice(0, 6000) }); continue; }
+      if (f.for === "none") { none++; await setJob(db, row.id, { status: "skipped", why: `ai: ${f.reason || "not a fit"}`, text: text ? text.slice(0, 6000) : null }); continue; }
       // more German than anyone it's for can work in: left out
       const g = fitsGerman({ person: f.for, facts: JSON.stringify(f), text, title: row.title }, j, limits);
-      if (!g.keep.length) { none++; await setJob(db, row.id, { status: "skipped", why: g.why, person: f.for, kind: f.kind, facts: JSON.stringify(f), text: text.slice(0, 6000) }); continue; }
+      if (!g.keep.length) { none++; await setJob(db, row.id, { status: "skipped", why: g.why, person: f.for, kind: f.kind, facts: JSON.stringify(f), text: text ? text.slice(0, 6000) : null }); continue; }
       ok++;
-      await setJob(db, row.id, { status: "ready", person: personOf(j, g.keep, f.for), kind: f.kind, facts: JSON.stringify(f), text: text.slice(0, 6000) });
+      await setJob(db, row.id, { status: "ready", person: personOf(j, g.keep, f.for), kind: f.kind, facts: JSON.stringify(f), text: text ? text.slice(0, 6000) : null });
     } catch (e: any) {
       if (/OpenAI/.test(String(e?.message))) await aiFailed(store, tg, e);
       const tries = row.attempts + 1;
@@ -785,7 +787,7 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
   const id = row.id;
 
   // ✍️ a cover letter, and its buttons: shorter, more formal, more casual, the other language, a new one
-  if (act === "letter" || /^w(short|formal|casual|de|en|redo|any)$/.test(act)) {
+  if (act === "letter" || /^w(short|formal|casual|de|en|redo|any|tell)$/.test(act)) {
     await letterButton(env, store, tg, cfg, row, act, who, { answer: (t) => tg.answerCallback(cq.id, t), message: cq.message });
     return;
   }
@@ -1092,6 +1094,8 @@ const letterKeyboard = (l: Letter, who: string, id: string): Button[][] => [
   LETTER_ACTS.map(([a, label]) => ({ text: label, callback_data: buttonData(a, who, id) })),
   [l.lang === "de" ? { text: "🇬🇧 English", callback_data: buttonData("wen", who, id) } : { text: "🇩🇪 Deutsch", callback_data: buttonData("wde", who, id) },
    { text: "🔄 New version", callback_data: buttonData("wredo", who, id) }],
+  // in their own words: "say I did X", "drop Y", "add Z"
+  [{ text: "✏️ Change something", callback_data: buttonData("wtell", who, id) }],
 ];
 const letterMessage = (l: Letter, p: Person, company: string) =>
   `✍️ <b>Cover letter for ${esc(p.name)}</b> · ${esc(company)}\n\n<b>Subject:</b> ${esc(l.subject)}\n\n<pre>${esc(letterText(l, p.full_name))}</pre>` +
@@ -1102,22 +1106,42 @@ export const THIN_AD = 800;
 /** Where a letter was asked for: a button press, or a pasted ad (no button to answer). */
 interface Press { answer: (text?: string) => Promise<unknown>; message?: { message_id: number; chat: { id: number | string } } }
 
-async function letterButton(env: JobsEnv, store: Store, tg: Telegram, cfg: Config, row: JobRow, act: string, who: string, cq: Press): Promise<void> {
+/** What's kept of a person's letter for a job: the letter, its message and PDF, the ad it was written from, and what they asked for. */
+interface SavedLetter { l: Letter; pdf?: number | null; msg?: number | null; text?: string; notes?: string[] }
+
+async function letterButton(env: JobsEnv, store: Store, tg: Telegram, cfg: Config, row: JobRow, act: string, who: string, cq: Press, note = ""): Promise<void> {
   const j = cfg.jobs;
   const w = byId(j, who) ? who : peopleOf(j, row.person)[0] ?? ids(j)[0];
   const p = (await people(store, j))[w];
   const key = `letter:${row.id}:${w}`;
-  const saved: { l: Letter; pdf?: number; text?: string } | null = JSON.parse((await store.kvGet(key)) ?? "null");
+  const saved: SavedLetter | null = JSON.parse((await store.kvGet(key)) ?? "null");
   const cheap = env.FINDS_MODEL || "gpt-5.6-luna";
   const call = (model: string, sys: string, user: string, json: boolean) => ai(env.OPENAI_API_KEY, model, sys, user, json);
   const where = await topic(cfg, store, tg);
   const f: Partial<Facts> = row.facts ? JSON.parse(row.facts) : {};
   // ✍️ Cover letter, or ✍️ Write anyway after "only the short version": a new letter, its own message
   const fresh = act === "letter" || act === "wany";
+  // what they asked for in their own words: the old letter and PDF come down, the new ones go out
+  const resend = act === "wnote";
   if (!fresh && !saved) { await cq.answer("Tap ✍️ Cover letter on the job first"); return; }
+  const notes = [...(saved?.notes ?? []), ...(resend && note ? [note.slice(0, 1000)] : [])].slice(-10);
+  // ✏️ Change something: ask what, as a reply
+  if (act === "wtell") {
+    await cq.answer();
+    const asked = await tg.send(
+      `✏️ <b>What should change?</b> Reply to this message in your own words, for example:\n` +
+      `• mention that I built a churn model during my bachelor\n• leave out the Snappfood part\n• say I can start on 1 December\n\n` +
+      `I'll rewrite the letter and send it again with a new PDF. Replying straight to the letter works too.` +
+      (notes.length ? `\n\n<i>Already taken into account:</i>\n${notes.map((n) => `• ${esc(n)}`).join("\n")}` : ""),
+      { ...where, ...(cq.message ? { reply_to_message_id: cq.message.message_id } : {}) });
+    const at = asked?.result?.message_id;
+    if (at) await store.kvSet(`jobs_letterask:${at}`, JSON.stringify({ id: row.id, who: w }));
+    return;
+  }
   // the longest text we have: a pasted ad comes after any earlier letter
   let l: Letter, text = [row.text ?? "", saved?.text ?? ""].sort((a, b) => b.length - a.length)[0];
   await cq.answer(act === "letter" && text.length < THIN_AD ? "Reading the ad…" : fresh || act === "wredo" ? "Writing the cover letter…" : "Reworking it…");
+  const known = `${p.cv}\n${p.summary}\n${p.skills.join(", ")}\n${notes.join("\n")}`;
   if (fresh || act === "wredo") {
     // the ad's full text from the employer's own page when what we have is thin
     if (text.length < THIN_AD) { const more = await adText(row.url); if (more.length > text.length) text = more; }
@@ -1138,13 +1162,15 @@ async function letterButton(env: JobsEnv, store: Store, tg: Telegram, cfg: Confi
     if (fresh || act === "wredo") {
       const style = await styleOf(store, w);
       l = parseLetter(await call(env.OPENAI_MODEL, letterSystem(p),
-        letterUser({ title: row.title, company: row.company, place: row.place, ref: row.id.startsWith("ba:") ? row.id.slice(3) : "", text }, style), true));
+        letterUser({ title: row.title, company: row.company, place: row.place, ref: row.id.startsWith("ba:") ? row.id.slice(3) : "", text }, style, notes), true));
       // a check that costs nothing; only a problem found costs a (cheap) fix
-      const issues = letterIssues(l, `${p.cv}\n${p.summary}\n${p.skills.join(", ")}`, text, f.skills ?? []);
-      if (issues.length) l = await adjustLetter(call, cheap, l, `Fix these problems: ${issues.join("; ")}.`, p.cv);
+      const issues = letterIssues(l, known, text, f.skills ?? []);
+      if (issues.length) l = await adjustLetter(call, cheap, l, `Fix these problems: ${issues.join("; ")}.`, p.cv, notes);
+    } else if (resend) {
+      l = await adjustLetter(call, cheap, saved!.l, `Change the letter as the applicant asks: "${note.slice(0, 1000)}". Keep everything else as it is.`, p.cv, notes);
     } else {
       const how = act.slice(1);
-      l = await adjustLetter(call, cheap, saved!.l, how, p.cv);
+      l = await adjustLetter(call, cheap, saved!.l, how, p.cv, notes);
       if (["short", "formal", "casual"].includes(how)) await store.kvSet(`letter_style:${w}`, JSON.stringify(learn(await styleOf(store, w), how)));
     }
     await aiWorked(store);
@@ -1155,7 +1181,11 @@ async function letterButton(env: JobsEnv, store: Store, tg: Telegram, cfg: Confi
   }
   const body = letterMessage(l, p, row.company), kb = letterKeyboard(l, w, row.id);
   let msgId = cq.message?.message_id;
-  if (fresh) {
+  if (resend) {
+    // the old letter and its PDF come down; the new ones go out under what they asked
+    for (const m of [saved?.msg, saved?.pdf]) if (m) try { await tg.deleteMessage(m); } catch { /* gone, or older than 48 h */ }
+  }
+  if (fresh || resend) {
     const r = await tg.send(body, { ...where, ...tg.keyboard(kb), ...(msgId ? { reply_to_message_id: msgId } : {}) });
     msgId = r?.result?.message_id;
   } else {
@@ -1170,7 +1200,10 @@ async function letterButton(env: JobsEnv, store: Store, tg: Telegram, cfg: Confi
     const cv = await store.kvGet(`jobs_cv:${w}`);
     if (cv) await tg.sendDocument(cv, { ...where, ...(msgId ? { reply_to_message_id: msgId } : {}), caption: `📎 ${nameOf(j, w)}'s CV` });
   }
-  await store.kvSet(key, JSON.stringify({ l, pdf: sentPdf?.result?.message_id ?? null, text: text.slice(0, 6000) }));
+  const kept: SavedLetter = { l, pdf: sentPdf?.result?.message_id ?? null, msg: msgId ?? null, text: text.slice(0, 6000), notes };
+  await store.kvSet(key, JSON.stringify(kept));
+  // a reply to the letter itself is a change to it, like ✏️
+  if (msgId) await store.kvSet(`jobs_lettermsg:${msgId}`, JSON.stringify({ id: row.id, who: w }));
 }
 
 /** A pasted ad under this many characters is a remark, not an ad. */
@@ -1188,6 +1221,17 @@ export async function adReply(env: JobsEnv, store: Store, tg: Telegram, msg: any
   if (!cfg?.modules.jobs) return false;
   const db = env.DB, j = cfg.jobs;
   await ensureTable(db);
+  // a reply to a letter, or to ✏️'s question: what to change in it
+  const change: { id: string; who: string } | null = JSON.parse((await store.kvGet(`jobs_letterask:${to}`)) ?? (await store.kvGet(`jobs_lettermsg:${to}`)) ?? "null");
+  if (change) {
+    const r = await db.prepare("SELECT * FROM jobs WHERE id=?").bind(change.id).first<JobRow>();
+    if (!r) return false;
+    if (text.length < 3) return true;
+    await tg.send("✏️ Rewriting the letter with that…", { ...(await topic(cfg, store, tg)), reply_to_message_id: msg.message_id });
+    await letterButton(env, store, tg, cfg, r, "wnote", change.who, { answer: async () => undefined, message: { message_id: msg.message_id, chat: msg.chat } }, text);
+    if (await store.kvGet(`jobs_letterask:${to}`)) try { await tg.deleteMessage(to); } catch { /* gone */ }
+    return true;
+  }
   const ask: { id: string; who: string } | null = JSON.parse((await store.kvGet(`jobs_adask:${to}`)) ?? "null");
   const row = ask ? await db.prepare("SELECT * FROM jobs WHERE id=?").bind(ask.id).first<JobRow>()
     : await db.prepare("SELECT * FROM jobs WHERE msg_id=?").bind(to).first<JobRow>();

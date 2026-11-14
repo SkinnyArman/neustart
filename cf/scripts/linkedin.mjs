@@ -110,7 +110,7 @@ export async function run(cfg, { fetch, sleep, now, state = STATE, env, log = ()
     return html;
   };
   const since = lookBack(st.lastRun, now());
-  const p = { done: 0, total: queries.length, found: 0, handed: 0, pages: 0 };
+  const p = { done: 0, total: queries.length, found: 0, handed: 0, pages: 0, saved: 0 };
   progress(p);
   const seen = new Set();
   try {
@@ -145,15 +145,17 @@ export async function run(cfg, { fetch, sleep, now, state = STATE, env, log = ()
       const html = await linkedin(jobUrl(id.slice(3)));
       p.done++; p.pages++;
       const d = parseJob(html);
-      if (d.text) await bot({ op: "text", jobs: [{ id, text: d.text, kind: d.kind }] });
+      // the bot says how many it really saved: a page read but not saved shows up in the log
+      if (d.text) p.saved += (await bot({ op: "text", jobs: [{ id, text: d.text, kind: d.kind }] }))?.saved ?? 0;
+      else log(`  ${id}: the page has no description (taken down, or LinkedIn showed something else)`);
       progress(p);
     }
-    return done("done", { found: p.found, new: p.handed, pages: p.pages });
+    return done("done", { found: p.found, new: p.handed, pages: p.pages, saved: p.saved });
   } catch (e) {
     if (!(e instanceof Limited)) throw e;
     progress(p);
     log(`${e.message} - stopping here; the ${p.handed} new job(s) found so far are with the bot`);
-    return done("limited", { found: p.found, new: p.handed, pages: p.pages });
+    return done("limited", { found: p.found, new: p.handed, pages: p.pages, saved: p.saved });
   }
 }
 
@@ -192,7 +194,7 @@ async function main() {
   }
   if (r.status !== "done") log(`run: ${r.status}`);
   else if (!r.found) log("nothing found");
-  else log(`done - ${r.new} new job(s) went to the bot, ${r.pages ?? 0} job page(s) read; the ones that fit show up in the jobs topic within the next half hour`);
+  else log(`done - ${r.new} new job(s) went to the bot, ${r.pages ?? 0} job page(s) read, ${r.saved ?? 0} description(s) saved by the bot; the ones that fit show up in the jobs topic within the next half hour`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();

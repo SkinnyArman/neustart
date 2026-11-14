@@ -65,9 +65,12 @@ Return JSON only: {"lang": "de"|"en", "subject": string, "salutation": string, "
 - closing: "Mit freundlichen Grüßen" (German) or "Kind regards" (English).
 - why: 2-3 sentences for a "Why do you want to work with us?" form field, in the ad's language, specific to this company and role.`;
 }
-export const letterUser = (job: { title: string; company: string; place: string; ref?: string; text: string }, style: Style) =>
+/** What the applicant asked for in their own words: true, and to be followed (they may add facts the CV doesn't have). */
+export const notesBlock = (notes: string[] = []) => notes.length
+  ? `=== FROM THE APPLICANT (true; follow it, and these facts may be used even if the CV doesn't have them) ===\n${notes.map((n) => `- ${n}`).join("\n")}\n\n` : "";
+export const letterUser = (job: { title: string; company: string; place: string; ref?: string; text: string }, style: Style, notes: string[] = []) =>
   `=== JOB ===\nTitle: ${job.title}\nCompany: ${job.company}\nPlace: ${job.place}${job.ref ? `\nReference: ${job.ref}` : ""}\n\n${job.text.slice(0, 5000)}\n\n` +
-  `=== STYLE ===\nAbout ${style.words} words in the body. Tone: ${toneWords(style.tone)}.`;
+  notesBlock(notes) + `=== STYLE ===\nAbout ${style.words} words in the body. Tone: ${toneWords(style.tone)}.`;
 
 export type AI = (model: string, system: string, user: string, json: boolean) => Promise<string>;
 
@@ -118,9 +121,9 @@ const ADJUST: Record<string, string> = {
   en: "Rewrite it in English (subject, salutation and closing in English too).",
 };
 /** Rework with the budget model: shorter, more formal, more casual, the other language - or fix the listed problems. */
-export async function adjustLetter(ai: AI, model: string, l: Letter, how: string, cv: string): Promise<Letter> {
-  const sys = `You edit a job application letter so it reads like a person wrote it. Keep every fact as it is; never add experience, tools or numbers that aren't in the letter or the CV, never mention what the applicant lacks. Mix very short and longer sentences, no dashes as punctuation, no "not X but Y" / "nicht nur ... sondern auch", no recaps, no stock phrases (${STOCK.join(", ")}). Return the same JSON shape: {"lang", "subject", "salutation", "body", "closing", "why"}.`;
-  const user = `=== CV (the only facts allowed) ===\n${cv.slice(0, 4000)}\n\n=== LETTER ===\n${JSON.stringify(l)}\n\n=== DO ===\n${ADJUST[how] ?? how}`;
+export async function adjustLetter(ai: AI, model: string, l: Letter, how: string, cv: string, notes: string[] = []): Promise<Letter> {
+  const sys = `You edit a job application letter so it reads like a person wrote it. Keep every fact as it is; never add experience, tools or numbers that aren't in the letter, the CV or what the applicant told you, never mention what the applicant lacks. Whatever the applicant told you is true and wins over the letter as it is. Mix very short and longer sentences, no dashes as punctuation, no "not X but Y" / "nicht nur ... sondern auch", no recaps, no stock phrases (${STOCK.join(", ")}). Return the same JSON shape: {"lang", "subject", "salutation", "body", "closing", "why"}.`;
+  const user = `=== CV ===\n${cv.slice(0, 4000)}\n\n${notesBlock(notes)}=== LETTER ===\n${JSON.stringify(l)}\n\n=== DO ===\n${ADJUST[how] ?? how}`;
   return parseLetter(await ai(model, sys, user, true));
 }
 

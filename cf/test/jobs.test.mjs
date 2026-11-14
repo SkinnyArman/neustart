@@ -219,7 +219,7 @@ await ok("✍️ Cover letter: one call to the better model - her profile and CV
 await ok("…the message: subject, the whole letter to copy, a 'Why us?' for the form, and the buttons", () => {
   const m = letterMsg(calls);
   assert.match(m.body.text, /^✍️ <b>Cover letter for Diba<\/b> · [^\n]+\n\n<b>Subject:<\/b> Bewerbung als Werkstudentin Data Analyst \(Ref\. 10001\)\n\n<pre>Sehr geehrte Damen und Herren,\n\nIhr ETCS-Dashboard[\s\S]*Mit freundlichen Grüßen\nDiba [^<]+<\/pre>\n\n💬 <b>Why us\?<\/b> \(for the application form\)\n<pre>Weil Ihr Team/);
-  assert.deepEqual(m.body.reply_markup.inline_keyboard.map((r) => r.map((b) => b.text)), [["✂️ Shorter", "🎩 More formal", "😊 More casual"], ["🇬🇧 English", "🔄 New version"]]);
+  assert.deepEqual(m.body.reply_markup.inline_keyboard.map((r) => r.map((b) => b.text)), [["✂️ Shorter", "🎩 More formal", "😊 More casual"], ["🇬🇧 English", "🔄 New version"], ["✏️ Change something"]]);
   assert.equal(m.body.reply_to_message_id, 7);
 });
 await ok("…and a PDF of it, ready to upload (no CV saved yet, so none sent)", () => {
@@ -728,6 +728,21 @@ await ok("read from the ad's own words, the way real ads put it", () => {
   await ok("…its page says 'sehr gute Deutschkenntnisse' (≈ C1): left out", () => {
     assert.equal(row(DB8, "li:777").status, "skipped"); assert.equal(row(DB8, "li:777").why, "German C1");
   });
+  // a LinkedIn job whose page didn't come within the 30 minutes: matched on its title, and still gets its page later
+  await hand9({ op: "add", jobs: [{ id: "li:888", source: "LinkedIn", title: "Werkstudent Data Analytics", company: "Spät GmbH", place: "Berlin", url: "https://www.linkedin.com/jobs/view/888" }] });
+  DB8.raw.prepare("UPDATE jobs SET first_seen = first_seen - 3600 WHERE id='li:888'").run();
+  for (let i = 0; i < 3; i++) await J.jobsStep(E8, st8, tg8);
+  await ok("a LinkedIn job matched before its page came: no description stored, so it still counts as missing one", async () => {
+    assert.notEqual(row(DB8, "li:888").status, "new"); assert.equal(row(DB8, "li:888").text, null);
+    assert.ok((await (await hand9({ op: "needtext", jobs: [] })).json()).ids.includes("li:888"));
+  });
+  DB8.raw.prepare("UPDATE jobs SET text='' WHERE id='li:888'").run();          // how such jobs were stored before
+  await ok("…an empty description counts as none too, and the page is saved: the answer says how many really were", async () => {
+    assert.ok((await (await hand9({ op: "needtext", jobs: [] })).json()).ids.includes("li:888"));
+    assert.equal((await (await hand9({ op: "text", jobs: [{ id: "li:888", text: "Aufgaben: SQL und Python. Englisch fließend." }] })).json()).saved, 1);
+    assert.match(row(DB8, "li:888").text, /Aufgaben: SQL/);
+    assert.equal((await (await hand9({ op: "text", jobs: [{ id: "li:888", text: "again" }] })).json()).saved, 0);
+  });
   c = await say8("/german diba any");
   await ok("/german diba any: no limit again", async () => assert.equal((await J.germanLimits(st8, JOBS)).diba, 6));
 }
@@ -925,6 +940,66 @@ console.log("\n12. a short ad: asked for, pasted in; 🚫 Closed; a workingstude
   await J.jobsStep(Ep, stp, tg);
   globalThis.fetch = f0;
   await ok("…and not again until a day later", () => assert.equal(looked.filter((u) => /\/api\/v1\/jobs\/(gone|still)$/.test(u)).length, 0));
+}
+
+console.log("\n13. ✏️ Change something: the letter rewritten from what they say");
+{
+  const [DBc, stc, Ec] = await fresh();
+  await J.jobsStep(Ec, stc, tg);                                  // makes the table
+  const t0 = Math.floor(Date.now() / 1000);
+  DBc.raw.prepare("INSERT INTO jobs (id, dkey, source, title, company, place, url, remote, kind, text, status, person, facts, first_seen, posted_at, msg_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    .run("ba:ch1", "ch1", "Jobbörse", "Werkstudent Data (m/w/d)", "Change GmbH", "Berlin", "https://x/ch1", 0, "werkstudent",
+      "Aufgaben: Dashboards mit SQL und Python bauen. ".repeat(30), "posted", "diba", JSON.stringify({ kind: "werkstudent", german: "B2", skills: ["SQL"] }), t0, t0, 1201);
+  const post = async (body) => { net.tg = []; await worker.fetch(new Request("https://w/", { method: "POST",
+    headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" }, body: JSON.stringify(body) }), Ec); return net.tg; };
+  const tap = (data, message_id) => post({ callback_query: { id: "q", data, from: { id: 555 }, message: { chat: { id: -100 }, message_id } } });
+  const say = (text, reply_to, message_id) => post({ message: { message_id, text, from: { id: 555 }, chat: { id: -100 },
+    reply_to_message: { message_id: reply_to, from: { id: 42, is_bot: true } } } });
+  const sentOf = (c, re) => c.find((x) => x.method === "sendMessage" && re.test(x.body.text ?? ""));
+
+  let c = await tap("jb:letter:diba:ba:ch1", 1201);
+  const saved = async () => JSON.parse(await stc.kvGet("letter:ba:ch1:diba"));
+  const { msg: letterAt, pdf: pdfAt } = await saved();
+  const letter = sentOf(c, /Cover letter for Diba/);
+  await ok("the letter has ✏️ Change something under its other buttons", () => {
+    assert.deepEqual(letter.body.reply_markup.inline_keyboard.at(-1).map((b) => b.text), ["✏️ Change something"]);
+  });
+  c = await tap(letter.body.reply_markup.inline_keyboard.at(-1)[0].callback_data, letterAt);
+  const askAt = msgId;
+  await ok("✏️ asks what should change, as a reply, with examples; no AI call yet", () => {
+    assert.match(sentOf(c, /What should change/).body.text, /Reply to this message in your own words/);
+    assert.ok(!c.some((x) => x.method === "deleteMessage"));
+  });
+  const edits = net.edits.length;
+  c = await say("erwähne, dass ich im Bachelor ein Churn-Modell gebaut habe", askAt, 1300);
+  const second = sentOf(c, /Cover letter for Diba/);
+  await ok("her reply: the old letter and PDF come down, a new letter and PDF go out under her reply", () => {
+    assert.equal(net.edits.length, edits + 1);
+    assert.match(net.edits.at(-1).todo, /Churn-Modell/);
+    const del = c.filter((x) => x.method === "deleteMessage").map((x) => x.body.message_id);
+    assert.ok(del.includes(letterAt) && del.includes(pdfAt) && del.includes(askAt), JSON.stringify(del));
+    assert.ok(second); assert.equal(second.body.reply_to_message_id, 1300);
+    assert.ok(c.some((x) => x.method === "sendDocument"));
+    assert.ok(!c.some((x) => x.method === "sendDocument" && /CV/.test(x.body.caption ?? "")));   // the CV isn't sent again
+  });
+  const key = await saved(), second_at = key.msg;
+  await ok("…what she said is kept with the letter, which knows its new message", () => {
+    assert.deepEqual(key.notes, ["erwähne, dass ich im Bachelor ein Churn-Modell gebaut habe"]); assert.notEqual(second_at, letterAt);
+  });
+  c = await say("lass den Teil über A/B-Tests weg", second_at, 1301);
+  await ok("a reply straight to the letter works too, and both things she said go to the AI as true facts", () => {
+    assert.ok(sentOf(c, /Cover letter for Diba/));
+    assert.ok(c.some((x) => x.method === "deleteMessage" && x.body.message_id === second_at));
+    assert.match(net.edits.at(-1).todo, /A\/B-Tests/);
+  });
+  const letters = net.letters.length;
+  c = await tap("jb:wredo:diba:ba:ch1", (await saved()).msg);
+  await ok("🔄 New version keeps what she said: it's in the writer's prompt", () => {
+    assert.equal(net.letters.length, letters + 1);
+    assert.match(net.letters.at(-1).user, /FROM THE APPLICANT[\s\S]*Churn-Modell[\s\S]*A\/B-Tests/);
+  });
+  c = await say("ok", (await saved()).msg, 1302);
+  await ok("a reply of a couple of letters to the letter does nothing", () => assert.ok(!c.some((x) => /Cover letter/.test(x.body?.text ?? ""))));
 }
 
 console.log(`\nall ${pass} jobs checks passed`);
