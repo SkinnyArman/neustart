@@ -23,7 +23,7 @@ import { setupActive, setupAnswer, setupButton, setupCommand } from "./wizard.ts
 import { CASUAL_CRON, casualLine, casualSettings, casualStep, setCasual } from "./casual.ts";
 import { EVENTS_CRON, eventsCard, eventsLine, eventsStep, setEvents } from "./events.ts";
 import { nudgeCard, setNudge } from "./nudge.ts";
-import { JOBS_CRON, germanCard, ingestJobs, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, sendTracker, sendTrackerCsv, sendWaitingList, setGerman, skillsCommand, weeklyReport } from "./jobs.ts";
+import { JOBS_CRON, adReply, germanCard, ingestJobs, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, sendTracker, sendTrackerCsv, sendWaitingList, setGerman, skillsCommand, weeklyReport } from "./jobs.ts";
 import {
   FINDS_CRON, findsKeyboard, findsLine, findsStatus, findsStep, loadFindSettings,
   parseItem, setFindKm, setFindSetting, setItemOn, ITEMS, type ItemKey,
@@ -424,6 +424,12 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
   if (!update.callback_query && !isCommand && isOwner && update.message?.chat?.type === "private"
       && (await setupActive(store, String(update.message.chat.id))))
     return setupAnswer(store, tg, update.message);
+
+  // A job ad pasted as a reply to a job card (or to the bot asking for it):
+  // the one kind of plain message the bot reads, and only replies to its own.
+  if (!update.callback_query && !isCommand && update.message?.reply_to_message?.from?.is_bot
+      && (isOwner || String(update.message.chat.id) === String(env.TELEGRAM_CHAT_ID))
+      && (await adReply(env, store, tg, update.message))) return;
 
   // Ordinary group chatter is none of our business. Only commands and button
   // presses are even considered - otherwise the bot would answer every

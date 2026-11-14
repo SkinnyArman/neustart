@@ -57,7 +57,7 @@ globalThis.fetch = async (url, init = {}) => {
   if (url.includes("arbeitsagentur.de")) {
     if (url.includes("/jobdetails/")) {
       net.details++;
-      return Response.json({ stellenangebotsBeschreibung: "Aufgaben: SQL, Python, Dashboards mit Tableau. Deutsch B2. 20 Std./Woche.", externeURL: "https://apply.example" });
+      return Response.json({ stellenangebotsBeschreibung: "Aufgaben: SQL, Python, Dashboards mit Tableau. Deutsch B2. 20 Std./Woche." + "\nDu arbeitest mit unserem Analytics-Team an Berichten für den Vertrieb und den Einkauf und bereitest Kennzahlen für die Geschäftsführung auf.".repeat(7), externeURL: "https://apply.example" });
     }
     net.ba++;
     return Response.json({ ergebnisliste: BA_RESULTS, maxErgebnisse: BA_RESULTS.length });
@@ -191,7 +191,7 @@ await ok("a part-time job says so; Arman's React job is his", () => {
 });
 await ok("buttons on a new card: cover letter, applied, already applied, apply later, skip", () => {
   const kb = cardOf("Werkstudent Data Analyst").body.reply_markup.inline_keyboard.map((r) => r.map((b) => b.text));
-  assert.deepEqual(kb, [["✍️ Cover letter"], ["✅ Applied", "🔁 Already applied"], ["🔖 Apply later", "⏭ Skip"]]);
+  assert.deepEqual(kb, [["✍️ Cover letter"], ["✅ Applied", "🔁 Already applied"], ["🔖 Apply later", "⏭ Skip", "🚫 Closed"]]);
 });
 
 // ---------------------------------------------------------------- 3. buttons
@@ -288,7 +288,7 @@ await ok("↩️ Undo: back to a new job, the full card and its buttons again", 
   assert.deepEqual([r.status, r.applied_at], ["posted", null]);
   const e = editOf(calls);
   assert.match(e.body.text, /^💼 <b>Werkstudent Data Analyst/);
-  assert.deepEqual(kbOf(e), ["✍️ Cover letter", "✅ Applied", "🔁 Already applied", "🔖 Apply later", "⏭ Skip"]);
+  assert.deepEqual(kbOf(e), ["✍️ Cover letter", "✅ Applied", "🔁 Already applied", "🔖 Apply later", "⏭ Skip", "🚫 Closed"]);
 });
 calls = await press(`jb:skip:-:ba:10004`, 555, -100, row(DB, "ba:10004").msg_id);
 await ok("⏭ Skip: 'Ad for … at … skipped', with Undo", () => {
@@ -311,7 +311,7 @@ await ok("/waiting-list (or /waitinglist): every waitlisted ad as its card, to a
   const m = calls.filter((c) => c.method === "sendMessage");
   assert.match(m[0].body.text, /^🔖 <b>Waiting list<\/b> · 1 ad to apply to$/);
   assert.match(m[1].body.text, /^💼 /); assert.match(m[1].body.text, /🔖 On the waiting list by Diba/);
-  assert.deepEqual(kbOf(m[1]), ["✍️ Cover letter", "✅ Applied", "🔁 Already applied", "⏭ Skip"]);
+  assert.deepEqual(kbOf(m[1]), ["✍️ Cover letter", "✅ Applied", "🔁 Already applied", "⏭ Skip", "🚫 Closed"]);
   assert.ok(m.every((x) => x.body.message_thread_id === 965));
 });
 calls = await press(`jb:applied:diba:${later}`, 555, -100, row(DB, later).msg_id);
@@ -575,7 +575,13 @@ console.log("\n6. a job with a very long id");
     headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" },
     body: JSON.stringify({ callback_query: { id: "q", data, from: { id: 555 }, message: { chat: { id: -100 }, message_id: 7 } } }) }), E3); return net.tg; };
   let c = await tap(btn("✍️ Cover letter"));
-  await ok("its cover letter button finds the job, and the letter's buttons fit too", () => {
+  const ask = c.find((x) => x.method === "sendMessage" && /only have the short version/.test(x.body.text));
+  await ok("its cover letter button finds the job; the ad is short, so it asks for it, and Write anyway fits too", () => {
+    assert.ok(ask);
+    assert.ok(ask.body.reply_markup.inline_keyboard.flat().every((b) => new TextEncoder().encode(b.callback_data).length <= 64));
+  });
+  c = await tap(ask.body.reply_markup.inline_keyboard[0][0].callback_data);
+  await ok("…Write anyway writes it, and the letter's buttons fit too", () => {
     const m = c.find((x) => x.method === "sendMessage" && /Cover letter for/.test(x.body.text));
     assert.match(m.body.text, /Cover letter for Diba<\/b> · AgentixLake/);
     assert.ok(m.body.reply_markup.inline_keyboard.flat().every((b) => new TextEncoder().encode(b.callback_data).length <= 64));
@@ -814,5 +820,111 @@ await ok("the writer is told the humanizer's rules", () => {
   assert.match(sys, /A cover letter is not the CV/); assert.match(sys, /No dashes as punctuation/); assert.match(sys, /nicht nur \.\.\., sondern auch/);
   assert.match(sys, /mix very short sentences with longer ones/); assert.match(sys, /body starts lowercase/);
 });
+
+console.log("\n12. a short ad: asked for, pasted in; 🚫 Closed; a workingstudentjobs.de job taken down");
+{
+  const [DBp, stp, Ep] = await fresh({ ...CONFIG, jobs: { ...CONFIG.jobs, workingstudentjobs: true } });
+  await J.jobsStep(Ep, stp, tg);                                  // makes the table
+  await stp.kvSet("jobs_german:diba", "b2");
+  const t0 = Math.floor(Date.now() / 1000);
+  const add = (id, msg, extra = {}) => DBp.raw.prepare(
+    "INSERT INTO jobs (id, dkey, source, title, company, place, url, remote, kind, text, status, person, facts, first_seen, posted_at, msg_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    .run(id, id, "workingstudentjobs.de", extra.title ?? "Werkstudent Portfolioanalyse (m/w/d)", "LEAG", "Cottbus", "https://www.workingstudentjobs.de/jobs/x",
+      0, "werkstudent", "Werkstudent Portfolioanalyse\nSkills: Python, SQL.\nDeutschkenntnisse erforderlich.", "posted", "diba",
+      JSON.stringify({ for: "diba", kind: "werkstudent", why: "fits", gaps: [], german: "", skills: ["Python"] }), t0 - 3 * 86400, extra.posted ?? t0 - 2 * 86400, msg);
+  add("ws:short", 901); add("ws:c1", 902, { title: "Werkstudent Energiehandel" }); add("ws:gone", 903); add("ws:still", 904);
+  const post = async (body) => { net.tg = []; await worker.fetch(new Request("https://w/", { method: "POST",
+    headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" }, body: JSON.stringify(body) }), Ep); return net.tg; };
+  const tap = (data, message_id = 901) => post({ callback_query: { id: "q", data, from: { id: 555 }, message: { chat: { id: -100 }, message_id } } });
+  const say = (text, reply_to, message_id = 950) => post({ message: { message_id, text, from: { id: 555 }, chat: { id: -100 },
+    reply_to_message: { message_id: reply_to, from: { id: 42, is_bot: true } } } });
+  const AD = "Wir suchen ab sofort einen Werkstudent Portfolioanalyse Renewables und Flexibilität (m/w/d) im Bereich Trading & Optimierung. Referenznummer: 324\n" +
+    "Deine Aufgaben: Automatisierung wiederkehrender Analyseprozesse, Entwicklung von Dashboards, Aufbereitung energiewirtschaftlicher Daten.\n" +
+    "Unser Match: Programmiererfahrung in Python (numpy, pandas, plotly), gute SQL-Kenntnisse, sehr gute Excel-Kenntnisse. Du kommunizierst sicher in Deutsch und Englisch.\n" +
+    "Ansprechpartner: Anna Beispiel, Personalmanagement.";
+
+  const before = net.letters.length;
+  let c = await tap("jb:letter:diba:ws:short");
+  const ask = c.find((x) => x.method === "sendMessage");
+  await ok("✍️ on a job with only the feed's short text: no letter, it asks for the ad, under the card, with Write anyway", async () => {
+    assert.equal(net.letters.length, before);
+    assert.match(ask.body.text, /only have the short version[\s\S]*Reply to this message with the ad's text/);
+    assert.equal(ask.body.reply_to_message_id, 901);
+    assert.deepEqual(ask.body.reply_markup.inline_keyboard.flat().map((b) => b.text), ["✍️ Write anyway"]);
+    assert.match(c.find((x) => x.method === "answerCallbackQuery").body.text, /Reading the ad/);
+  });
+  const askId = msgId;                                            // the id the fake Telegram gave that message
+  c = await say("hier ist sie", askId);
+  await ok("a reply too short to be an ad, under the request: it says to paste the whole ad", () => {
+    assert.match(c[0].body.text, /only 12 characters/); assert.equal(net.letters.length, before);
+  });
+  c = await say("cool, danke!", 904);
+  await ok("a short remark under a job card is just chatter: no answer", () => assert.equal(c.length, 0));
+  c = await say("hallo zusammen", 777);
+  await ok("a reply to some other bot message: no answer", () => assert.equal(c.length, 0));
+
+  c = await say(AD, askId);
+  await ok("the ad pasted as a reply: saved as the job's text, and the letter written from it", () => {
+    assert.equal(row(DBp, "ws:short").text, AD);
+    assert.match(c.find((x) => x.method === "sendMessage").body.text, /Got the ad \(\d+ characters\)/);
+    const l = net.letters.at(-1);
+    assert.equal(net.letters.length, before + 1);
+    assert.match(l.user, /Referenznummer: 324/); assert.match(l.user, /Anna Beispiel/);
+    assert.ok(c.some((x) => x.method === "sendMessage" && /Cover letter for Diba/.test(x.body.text)));
+    assert.ok(c.some((x) => x.method === "sendDocument"));        // the PDF
+  });
+  c = await tap("jb:letter:diba:ws:short");
+  await ok("…and ✍️ on that job now writes straight away", () => {
+    assert.equal(net.letters.length, before + 2); assert.ok(!c.some((x) => /short version/.test(x.body?.text ?? "")));
+  });
+  c = await tap("jb:wany:diba:ws:still", 904);
+  await ok("✍️ Write anyway writes a letter from the short text", () => {
+    assert.equal(net.letters.length, before + 3); assert.ok(c.some((x) => /Cover letter for Diba/.test(x.body?.text ?? "")));
+  });
+
+  c = await say(AD.replace("sicher in Deutsch", "verhandlungssicher auf C1-Niveau in Deutsch"), 902, 951);
+  await ok("an ad pasted under a card that asks for more German than her limit: the card comes down, no letter", () => {
+    assert.equal(row(DBp, "ws:c1").status, "skipped"); assert.equal(row(DBp, "ws:c1").why, "German C1");
+    assert.ok(c.some((x) => x.method === "deleteMessage" && x.body.message_id === 902));
+    assert.match(c.find((x) => x.method === "sendMessage").body.text, /asks for German C1, more than Diba can work in/);
+    assert.equal(net.letters.length, before + 3);
+  });
+
+  c = await tap("jb:closed:-:ws:still", 904);
+  await ok("🚫 Closed: the job counts as closed by the employer, the card turns into one line with an Undo", () => {
+    assert.equal(row(DBp, "ws:still").status, "expired"); assert.equal(row(DBp, "ws:still").why, "closed by the employer");
+    const e = c.find((x) => x.method === "editMessageText");
+    assert.match(e.body.text, /^🚫 Ad for <b>Werkstudent Portfolioanalyse \(m\/w\/d\)<\/b> at <b>LEAG<\/b> marked as closed/);
+    assert.deepEqual(e.body.reply_markup.inline_keyboard.flat().map((b) => b.text), ["↩️ Undo"]);
+  });
+  c = await tap("jb:undo:-:ws:still", 904);
+  await ok("…↩️ Undo puts it back, with its buttons", () => {
+    assert.equal(row(DBp, "ws:still").status, "posted"); assert.equal(row(DBp, "ws:still").why, null);
+    assert.ok(c.find((x) => x.method === "editMessageText").body.reply_markup.inline_keyboard.flat().some((b) => b.text === "🚫 Closed"));
+  });
+
+  // the daily look-up: the site's API answers 404 for a job it took down
+  DBp.raw.prepare("UPDATE jobs SET status='posted', checked_at=NULL WHERE id IN ('ws:gone','ws:still')").run();
+  DBp.raw.prepare("UPDATE jobs SET status='skipped' WHERE id='ws:short'").run();
+  const f0 = globalThis.fetch, looked = [];
+  globalThis.fetch = async (u, i) => {
+    u = String(u);
+    if (u.startsWith("https://www.workingstudentjobs.de/api/v1/jobs/")) { looked.push(u); return new Response("{}", { status: u.endsWith("/gone") ? 404 : 200 }); }
+    if (u.startsWith("https://www.workingstudentjobs.de/")) return Response.json({ data: [] });
+    return f0(u, i);
+  };
+  net.tg = [];
+  await J.jobsStep(Ep, stp, tg);
+  await ok("workingstudentjobs.de jobs are looked up daily: one its API no longer has comes down, the other stays", () => {
+    assert.ok(looked.some((u) => u.endsWith("/api/v1/jobs/gone"))); assert.ok(looked.some((u) => u.endsWith("/api/v1/jobs/still")));
+    assert.equal(row(DBp, "ws:gone").status, "expired"); assert.equal(row(DBp, "ws:gone").why, "no longer listed");
+    assert.ok(net.tg.some((x) => x.method === "deleteMessage" && x.body.message_id === 903));
+    assert.equal(row(DBp, "ws:still").status, "posted"); assert.ok(row(DBp, "ws:still").checked_at);
+  });
+  looked.length = 0;
+  await J.jobsStep(Ep, stp, tg);
+  globalThis.fetch = f0;
+  await ok("…and not again until a day later", () => assert.equal(looked.filter((u) => /\/api\/v1\/jobs\/(gone|still)$/.test(u)).length, 0));
+}
 
 console.log(`\nall ${pass} jobs checks passed`);

@@ -610,11 +610,13 @@ export function jobKeyboard(row: JobRow, j: Jobs): Button[][] {
     ? many.map((w) => ({ text: `${label} (${nameOf(j, w)})`, callback_data: buttonData(a, w, id) }))
     : [{ text: label, callback_data: buttonData(a, row.person, id) }];
   const skip = { text: "⏭ Skip", callback_data: buttonData("skip", "-", id) };
+  // the employer stopped taking applications, while the site still lists it
+  const closed = { text: "🚫 Closed", callback_data: buttonData("closed", "-", id) };
   if (row.status === "posted")
     return [each("letter", "✍️ Cover letter"), [...each("applied", "✅ Applied"), ...each("already", "🔁 Already applied")],
-      [...each("later", "🔖 Apply later"), skip]];
+      [...each("later", "🔖 Apply later"), skip, closed]];
   if (row.status === "approved")
-    return [each("letter", "✍️ Cover letter"), [...each("applied", "✅ Applied"), ...each("already", "🔁 Already applied")], [skip]];
+    return [each("letter", "✍️ Cover letter"), [...each("applied", "✅ Applied"), ...each("already", "🔁 Already applied")], [skip, closed]];
   if (TRACKED.includes(row.status)) {
     const now = row.status === "already" ? "applied" : row.status;
     const b = TRACK.map(([code, st, label]) => ({ text: st === now ? `• ${label} •` : label, callback_data: buttonData(`t${code}`, "-", id) }));
@@ -697,26 +699,31 @@ async function repost(db: D1Database, store: Store, tg: Telegram, j: Jobs): Prom
 /**
  * Without AI: a posted job nobody has acted on is looked up again 3 days
  * after it went out, then every 3 days, two per tick. Taken down at the
- * Jobbörse (404) or Arbeitnow: the card says "No longer listed" and loses its
- * buttons, and it no longer counts as open. LinkedIn can't be reached from
- * here; those stay as they are.
+ * Jobbörse (404), Arbeitnow or workingstudentjobs.de (404 from its API; those
+ * are looked up every day, since that site keeps old ads up): the card comes
+ * down, and the job no longer counts as open. LinkedIn can't be reached from
+ * here; those stay as they are (🚫 Closed on the card takes one down by hand).
  */
-const RECHECK_AFTER = 3 * 86400;
+const RECHECK_AFTER = 3 * 86400, RECHECK_WSJ = 86400;
+const recheckAfter = `(CASE WHEN id LIKE 'ws:%' THEN ${RECHECK_WSJ} ELSE ${RECHECK_AFTER} END)`;
 async function recheck(env: JobsEnv, store: Store, tg: Telegram, cfg: Config): Promise<number> {
   const db = env.DB;
   const t = now();
   const { results } = await db.prepare(
-    `SELECT * FROM jobs WHERE status IN ('posted','approved') AND (id LIKE 'ba:%' OR id LIKE 'an:%') AND posted_at < ? AND COALESCE(checked_at, 0) < ?
-     ORDER BY COALESCE(checked_at, posted_at) LIMIT 2`).bind(t - RECHECK_AFTER, t - RECHECK_AFTER).all<JobRow>();
+    `SELECT * FROM jobs WHERE status IN ('posted','approved') AND (id LIKE 'ba:%' OR id LIKE 'an:%' OR id LIKE 'ws:%')
+     AND posted_at < ? - ${recheckAfter} AND COALESCE(checked_at, 0) < ? - ${recheckAfter}
+     ORDER BY COALESCE(checked_at, posted_at) LIMIT 2`).bind(t, t).all<JobRow>();
   let gone = 0;
   for (const row of results ?? []) {
-    const url = row.id.startsWith("ba:")
-      ? `${BA}/pc/v4/jobdetails/${btoa(String.fromCharCode(...new TextEncoder().encode(row.id.slice(3))))}` : row.url;
+    const [url, init]: [string, RequestInit] = row.id.startsWith("ba:")
+      ? [`${BA}/pc/v4/jobdetails/${btoa(String.fromCharCode(...new TextEncoder().encode(row.id.slice(3))))}`, { headers: BA_KEY }]
+      : row.id.startsWith("ws:") ? [`${WSJ}/${row.id.slice(3)}`, { headers: { "User-Agent": "neustart job bot" } }]
+        : [row.url, { redirect: "manual" }];
     let status = 0;
-    try { status = (await fetch(url, row.id.startsWith("ba:") ? { headers: BA_KEY } : { redirect: "manual" })).status; } catch { /* try again later */ }
+    try { status = (await fetch(url, init)).status; } catch { /* try again later */ }
     if (status !== 404 && status !== 410) { if (status) await setJob(db, row.id, { checked_at: t }); continue; }
     const expired = { ...row, status: "expired" };
-    await setJob(db, row.id, { status: "expired", checked_at: t, msg_id: null });
+    await setJob(db, row.id, { status: "expired", why: "no longer listed", checked_at: t, msg_id: null });
     if (row.msg_id) try { await tg.deleteMessage(row.msg_id); }
     catch { try { await tg.editText(tg.chat, row.msg_id, card(expired, cfg.jobs), []); } catch { /* gone already */ } }
     gone++;
@@ -778,8 +785,8 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
   const id = row.id;
 
   // ✍️ a cover letter, and its buttons: shorter, more formal, more casual, the other language, a new one
-  if (act === "letter" || /^w(short|formal|casual|de|en|redo)$/.test(act)) {
-    await letterButton(env, store, tg, cfg, row, act, who, cq);
+  if (act === "letter" || /^w(short|formal|casual|de|en|redo|any)$/.test(act)) {
+    await letterButton(env, store, tg, cfg, row, act, who, { answer: (t) => tg.answerCallback(cq.id, t), message: cq.message });
     return;
   }
 
@@ -807,7 +814,7 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
     const back = { status: was.status, person: was.person ?? row.person, was: null,
       ...(TRACKED.includes(row.status) && !TRACKED.includes(was.status) ? { applied_at: null } : {}),
       ...(row.status === "approved" && was.status !== "approved" ? { approved_at: null } : {}),
-      ...(row.status === "skipped" ? { why: null } : {}) };
+      ...(row.status === "skipped" || row.status === "expired" ? { why: null } : {}) };
     await setJob(db, id, back);
     const updated = { ...row, ...back } as JobRow;
     await tg.answerCallback(cq.id, "↩️ Undone");
@@ -821,11 +828,12 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
     applied: [{ status: "applied", applied_at: t, replied_at: null, person: who }, `✅ The ${what} moved to the tracker${byId(j, who) ? ` (applied by ${nameOf(j, who)})` : ""}.\n<i>/tracker - all of them</i>`],
     already: [{ status: "already", applied_at: t, replied_at: null, person: who }, `🔁 The ${what} moved to the tracker${byId(j, who) ? ` (${nameOf(j, who)} applied before)` : ""}.\n<i>/tracker - all of them</i>`],
     later: [{ status: "approved", approved_at: t, person: who }, `🔖 The ${what} moved to the waiting list${byId(j, who) ? ` (for ${nameOf(j, who)})` : ""}.\n<i>/waitinglist - all of them</i>`],
+    closed: [{ status: "expired", why: "closed by the employer" }, `🚫 The ${what} marked as closed (no longer taking applications).`],
   };
   const m = moves[act];
   if (!m) { await tg.answerCallback(cq.id); return; }
   await setJob(db, id, { ...m[0], was: JSON.stringify({ status: row.status, person: row.person }) });
-  await tg.answerCallback(cq.id, { skip: "⏭ Skipped", applied: "✅ Moved to the tracker", already: "🔁 Moved to the tracker", later: "🔖 Moved to the waiting list" }[act]);
+  await tg.answerCallback(cq.id, { skip: "⏭ Skipped", applied: "✅ Moved to the tracker", already: "🔁 Moved to the tracker", later: "🔖 Moved to the waiting list", closed: "🚫 Marked as closed" }[act]);
   await edit(m[1].replace("The ad for", "Ad for"), undoBtn);
 }
 
@@ -1089,7 +1097,12 @@ const letterMessage = (l: Letter, p: Person, company: string) =>
   `✍️ <b>Cover letter for ${esc(p.name)}</b> · ${esc(company)}\n\n<b>Subject:</b> ${esc(l.subject)}\n\n<pre>${esc(letterText(l, p.full_name))}</pre>` +
   (l.why ? `\n\n💬 <b>Why us?</b> (for the application form)\n<pre>${esc(l.why)}</pre>` : "");
 
-async function letterButton(env: JobsEnv, store: Store, tg: Telegram, cfg: Config, row: JobRow, act: string, who: string, cq: any): Promise<void> {
+/** Under this many characters the ad is only its short version (a feed's title and skills): too little for a letter. */
+export const THIN_AD = 800;
+/** Where a letter was asked for: a button press, or a pasted ad (no button to answer). */
+interface Press { answer: (text?: string) => Promise<unknown>; message?: { message_id: number; chat: { id: number | string } } }
+
+async function letterButton(env: JobsEnv, store: Store, tg: Telegram, cfg: Config, row: JobRow, act: string, who: string, cq: Press): Promise<void> {
   const j = cfg.jobs;
   const w = byId(j, who) ? who : peopleOf(j, row.person)[0] ?? ids(j)[0];
   const p = (await people(store, j))[w];
@@ -1099,13 +1112,30 @@ async function letterButton(env: JobsEnv, store: Store, tg: Telegram, cfg: Confi
   const call = (model: string, sys: string, user: string, json: boolean) => ai(env.OPENAI_API_KEY, model, sys, user, json);
   const where = await topic(cfg, store, tg);
   const f: Partial<Facts> = row.facts ? JSON.parse(row.facts) : {};
-  if (act !== "letter" && !saved) { await tg.answerCallback(cq.id, "Tap ✍️ Cover letter on the job first"); return; }
-  await tg.answerCallback(cq.id, act === "letter" ? "Writing the cover letter…" : "Reworking it…");
-  let l: Letter, text = saved?.text ?? row.text ?? "";
+  // ✍️ Cover letter, or ✍️ Write anyway after "only the short version": a new letter, its own message
+  const fresh = act === "letter" || act === "wany";
+  if (!fresh && !saved) { await cq.answer("Tap ✍️ Cover letter on the job first"); return; }
+  // the longest text we have: a pasted ad comes after any earlier letter
+  let l: Letter, text = [row.text ?? "", saved?.text ?? ""].sort((a, b) => b.length - a.length)[0];
+  await cq.answer(act === "letter" && text.length < THIN_AD ? "Reading the ad…" : fresh || act === "wredo" ? "Writing the cover letter…" : "Reworking it…");
+  if (fresh || act === "wredo") {
+    // the ad's full text from the employer's own page when what we have is thin
+    if (text.length < THIN_AD) { const more = await adText(row.url); if (more.length > text.length) text = more; }
+    // still only the short version (and not an ad someone pasted): ask for the ad rather than write a generic letter
+    if (act === "letter" && text.length < THIN_AD && !(await store.kvGet(`jobs_pasted:${row.id}`))) {
+      const asked = await tg.send(
+        `🔎 <b>I only have the short version of this ad</b> (${esc(row.title)} at ${esc(row.company)}, from ${esc(row.source)}): ` +
+        `the title and a few keywords, so the letter would come out generic.\n\n` +
+        `<b>Reply to this message with the ad's text</b> (copy it from the job page) and I'll write the letter from it.`,
+        { ...where, ...tg.keyboard([[{ text: "✍️ Write anyway", callback_data: buttonData("wany", w, row.id) }]]),
+          ...(cq.message ? { reply_to_message_id: cq.message.message_id } : {}) });
+      const at = asked?.result?.message_id;
+      if (at) await store.kvSet(`jobs_adask:${at}`, JSON.stringify({ id: row.id, who: w }));
+      return;
+    }
+  }
   try {
-    if (act === "letter" || act === "wredo") {
-      // the ad's full text from the employer's own page when what we have is thin
-      if (text.length < 800) { const more = await adText(row.url); if (more.length > text.length) text = more; }
+    if (fresh || act === "wredo") {
       const style = await styleOf(store, w);
       l = parseLetter(await call(env.OPENAI_MODEL, letterSystem(p),
         letterUser({ title: row.title, company: row.company, place: row.place, ref: row.id.startsWith("ba:") ? row.id.slice(3) : "", text }, style), true));
@@ -1125,22 +1155,66 @@ async function letterButton(env: JobsEnv, store: Store, tg: Telegram, cfg: Confi
   }
   const body = letterMessage(l, p, row.company), kb = letterKeyboard(l, w, row.id);
   let msgId = cq.message?.message_id;
-  if (act === "letter") {
+  if (fresh) {
     const r = await tg.send(body, { ...where, ...tg.keyboard(kb), ...(msgId ? { reply_to_message_id: msgId } : {}) });
     msgId = r?.result?.message_id;
   } else {
-    try { await tg.editText(cq.message.chat.id, msgId, body, kb); } catch { /* unchanged */ }
+    if (cq.message) try { await tg.editText(cq.message.chat.id, cq.message.message_id, body, kb); } catch { /* unchanged */ }
     if (saved?.pdf) try { await tg.deleteMessage(saved.pdf); } catch { /* gone */ }
   }
   const pdf = letterPdf({ name: p.full_name, contact: p.contact, place_date: placeDate(p.city || j.cities[0]?.name || ""), subject: l.subject,
     salutation: l.salutation, body: l.body, closing: l.closing });
   const file = `Anschreiben_${row.company.replace(/[^\p{L}\d]+/gu, "_").replace(/^_|_$/g, "").slice(0, 40) || "Bewerbung"}.pdf`;
   const sentPdf = await tg.sendFile(file, pdf, "application/pdf", { ...where, ...(msgId ? { reply_to_message_id: msgId } : {}), caption: `📄 ${l.lang === "de" ? "Anschreiben" : "Cover letter"} as PDF` });
-  if (act === "letter") {
+  if (fresh) {
     const cv = await store.kvGet(`jobs_cv:${w}`);
     if (cv) await tg.sendDocument(cv, { ...where, ...(msgId ? { reply_to_message_id: msgId } : {}), caption: `📎 ${nameOf(j, w)}'s CV` });
   }
   await store.kvSet(key, JSON.stringify({ l, pdf: sentPdf?.result?.message_id ?? null, text: text.slice(0, 6000) }));
+}
+
+/** A pasted ad under this many characters is a remark, not an ad. */
+const PASTE_MIN = 300;
+/**
+ * A reply to a job card, or to "I only have the short version", with the
+ * ad's text: saved as the job's description, checked against the German
+ * limit and the languages right away, then the letter is written from it.
+ * False when the reply isn't about a job (the caller ignores it then).
+ */
+export async function adReply(env: JobsEnv, store: Store, tg: Telegram, msg: any): Promise<boolean> {
+  const to = msg?.reply_to_message?.message_id, text = String(msg?.text ?? "").trim();
+  if (!to) return false;
+  const cfg = await loadConfig(store);
+  if (!cfg?.modules.jobs) return false;
+  const db = env.DB, j = cfg.jobs;
+  await ensureTable(db);
+  const ask: { id: string; who: string } | null = JSON.parse((await store.kvGet(`jobs_adask:${to}`)) ?? "null");
+  const row = ask ? await db.prepare("SELECT * FROM jobs WHERE id=?").bind(ask.id).first<JobRow>()
+    : await db.prepare("SELECT * FROM jobs WHERE msg_id=?").bind(to).first<JobRow>();
+  if (!row) return false;
+  const where = { ...(await topic(cfg, store, tg)), reply_to_message_id: msg.message_id };
+  if (text.length < PASTE_MIN) {
+    // a short remark under a card is just chatter; under the request it's a paste that went wrong
+    if (ask) await tg.send(`That's only ${text.length} characters. Paste the whole ad text (tasks, requirements, contact) as one reply.`, where);
+    return !!ask;
+  }
+  const withText = { ...row, text: text.slice(0, 6000) };
+  await setJob(db, row.id, { text: withText.text });
+  await store.kvSet(`jobs_pasted:${row.id}`, "1");          // the full ad, however short: no more asking for it
+  // the full ad may ask for more German, or another language: then it comes down, like at any tick
+  if (["ready", "posted", "approved"].includes(row.status)) {
+    const g = fitsGerman(withText, j, await germanLimits(store, j));
+    if (!g.keep.length) {
+      if (row.msg_id) try { await tg.deleteMessage(row.msg_id); } catch { /* gone, or older than 48 h */ }
+      await setJob(db, row.id, { status: "skipped", why: g.why, msg_id: null });
+      await tg.send(`🚫 The full ad for <b>${esc(row.title)}</b> asks for ${esc(g.why.replace(/^needs /, ""))}, more than ${esc(peopleOf(j, row.person).map((w) => nameOf(j, w)).join(" or "))} can work in, so I took the card down.`, where);
+      return true;
+    }
+  }
+  await tg.send(`📥 Got the ad (${text.length} characters). Writing the letter from it…`, where);
+  await letterButton(env, store, tg, cfg, withText, "wany", ask?.who ?? peopleOf(j, row.person)[0] ?? ids(j)[0],
+    { answer: async () => undefined, message: { message_id: msg.message_id, chat: msg.chat } });
+  return true;
 }
 
 // ---------------------------------------------------------------- /jobs, /skills

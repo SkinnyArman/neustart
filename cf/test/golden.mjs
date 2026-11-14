@@ -120,7 +120,7 @@ const BA = [
 ];
 const ARBEITNOW = [
   { slug: "zalando-werkstudent-data-analyst", company_name: "Zalando", title: "Werkstudent Data Analyst (m/w/d)", description: "<p>Analyse</p>", remote: false, url: "https://arbeitnow.example/1", location: "Berlin", job_types: ["Student"] },
-  { slug: "acme-working-student-ml", company_name: "Acme AI", title: "Working Student Machine Learning", description: "<p>Python, <b>English</b></p>", remote: true, url: "https://arbeitnow.example/2", location: "Remote", job_types: ["Student"] },
+  { slug: "acme-working-student-ml", company_name: "Acme AI", title: "Working Student Machine Learning", description: "<p>Python, <b>English</b></p>" + "<p>You join our ML team and help train and evaluate models for our product, working with Python and SQL every day.</p>".repeat(8), remote: true, url: "https://arbeitnow.example/2", location: "Remote", job_types: ["Student"] },
   { slug: "web-cottbus", company_name: "Lausitz Web", title: "Working Student Frontend (React)", description: "<p>React, TypeScript</p>", remote: false, url: "https://arbeitnow.example/3", location: "Cottbus", job_types: ["Student"] },
   { slug: "sales-hamburg", company_name: "X", title: "Sales Manager", description: "", remote: false, url: "u", location: "Hamburg", job_types: [] },
 ];
@@ -177,7 +177,7 @@ globalThis.fetch = async (url, init = {}) => {
       const ref = b64dec(url.split("/").pop());
       if (CASUAL_DETAILS[ref]) return Response.json(CASUAL_DETAILS[ref]);
       if (ref.startsWith("2")) return new Response("gone", { status: 404 });
-      return Response.json({ stellenangebotsBeschreibung: `Aufgaben bei ${ref}: SQL, Python, Dashboards mit Tableau. Deutsch B2. 20 Std./Woche.`, externeURL: "https://apply.example/" + ref });
+      return Response.json({ stellenangebotsBeschreibung: `Aufgaben bei ${ref}: SQL, Python, Dashboards mit Tableau. Deutsch B2. 20 Std./Woche.` + "\nDu arbeitest mit unserem Analytics-Team an Berichten für den Vertrieb und bereitest Kennzahlen für die Geschäftsführung auf.".repeat(7), externeURL: "https://apply.example/" + ref });
     }
     const q = new URL(url).searchParams;
     return Response.json({ ergebnisliste: q.get("arbeitszeit") === "mj" ? CASUAL : BA });
