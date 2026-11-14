@@ -953,7 +953,7 @@ console.log("\n13. ✏️ Change something: the letter rewritten from what they 
   const post = async (body) => { net.tg = []; await worker.fetch(new Request("https://w/", { method: "POST",
     headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" }, body: JSON.stringify(body) }), Ec); return net.tg; };
   const tap = (data, message_id) => post({ callback_query: { id: "q", data, from: { id: 555 }, message: { chat: { id: -100 }, message_id } } });
-  const say = (text, reply_to, message_id) => post({ message: { message_id, text, from: { id: 555 }, chat: { id: -100 },
+  const say = (text, reply_to, message_id, from = 555) => post({ message: { message_id, text, from: { id: from }, chat: { id: -100 },
     reply_to_message: { message_id: reply_to, from: { id: 42, is_bot: true } } } });
   const sentOf = (c, re) => c.find((x) => x.method === "sendMessage" && re.test(x.body.text ?? ""));
 
@@ -971,6 +971,10 @@ console.log("\n13. ✏️ Change something: the letter rewritten from what they 
     assert.ok(!c.some((x) => x.method === "deleteMessage"));
   });
   const edits = net.edits.length;
+  c = await say("schreib rein, dass sie 10 Jahre Erfahrung hat", askAt, 1299, 777);
+  await ok("a reply to ✏️'s question from someone who didn't tap it: nothing happens", () => {
+    assert.equal(net.edits.length, edits); assert.equal(c.length, 0);
+  });
   c = await say("erwähne, dass ich im Bachelor ein Churn-Modell gebaut habe", askAt, 1300);
   const second = sentOf(c, /Cover letter for Diba/);
   await ok("her reply: the old letter and PDF come down, a new letter and PDF go out under her reply", () => {
@@ -986,11 +990,17 @@ console.log("\n13. ✏️ Change something: the letter rewritten from what they 
   await ok("…what she said is kept with the letter, which knows its new message", () => {
     assert.deepEqual(key.notes, ["erwähne, dass ich im Bachelor ein Churn-Modell gebaut habe"]); assert.notEqual(second_at, letterAt);
   });
-  c = await say("lass den Teil über A/B-Tests weg", second_at, 1301);
-  await ok("a reply straight to the letter works too, and both things she said go to the AI as true facts", () => {
-    assert.ok(sentOf(c, /Cover letter for Diba/));
-    assert.ok(c.some((x) => x.method === "deleteMessage" && x.body.message_id === second_at));
-    assert.match(net.edits.at(-1).todo, /A\/B-Tests/);
+  c = await say("sieht gut aus, danke!", second_at, 1301);
+  await ok("a reply straight to the letter is just a comment: no AI, nothing deleted", () => {
+    assert.equal(net.edits.length, edits + 1); assert.equal(c.length, 0);
+  });
+  c = await say("noch eine Änderung", askAt, 1303);
+  await ok("…and the question, once answered, doesn't take a second reply", () => assert.equal(net.edits.length, edits + 1));
+  c = await tap("jb:wtell:diba:ba:ch1", second_at);
+  c = await say("lass den Teil über A/B-Tests weg", msgId, 1304);
+  await ok("a second ✏️ works the same, and adds to what she said before", async () => {
+    assert.ok(sentOf(c, /Cover letter for Diba/)); assert.match(net.edits.at(-1).todo, /A\/B-Tests/);
+    assert.equal((await saved()).notes.length, 2);
   });
   const letters = net.letters.length;
   c = await tap("jb:wredo:diba:ba:ch1", (await saved()).msg);
@@ -998,8 +1008,7 @@ console.log("\n13. ✏️ Change something: the letter rewritten from what they 
     assert.equal(net.letters.length, letters + 1);
     assert.match(net.letters.at(-1).user, /FROM THE APPLICANT[\s\S]*Churn-Modell[\s\S]*A\/B-Tests/);
   });
-  c = await say("ok", (await saved()).msg, 1302);
-  await ok("a reply of a couple of letters to the letter does nothing", () => assert.ok(!c.some((x) => /Cover letter/.test(x.body?.text ?? ""))));
+
 }
 
 console.log(`\nall ${pass} jobs checks passed`);

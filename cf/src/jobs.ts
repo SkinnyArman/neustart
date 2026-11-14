@@ -788,7 +788,7 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
 
   // ✍️ a cover letter, and its buttons: shorter, more formal, more casual, the other language, a new one
   if (act === "letter" || /^w(short|formal|casual|de|en|redo|any|tell)$/.test(act)) {
-    await letterButton(env, store, tg, cfg, row, act, who, { answer: (t) => tg.answerCallback(cq.id, t), message: cq.message });
+    await letterButton(env, store, tg, cfg, row, act, who, { answer: (t) => tg.answerCallback(cq.id, t), message: cq.message, from: cq.from?.id });
     return;
   }
 
@@ -1104,7 +1104,7 @@ const letterMessage = (l: Letter, p: Person, company: string) =>
 /** Under this many characters the ad is only its short version (a feed's title and skills): too little for a letter. */
 export const THIN_AD = 800;
 /** Where a letter was asked for: a button press, or a pasted ad (no button to answer). */
-interface Press { answer: (text?: string) => Promise<unknown>; message?: { message_id: number; chat: { id: number | string } } }
+interface Press { answer: (text?: string) => Promise<unknown>; message?: { message_id: number; chat: { id: number | string } }; from?: number }
 
 /** What's kept of a person's letter for a job: the letter, its message and PDF, the ad it was written from, and what they asked for. */
 interface SavedLetter { l: Letter; pdf?: number | null; msg?: number | null; text?: string; notes?: string[] }
@@ -1131,11 +1131,11 @@ async function letterButton(env: JobsEnv, store: Store, tg: Telegram, cfg: Confi
     const asked = await tg.send(
       `✏️ <b>What should change?</b> Reply to this message in your own words, for example:\n` +
       `• mention that I built a churn model during my bachelor\n• leave out the Snappfood part\n• say I can start on 1 December\n\n` +
-      `I'll rewrite the letter and send it again with a new PDF. Replying straight to the letter works too.` +
+      `I'll rewrite the letter and send it again with a new PDF. Only a reply to this message from whoever tapped ✏️ counts.` +
       (notes.length ? `\n\n<i>Already taken into account:</i>\n${notes.map((n) => `• ${esc(n)}`).join("\n")}` : ""),
       { ...where, ...(cq.message ? { reply_to_message_id: cq.message.message_id } : {}) });
     const at = asked?.result?.message_id;
-    if (at) await store.kvSet(`jobs_letterask:${at}`, JSON.stringify({ id: row.id, who: w }));
+    if (at) await store.kvSet(`jobs_letterask:${at}`, JSON.stringify({ id: row.id, who: w, by: cq.from ?? null }));
     return;
   }
   // the longest text we have: a pasted ad comes after any earlier letter
@@ -1202,8 +1202,6 @@ async function letterButton(env: JobsEnv, store: Store, tg: Telegram, cfg: Confi
   }
   const kept: SavedLetter = { l, pdf: sentPdf?.result?.message_id ?? null, msg: msgId ?? null, text: text.slice(0, 6000), notes };
   await store.kvSet(key, JSON.stringify(kept));
-  // a reply to the letter itself is a change to it, like ✏️
-  if (msgId) await store.kvSet(`jobs_lettermsg:${msgId}`, JSON.stringify({ id: row.id, who: w }));
 }
 
 /** A pasted ad under this many characters is a remark, not an ad. */
@@ -1221,15 +1219,18 @@ export async function adReply(env: JobsEnv, store: Store, tg: Telegram, msg: any
   if (!cfg?.modules.jobs) return false;
   const db = env.DB, j = cfg.jobs;
   await ensureTable(db);
-  // a reply to a letter, or to ✏️'s question: what to change in it
-  const change: { id: string; who: string } | null = JSON.parse((await store.kvGet(`jobs_letterask:${to}`)) ?? (await store.kvGet(`jobs_lettermsg:${to}`)) ?? "null");
+  // a reply to ✏️'s question, from whoever tapped ✏️: what to change in the letter
+  // (anyone else's reply, or a reply to the letter itself, is just a comment)
+  const change: { id: string; who: string; by?: number | null } | null = JSON.parse((await store.kvGet(`jobs_letterask:${to}`)) ?? "null");
   if (change) {
+    if (!change.by || String(msg.from?.id) !== String(change.by)) return false;
     const r = await db.prepare("SELECT * FROM jobs WHERE id=?").bind(change.id).first<JobRow>();
     if (!r) return false;
     if (text.length < 3) return true;
     await tg.send("✏️ Rewriting the letter with that…", { ...(await topic(cfg, store, tg)), reply_to_message_id: msg.message_id });
     await letterButton(env, store, tg, cfg, r, "wnote", change.who, { answer: async () => undefined, message: { message_id: msg.message_id, chat: msg.chat } }, text);
-    if (await store.kvGet(`jobs_letterask:${to}`)) try { await tg.deleteMessage(to); } catch { /* gone */ }
+    try { await tg.deleteMessage(to); } catch { /* gone */ }
+    await store.kvSet(`jobs_letterask:${to}`, "null");       // answered: one change per ✏️
     return true;
   }
   const ask: { id: string; who: string } | null = JSON.parse((await store.kvGet(`jobs_adask:${to}`)) ?? "null");

@@ -13846,18 +13846,6 @@
     "v": "FILE-D"
    },
    {
-    "k": "jobs_lettermsg:1093",
-    "v": "{\"id\":\"an:acme-working-student-ml\",\"who\":\"diba\"}"
-   },
-   {
-    "k": "jobs_lettermsg:1104",
-    "v": "{\"id\":\"ba:10011\",\"who\":\"arman\"}"
-   },
-   {
-    "k": "jobs_lettermsg:1127",
-    "v": "{\"id\":\"ba:10006\",\"who\":\"diba\"}"
-   },
-   {
     "k": "jobs_lock",
     "v": "0"
    },
