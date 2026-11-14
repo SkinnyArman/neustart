@@ -33,6 +33,7 @@ export interface Person {
   cv: string;
   availability: string;   // the cover letter's availability sentence
   active: boolean;
+  german_max: string;     // the most German they can work in: A2…C2, "none" (only jobs without German); "" = no limit. /german changes it
 }
 
 export interface City { name: string; radius_km: number }
@@ -64,8 +65,8 @@ export interface Config {
     remote: boolean;
     arbeitnow: boolean;
     people: Person[];
-    // a daily nudge to apply to one career-centered job (nudge.ts); off without a person and a mention
-    nudge: { person: string; mention: string; at: string };
+    // daily nudges to apply to one career-centered job (nudge.ts), one per person who has one; /nudge changes them
+    nudges: { person: string; mention: string; at: string }[];
   };
   casual_jobs: { radius_km: number; only_city: boolean; sources: CasualSource[]; worth_it: boolean };
   events: {
@@ -192,6 +193,7 @@ export function normalize(raw: unknown): Config {
         : [...new Set(searches.flatMap((s) => s.toLowerCase().split(/[^\p{L}\d+#.]+/u)).filter((w) => w.length > 1 && !GENERIC.has(w)))],
       summary: str(p.summary), skills: list(p.skills), cv: str(p.cv), availability: str(p.availability, shared),
       active: bool(p.active, true),
+      german_max: /^(none|[abc][12])$/i.test(str(p.german_max)) ? str(p.german_max).toLowerCase() : "",
     });
   });
   if (modules.jobs && !people.length) off("jobs", "jobs.people is empty");
@@ -208,8 +210,11 @@ export function normalize(raw: unknown): Config {
     remote: bool(j.remote, true),
     arbeitnow: bool(j.arbeitnow, true),
     people,
-    nudge: { person: str(j.nudge?.person).toLowerCase(), mention: str(j.nudge?.mention),
-      at: /^\d{2}:\d{2}$/.test(str(j.nudge?.at)) ? str(j.nudge?.at) : "10:00" },
+    // jobs.nudge: {person, mention, at} (or a list of them), or nudge: {mention, at} on a person
+    nudges: [...(Array.isArray(j.nudge) ? j.nudge : j.nudge ? [j.nudge] : []),
+      ...(Array.isArray(j.people) ? j.people : []).filter((p: any) => p?.nudge).map((p: any) => ({ ...p.nudge, person: str(p.id) || str(p.name) }))]
+      .map((n: any) => ({ person: slugify(str(n?.person)), mention: str(n?.mention), at: /^\d{1,2}:\d{2}$/.test(str(n?.at)) ? str(n.at).padStart(5, "0") : "10:00" }))
+      .filter((n: any, i: number, all: any[]) => n.person && all.findIndex((m: any) => m.person === n.person) === i),
   };
 
   const e = r.events ?? {};

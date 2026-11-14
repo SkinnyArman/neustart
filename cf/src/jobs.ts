@@ -23,7 +23,7 @@ import { fmtLeft } from "./settings.ts";
 import type { Store } from "./store.ts";
 import { esc, inTopic, type Button, type Telegram } from "./telegram.ts";
 import { xlsx } from "./xlsx.ts";
-import { nudgeStep } from "./nudge.ts";
+import { nudgeCard, nudgeStep, setNudge } from "./nudge.ts";
 import { introduce, topicOf } from "./topics.ts";
 import { noteError, noteOk } from "./watch.ts";
 
@@ -325,6 +325,8 @@ export async function jobsStep(env: JobsEnv, store: Store, tg: Telegram): Promis
     const due = await remind(env, store, tg, cfg);
     if (due) did.push(`${due} reminders`);
     if (await weekly(env, store, tg, cfg)) did.push("weekly report");
+    const ruled = await enforceGerman(db, store, tg, cfg);
+    if (ruled) did.push(`${ruled} taken down for their German`);
     did.push(await nudgeStep(db, store, tg, cfg));
     return `jobs: ${did.filter(Boolean).join(", ")}`;
   } finally {
@@ -402,6 +404,22 @@ async function saveFound(db: D1Database, j: Jobs, active: string[], found: Found
 export async function ingestJobs(db: D1Database, store: Store, body: any): Promise<{ status: number; json: unknown }> {
   const cfg = await loadConfig(store);
   if (!cfg?.modules.jobs) return { status: 409, json: { error: "jobs are switched off" } };
+  // which LinkedIn jobs still need their page read (waiting list and posted first), and their text
+  if (body?.op === "needtext") {
+    await ensureTable(db);
+    const { results } = await db.prepare(
+      `SELECT id FROM jobs WHERE id LIKE 'li:%' AND text IS NULL AND status IN ('new','ready','posted','approved')
+       ORDER BY CASE status WHEN 'approved' THEN 0 WHEN 'posted' THEN 1 ELSE 2 END, first_seen DESC LIMIT 20`).all<{ id: string }>();
+    return { status: 200, json: { ids: (results ?? []).map((r) => r.id) } };
+  }
+  if (body?.op === "text") {
+    await ensureTable(db);
+    const items = Array.isArray(body.jobs) ? body.jobs.filter((f: any) => typeof f?.id === "string" && /^li:\d+$/.test(f.id) && typeof f.text === "string").slice(0, 50) : null;
+    if (!items) return { status: 400, json: { error: "expected {op: text, jobs: [{id, text}]}" } };
+    for (const f of items) await db.prepare("UPDATE jobs SET text=?, kind=COALESCE(NULLIF(kind,''), ?) WHERE id=? AND text IS NULL")
+      .bind(String(f.text).slice(0, 6000), String(f.kind ?? "").slice(0, 100), f.id).run();
+    return { status: 200, json: { saved: items.length } };
+  }
   const list = Array.isArray(body?.jobs) ? body.jobs : null;
   const str = (x: unknown) => typeof x === "string";
   const ok = list && list.length <= 200 && list.every((f: any) => str(f?.id) && /^[a-z]{2}:/.test(f.id) && str(f.title) && str(f.company));
@@ -422,8 +440,11 @@ export async function ingestJobs(db: D1Database, store: Store, body: any): Promi
 async function assess(env: JobsEnv, store: Store, tg: Telegram, j: Jobs): Promise<string> {
   const db = env.DB;
   const { results } = await db.prepare(
-    "SELECT * FROM jobs WHERE status='new' ORDER BY first_seen, rowid LIMIT ?").bind(ASSESS_PER_TICK).all<JobRow>();
+    // a LinkedIn job waits up to 30 minutes for its page (the German it asks for is on it)
+    `SELECT * FROM jobs WHERE status='new' AND NOT (id LIKE 'li:%' AND text IS NULL AND first_seen > ?)
+     ORDER BY first_seen, rowid LIMIT ?`).bind(now() - 1800, ASSESS_PER_TICK).all<JobRow>();
   if (!results?.length) return "";
+  const limits = await germanLimits(store, j);
   const p = await people(store, j);
   const active = await activePeople(store, j);
   let ok = 0, none = 0;
@@ -433,8 +454,11 @@ async function assess(env: JobsEnv, store: Store, tg: Telegram, j: Jobs): Promis
       const f = await match(env, j, p, row, text, active);
       await aiWorked(store);
       if (f.for === "none") { none++; await setJob(db, row.id, { status: "skipped", why: `ai: ${f.reason || "not a fit"}`, text: text.slice(0, 6000) }); continue; }
+      // more German than anyone it's for can work in: left out
+      const g = fitsGerman({ person: f.for, facts: JSON.stringify(f), text }, j, limits);
+      if (!g.keep.length) { none++; await setJob(db, row.id, { status: "skipped", why: `German ${germanLabel(g.need)}`, person: f.for, kind: f.kind, facts: JSON.stringify(f), text: text.slice(0, 6000) }); continue; }
       ok++;
-      await setJob(db, row.id, { status: "ready", person: f.for, kind: f.kind, facts: JSON.stringify(f), text: text.slice(0, 6000) });
+      await setJob(db, row.id, { status: "ready", person: personOf(j, g.keep, f.for), kind: f.kind, facts: JSON.stringify(f), text: text.slice(0, 6000) });
     } catch (e: any) {
       if (/OpenAI/.test(String(e?.message))) await aiFailed(store, tg, e);
       const tries = row.attempts + 1;
@@ -482,7 +506,7 @@ export function card(row: JobRow, j: Jobs): string {
     [`💼 <b>${esc(row.title)}</b>`, `🏢 ${esc(row.company)}`, `📍 ${[row.place ? esc(row.place) : "", `via ${esc(row.source)}`].filter(Boolean).join(" · ")}`].join("\n"),
     [forWhom(j, row.person), KIND[f.kind ?? "other"] ?? KIND.other].filter(Boolean).join(" · "),
     f.why ? `<i>${esc(f.why)}</i>` : "",
-    [f.german ? `🗣 German: ${esc(f.german)}` : "", f.hours ? `⏱ Hours: ${esc(f.hours)}` : "",
+    [`🗣 German: ${germanLabel(germanRank(f.german, row.text ?? ""))}`, f.hours ? `⏱ Hours: ${esc(f.hours)}` : "",
       f.start ? `📅 Start: ${esc(f.start)}` : "", f.deadline ? `⏳ Apply by: ${esc(f.deadline)}` : ""].filter(Boolean).join("\n"),
     f.gaps?.length ? `⚠️ <b>Gaps</b>\n${f.gaps.map((g) => `• ${esc(g)}`).join("\n")}` : "",
     `🔗 <a href="${esc(row.url)}">Open the job</a>`,
@@ -650,6 +674,20 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
   const act = ({ interview: "tint", rejected: "trej", offer: "toff", approve: "later" } as Record<string, string>)[raw] ?? raw;
   const ref = rest.join(":");
   // jb:list:<waiting|tracker>:- - the board's buttons: the same as the commands
+  // jb:nudge:<person>:<on|off|earlier|later|now> - the /nudge buttons
+  if (act === "nudge") {
+    const msg = await setNudge(db, store, tg, cfg, who, ref);
+    await tg.answerCallback(cq.id, msg.replace(/<[^>]+>/g, ""));
+    try { const [t, kb] = await nudgeCard(store, cfg); await tg.editText(cq.message.chat.id, cq.message.message_id, t, kb); } catch { /* unchanged */ }
+    return;
+  }
+  // jb:german:<person>:<level> - the /german buttons
+  if (act === "german") {
+    const msg = await setGerman(store, cfg, who, ref);
+    await tg.answerCallback(cq.id, msg.replace(/<[^>]+>/g, ""));
+    try { const [t, kb] = await germanCard(store, cfg); await tg.editText(cq.message.chat.id, cq.message.message_id, t, kb); } catch { /* unchanged */ }
+    return;
+  }
   if (act === "csv") { await tg.answerCallback(cq.id, "Making the CSV…"); await sendTrackerCsv(db, store, tg, cfg); return; }
   if (act === "list") {
     await tg.answerCallback(cq.id);
@@ -747,23 +785,130 @@ export function workMode(row: Pick<JobRow, "remote" | "place" | "text" | "title"
   if (row.remote || /\bremote\b|100 ?% remote|fully remote|vollständig remote/.test(t)) return "remote";
   return "on-site";
 }
-/**
- * German, from what the AI read in the ad (it comes with the match, no extra
- * call) or else from the ad's text: [required?, level]. "not stated" when
- * neither says - a LinkedIn job has only its title.
- */
-export function germanOf(german: string | undefined, text = ""): [string, string] {
-  const g = (german ?? "").trim();
-  if (/not (required|needed)|^none$|^no\b|nicht (erforderlich|notwendig)|english only|optional|nice to have|von vorteil|^plus$/i.test(g)) return ["no", ""];
-  const level = (s: string) => /\b([ABC][12])\b/i.exec(s)?.[1]?.toUpperCase()
-    ?? (/native|mutterspr/i.test(s) ? "native" : /fluent|fließend|verhandlungssicher|sehr gut|excellent/i.test(s) ? "fluent (C1+)"
-      : /good|gut/i.test(s) ? "good (B2)" : /basic|grund/i.test(s) ? "basic (A2-B1)" : "");
-  if (g && !/not (stated|mentioned)|unknown|unclear/i.test(g)) return ["yes", level(g) || g.slice(0, 40)];
-  // the ad's own words: "sehr gute Deutschkenntnisse", "German (C1)", "fließend Deutsch"
-  const m = /[^.\n]{0,60}(deutschkenntnisse|deutsch(?:e|en)? sprach|german (?:skills|language|is required|proficiency)|fließend(?:es)? deutsch|deutsch (?:in wort und schrift|fließend|auf [abc][12])|\bgerman\b[^.\n]{0,20}\b[abc][12]\b|\bdeutsch\b[^.\n]{0,20}\b[abc][12]\b)[^.\n]{0,40}/i.exec(text);
-  if (m) return /von vorteil|wünschenswert|nice to have|a plus|ein plus|optional/i.test(m[0]) ? ["no", ""] : ["yes", level(m[0]) || "stated, no level"];
-  return ["not stated", ""];
+// ---------------------------------------------------------------- German
+const CHOICES: [string, string][] = [["none", "Not required"], ["b1", "B1"], ["b2", "B2"], ["c1", "C1"], ["any", "No limit"]];
+/** /german: each person's limit, with buttons. */
+export async function germanCard(store: Store, cfg: Config): Promise<[string, Button[][]]> {
+  const j = cfg.jobs, limits = await germanLimits(store, j), active = await activePeople(store, j);
+  const say = (r: number) => (r >= 6 ? "no limit" : r === 0 ? "only jobs that don't need German" : `up to ${LEVELS[r]}`);
+  const text = [`🗣 <b>German</b>`, ...active.map((w) => `${byId(j, w)!.icon} ${nameOf(j, w)}: <b>${say(limits[w])}</b>`),
+    `<i>Jobs asking for more aren't posted, and ones already posted or on the waiting list come down. A job that doesn't say goes through.</i>`].join("\n\n");
+  const kb = active.map((w) => CHOICES.map(([v, label]) => {
+    const r = v === "any" ? 6 : v === "none" ? 0 : LEVELS.indexOf(v.toUpperCase());
+    return { text: `${r === limits[w] ? "• " : ""}${active.length > 1 ? `${byId(j, w)!.icon} ` : ""}${label}${r === limits[w] ? " •" : ""}`, callback_data: `jb:german:${w}:${v}` };
+  }));
+  return [text, kb];
 }
+/** /german diba b2 · /german diba none · /german diba any */
+export async function setGerman(store: Store, cfg: Config, who: string, level: string): Promise<string> {
+  const j = cfg.jobs, w = (who || "").toLowerCase(), v = (level || "").toLowerCase();
+  if (!byId(j, w)) return `Try /german ${ids(j)[0]} b2 (or b1, c1, none, any)`;
+  if (!/^(none|any|[abc][12])$/.test(v)) return `Try /german ${w} b2 (or b1, c1, none, any)`;
+  await store.kvSet(`jobs_german:${w}`, v === "any" ? "c2" : v);
+  return `🗣 ${nameOf(j, w)}: ${v === "any" ? "no German limit" : v === "none" ? "only jobs that don't need German" : `up to ${v.toUpperCase()}`}`;
+}
+
+/**
+ * Jobs waiting to go out, posted or on the waiting list that ask for more
+ * German than the people they're for can work in (a limit set later, or a
+ * LinkedIn job whose page came in): skipped, and a posted card deleted.
+ */
+async function enforceGerman(db: D1Database, store: Store, tg: Telegram, cfg: Config): Promise<number> {
+  const limits = await germanLimits(store, cfg.jobs);
+  const { results } = await db.prepare("SELECT * FROM jobs WHERE status IN ('ready','posted','approved')").all<JobRow>();
+  let n = 0;
+  for (const r of results ?? []) {
+    const g = fitsGerman(r, cfg.jobs, limits);
+    if (g.keep.length === peopleOf(cfg.jobs, r.person).length) continue;
+    if (g.keep.length) { await setJob(db, r.id, { person: personOf(cfg.jobs, g.keep, r.person) }); continue; }
+    if (r.msg_id) try { await tg.deleteMessage(r.msg_id); } catch { /* gone, or older than 48 h */ }
+    await setJob(db, r.id, { status: "skipped", why: `German ${germanLabel(g.need)}`, msg_id: null });
+    n++;
+  }
+  return n;
+}
+
+/** CEFR as a number: none 0 · A1 1 · A2 2 · B1 3 · B2 4 · C1 5 · C2 6. */
+export const LEVELS = ["none", "A1", "A2", "B1", "B2", "C1", "C2"];
+const OPTIONAL = /von vorteil|wünschenswert|nice[- ]to[- ]have|\ba plus\b|ein plus|is a plus|\bplus\b|optional|advantage|vorteilhaft|bonus|not (required|needed|necessary)|nicht (erforderlich|notwendig|zwingend|nötig)|kein muss|no german|hilfreich|helpful|desirable/i;
+const OR_ENGLISH = /\b(oder|or)\s+(englisch|english)|(englisch|english)\w*\s+(oder|or)\b/i;
+// a mention of the language - not Germany, the German market, a Deutschlandticket or a German course on offer
+const LANG = /deutschkenntnis\w*|deutsch-\s|\bdeutsch\b|deutsche sprache|\bgerman\b/gi;
+// where a clause ends: a sentence end (not "min." or "mind."), a comma, a semicolon, a bullet, a dash, a line break
+const CUT = /(?<!\b(?:min|mind|ca|bzw|inkl|z|b|d|h|u|a|etc|e\.g|i\.e))\.(?=\s)|[\n;•|·,]| - /gi;
+const LANG_CUE = /\bplus\b|advantage|vorteil|nice[- ]to[- ]have|optional|fluent|fluency|proficien|speak|spoken|written|language|skills|level|knowledge|native|\b[abc][12]\b|english|englisch|required|wort und schrift|kenntnis|niveau|sprache/i;
+const NOT_LANG = /learning budget|lessons|course|kurs|unterricht|classes|we offer|bieten/i;
+const wordRank = (s: string): number | null =>
+  /mutterspr|native|c2/i.test(s) ? 6
+    : /fließend|fliessend|verhandlungssicher|sehr gut|excellent|fluent|fluency|proficien|business|professional/i.test(s) ? 5
+      : /\bgut|good|well|solid|working knowledge/i.test(s) ? 4
+        : /grundkenntnis|basic|some german|erste kenntnis|a2/i.test(s) ? 2 : null;
+
+/**
+ * The German an ad asks for, as a level number (0 = not required), or null
+ * when it doesn't say. Read from the ad's own words, clause by clause: only
+ * a mention of the language counts, "von Vorteil"/"a plus"/"oder Englisch"
+ * mean not required, a CEFR level next to the word wins over words like
+ * "fließend" (≈ C1) or "gute" (≈ B2). The AI's note is used when the ad's
+ * text says nothing (a LinkedIn job has only its title until its page is read).
+ */
+export function germanRank(ai: string | undefined, text = ""): number | null {
+  let best: number | null = null, optional = false;
+  const t = text.replace(/&nbsp;|&#160;/g, " ");
+  for (const m of t.matchAll(LANG)) {
+    const at = m.index!, word = m[0];
+    // the clause around it: between sentence ends, commas, bullets or line breaks
+    const cuts = [...t.matchAll(CUT)].map((c) => c.index! + (c[0].startsWith(".") ? 1 : 0));
+    const from = Math.max(0, ...cuts.filter((c) => c <= at).map((c) => c + 1));
+    const to = Math.min(t.length, ...cuts.filter((c) => c >= at + word.length));
+    const clause = t.slice(from, to).slice(0, 220);
+    if (/^german$/i.test(word) && !LANG_CUE.test(clause.replace(word, ""))) continue;   // German companies, German hospitals…
+    if (NOT_LANG.test(clause)) continue;
+    if (OPTIONAL.test(clause) || OR_ENGLISH.test(clause)) { optional = true; continue; }
+    // a level written next to the word: "Deutsch auf C1/C2", "German (min. C2)", "C1-Deutschkenntnisse"
+    const rel = at - from;
+    const cefr = [...clause.matchAll(/\b([ABC][12])\b/gi)].map((c) => ({ lvl: LEVELS.indexOf(c[1].toUpperCase()), d: Math.abs(c.index! - rel) }))
+      .filter((c) => c.d <= 40).sort((a, b) => a.d - b.d)[0];
+    const r = cefr ? cefr.lvl : wordRank(clause) ?? 4;            // asked for without a level: about B2
+    best = Math.max(best ?? 0, r);
+  }
+  if (best !== null) return best;
+  if (optional) return 0;
+  const g = (ai ?? "").trim();
+  if (!g || /not (stated|mentioned)|unknown|unclear|n\/a/i.test(g)) return null;
+  if (OPTIONAL.test(g) || /^(no|none|nein)\b/i.test(g) || /english only/i.test(g)) return 0;
+  const c = /\b([ABC][12])\b/i.exec(g);
+  return c ? LEVELS.indexOf(c[1].toUpperCase()) : wordRank(g) ?? 4;
+}
+/** How the card and the spreadsheet show it. */
+export const germanLabel = (r: number | null) =>
+  r === null ? "not stated" : r === 0 ? "not required" : LEVELS[r];
+
+/** [required?, level] for the spreadsheet. */
+export function germanOf(german: string | undefined, text = ""): [string, string] {
+  const r = germanRank(german, text);
+  return r === null ? ["not stated", ""] : r === 0 ? ["no", ""] : ["yes", LEVELS[r]];
+}
+
+/** The most German each person can work in (/german), as a level number; 6 = no limit. */
+export async function germanLimits(store: Store, j: Jobs): Promise<Record<string, number>> {
+  const out: Record<string, number> = {};
+  for (const p of j.people) {
+    const v = ((await store.kvGet(`jobs_german:${p.id}`)) ?? p.german_max ?? "").toUpperCase();
+    out[p.id] = v === "NONE" ? 0 : LEVELS.includes(v) ? LEVELS.indexOf(v) : 6;
+  }
+  return out;
+}
+/** Who a job is still for once the German it asks for is weighed: the people whose limit it fits. */
+function fitsGerman(r: Pick<JobRow, "person" | "facts" | "text">, j: Jobs, limits: Record<string, number>): { keep: string[]; need: number | null } {
+  const f: Partial<Facts> = r.facts ? JSON.parse(r.facts) : {};
+  const need = germanRank(f.german, r.text ?? "");
+  const ps = peopleOf(j, r.person);
+  return { keep: need === null ? ps : ps.filter((p) => need <= (limits[p] ?? 6)), need };
+}
+const personOf = (j: Jobs, keep: string[], was: string | null) =>
+  keep.length === peopleOf(j, was).length ? was : keep.length === 1 ? keep[0] : keep.join(",");
+
 /**
  * Every application in the tracker, one row each. "Career-centered": a role
  * in the person's own field that builds the career - Werkstudent, internship,

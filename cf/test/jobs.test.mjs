@@ -312,11 +312,11 @@ await ok("the CSV's guesses: work mode, German and its level", () => {
   assert.equal(J.workMode({ remote: 0, place: "Berlin", text: "2 Tage remote pro Woche", title: "" }), "hybrid");
   assert.equal(J.workMode({ remote: 0, place: "Cottbus", text: "Vor Ort im Büro", title: "" }), "on-site");
   assert.deepEqual(J.germanOf("B2"), ["yes", "B2"]); assert.deepEqual(J.germanOf("fließend (C1)"), ["yes", "C1"]);
-  assert.deepEqual(J.germanOf("fluent"), ["yes", "fluent (C1+)"]); assert.deepEqual(J.germanOf("not stated"), ["not stated", ""]);
+  assert.deepEqual(J.germanOf("fluent"), ["yes", "C1"]); assert.deepEqual(J.germanOf("not stated"), ["not stated", ""]);
   assert.deepEqual(J.germanOf(""), ["not stated", ""]); assert.deepEqual(J.germanOf("nice to have"), ["no", ""]);
   // nothing from the AI: the ad's own words
   assert.deepEqual(J.germanOf("", "Sehr gute Deutschkenntnisse (C1) erforderlich."), ["yes", "C1"]);
-  assert.deepEqual(J.germanOf("not stated", "Fließend Deutsch in Wort und Schrift."), ["yes", "fluent (C1+)"]);
+  assert.deepEqual(J.germanOf("not stated", "Fließend Deutsch in Wort und Schrift."), ["yes", "C1"]);
   assert.deepEqual(J.germanOf("", "Deutschkenntnisse sind von Vorteil."), ["no", ""]);
   assert.deepEqual(J.germanOf("", "We work in English."), ["not stated", ""]);
 });
@@ -466,7 +466,7 @@ await ok('the "/" menu: shared commands for the group, all of them for the owner
   const c = net.tg.filter((x) => x.method === "setMyCommands");
   assert.equal(c.length, 3);
   const group = c.find((x) => x.body.scope.type === "chat" && x.body.scope.chat_id === "-100");
-  assert.deepEqual(group.body.commands.map((x) => x.command), ["jobs", "waitinglist", "tracker", "cv", "jobreport", "skills", "finds", "casual"]);
+  assert.deepEqual(group.body.commands.map((x) => x.command), ["jobs", "waitinglist", "tracker", "german", "nudge", "cv", "jobreport", "skills", "finds", "casual"]);
   const mine = c.find((x) => x.body.scope.type === "chat_member");
   assert.equal(mine.body.scope.user_id, 1000001);
   assert.ok(mine.body.commands.some((x) => x.command === "review") && mine.body.commands.some((x) => x.command === "jobs"));
@@ -578,6 +578,96 @@ console.log("\n7. jobs handed in from outside (LinkedIn, via the Mac)");
     assert.equal((await hand({ op: "add", jobs: [{ id: "x", title: 5 }] })).status, 400);
     assert.equal((await hand({ op: "nope" })).status, 400);
   });
+}
+
+console.log("\n8. German: what an ad asks for, and each person's limit");
+await ok("read from the ad's own words, the way real ads put it", () => {
+  const r = (t, ai) => J.germanLabel(J.germanRank(ai, t));
+  assert.equal(r("Sehr gute Deutschkenntnisse in Wort und Schrift , Englischkenntnisse sind von Vorteil"), "C1");
+  assert.equal(r("Fluent in German (min. C2) Professional proficiency in English"), "C2");
+  assert.equal(r("Language skills: Fluent German (C2) for customer communication, and solid English"), "C2");
+  assert.equal(r("Ihr Profil\nDeutsch auf C1/C2 Niveau\nSQL"), "C1");
+  assert.equal(r("Gute Deutschkenntnisse, sehr gute Polnischkenntnisse"), "B2");
+  assert.equal(r("Full professional fluency in English and German (written and spoken)"), "C1");
+  assert.equal(r("You speak fluent German and English, more languages are a plus"), "C1");
+  assert.equal(r("you communicate well in both English and German"), "B2");
+  assert.equal(r("Proficiency in spoken and written German and professional working proficiency in English"), "C1");
+  // not required
+  assert.equal(r("Fließende Deutschkenntnisse Von Vorteil\nErfahrung mit KI"), "not required");
+  assert.equal(r("You speak English fluently C1 - German is a plus but not required."), "not required");
+  assert.equal(r("Language Skills: Fluent in English (C1); German or Polish proficiency is a strong advantage."), "not required");
+  assert.equal(r("Sprachkenntnisse: Gute Deutsch- oder Englischkenntnisse für die Abstimmung"), "not required");
+  // not about the language at all
+  assert.equal(r("As one of the leading German HealthTech companies, we connect two-thirds of all German hospitals"), "not stated");
+  assert.equal(r("Deutschlandticket, Urban Sports Club, German language learning budget"), "not stated");
+  assert.equal(r("Kenntnisse im deutschen Arbeitsrecht. Remote in Deutschland."), "not stated");
+  // the ad says nothing: the AI's note
+  assert.equal(r("SQL, Python", "C1"), "C1"); assert.equal(r("SQL", "fluent"), "C1"); assert.equal(r("SQL", "not stated"), "not stated");
+  assert.equal(r("SQL", "not needed"), "not required"); assert.equal(r("SQL", "nicht nötig"), "not required");
+  // the ad's words win over the AI's
+  assert.equal(r("Deutsch auf C1-Niveau", "B2"), "C1"); assert.equal(r("German is a plus", "C1"), "not required");
+});
+{
+  const [DB8, st8, E8] = await fresh();
+  const tg8 = new Telegram("T", "-100");
+  const say8 = async (text) => { net.tg = []; await worker.fetch(new Request("https://w/", { method: "POST",
+    headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" },
+    body: JSON.stringify({ message: { text, from: { id: 555 }, chat: { id: -100 }, message_thread_id: 965, is_topic_message: true } }) }), E8); return net.tg; };
+  let c = await say8("/german");
+  await ok("/german: each person's limit (no limit at first) and a row of buttons each", () => {
+    const m = c.find((x) => x.method === "sendMessage");
+    assert.match(m.body.text, /🗣 <b>German<\/b>[\s\S]*Diba: <b>no limit<\/b>/);
+    assert.deepEqual(m.body.reply_markup.inline_keyboard[0].map((b) => b.text), ["👩‍💻 Not required", "👩‍💻 B1", "👩‍💻 B2", "👩‍💻 C1", "• 👩‍💻 No limit •"]);
+  });
+  c = await say8("/german diba b2");
+  await ok("/german diba b2: saved, and the card shows it", async () => {
+    assert.equal(await st8.kvGet("jobs_german:diba"), "b2");
+    assert.match(c.find((x) => /Diba: up to B2/.test(x.body.text)).body.text, /up to B2/);
+  });
+  await J.jobsStep(E8, st8, tg8);                                   // makes the table
+  // two posted jobs and one on the waiting list: one asks for C1 in its text, one the AI read as fluent, one fits
+  const put = (id, status, text, german, msg) => DB8.raw.prepare(`INSERT INTO jobs (id,dkey,source,title,company,place,url,remote,kind,text,status,person,facts,attempts,first_seen,posted_at,msg_id)
+    VALUES (?,?,?,?,?,?,?,0,'werkstudent',?,?,'diba',?,0,1,1,?)`).run(id, id, "LinkedIn", "Werkstudent Data " + id, "Firma", "Berlin", "https://x/" + id, text, status,
+    JSON.stringify({ for: "diba", kind: "werkstudent", german }), msg);
+  put("li:c1", "posted", "Dein Profil: Deutsch auf C1/C2 Niveau, SQL.", "not stated", 4001);
+  put("li:fl", "approved", null, "fluent German", null);
+  put("li:ok", "posted", "Gute Deutschkenntnisse, SQL.", "B2", 4002);
+  net.tg = []; await J.jobsStep(E8, st8, tg8);
+  await ok("asking for more than her limit: posted card deleted, waiting-list job dropped, both skipped with the reason", () => {
+    assert.deepEqual([row(DB8, "li:c1").status, row(DB8, "li:c1").why], ["skipped", "German C1"]);
+    assert.deepEqual([row(DB8, "li:fl").status, row(DB8, "li:fl").why], ["skipped", "German C1"]);
+    assert.equal(row(DB8, "li:ok").status, "posted");
+    assert.ok(net.tg.some((x) => x.method === "deleteMessage" && x.body.message_id === 4001));
+    assert.ok(!net.tg.some((x) => x.method === "deleteMessage" && x.body.message_id === 4002));
+  });
+  await ok("the card shows the German read from the ad", () => {
+    assert.match(J.card(row(DB8, "li:ok"), JOBS), /🗣 German: B2\n/);
+    assert.match(J.card({ ...row(DB8, "li:ok"), text: "SQL", facts: JSON.stringify({ kind: "werkstudent" }) }, JOBS), /🗣 German: not stated\n/);
+  });
+  // a new job asking for C1: never posted
+  const E9 = { ...E8, INGEST_SECRET: "s9" };
+  const hand9 = (body) => worker.fetch(new Request("https://w/ingest/jobs", { method: "POST", headers: { "X-Ingest-Secret": "s9", "Content-Type": "application/json" }, body: JSON.stringify(body) }), E9);
+  await hand9({ op: "add", jobs: [{ id: "ba:c1new", source: "Jobbörse", title: "Werkstudent Data Analyst", company: "Neu GmbH", place: "Berlin", url: "https://x/n", text: "Verhandlungssicheres Deutsch (C1). SQL." }] });
+  for (let i = 0; i < 3; i++) await J.jobsStep(E8, st8, tg8);
+  await ok("a new job asking for C1 isn't posted at all", () => {
+    assert.equal(row(DB8, "ba:c1new").status, "skipped"); assert.equal(row(DB8, "ba:c1new").why, "German C1");
+  });
+  // LinkedIn: held back for its page, which the Mac sends
+  await hand9({ op: "add", jobs: [{ id: "li:777", source: "LinkedIn", title: "Werkstudent Data Science", company: "LI GmbH", place: "Berlin", url: "https://www.linkedin.com/jobs/view/777" }] });
+  await J.jobsStep(E8, st8, tg8);
+  await ok("a new LinkedIn job waits for its page (up to 30 minutes) before it's matched", async () => {
+    assert.equal(row(DB8, "li:777").status, "new");
+    const need = await (await hand9({ op: "needtext", jobs: [] })).json();
+    assert.ok(need.ids.includes("li:777"));
+    assert.equal(need.ids[0], "li:777");
+  });
+  await hand9({ op: "text", jobs: [{ id: "li:777", text: "Sehr gute Deutschkenntnisse in Wort und Schrift", kind: "Teilzeit" }] });
+  for (let i = 0; i < 3; i++) await J.jobsStep(E8, st8, tg8);
+  await ok("…its page says 'sehr gute Deutschkenntnisse' (≈ C1): left out", () => {
+    assert.equal(row(DB8, "li:777").status, "skipped"); assert.equal(row(DB8, "li:777").why, "German C1");
+  });
+  c = await say8("/german diba any");
+  await ok("/german diba any: no limit again", async () => assert.equal((await J.germanLimits(st8, JOBS)).diba, 6));
 }
 
 console.log(`\nall ${pass} jobs checks passed`);

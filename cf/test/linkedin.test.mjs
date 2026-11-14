@@ -60,7 +60,7 @@ await ok("searches: each active person's, a few terms per query, in each city", 
 // ---------------------------------------------------------------- a run
 console.log("\n2. a run");
 const dir = mkdtempSync(join(tmpdir(), "neustart-li-"));
-function harness({ limitAt = Infinity, unknown } = {}) {
+function harness({ limitAt = Infinity, unknown, needtext = [] } = {}) {
   const calls = [], posted = [], waits = [];
   let n = 0;
   const fetch = async (url, init = {}) => {
@@ -70,6 +70,8 @@ function harness({ limitAt = Infinity, unknown } = {}) {
       assert.equal(init.headers["X-Ingest-Secret"], "sec");
       posted.push(body);
       if (body.op === "known") return Response.json({ unknown: unknown ?? body.jobs.map((j) => j.id) });
+      if (body.op === "needtext") return Response.json({ ids: needtext });
+      if (body.op === "text") return Response.json({ saved: body.jobs.length });
       return Response.json({ fresh: body.jobs.length, keep: 1 });
     }
     calls.push(url);
@@ -84,7 +86,7 @@ const cfg = normalize(CONFIG);
   const h = harness();
   const prog = [];
   const r = await L.run(cfg, { ...h.deps, progress: (p) => prog.push({ ...p }) });
-  await ok("searches only, and after each one hands the new jobs straight to the bot", () => {
+  await ok("the searches, and after each one the new jobs go straight to the bot", () => {
     const searches = h.calls.filter((u) => u.includes("seeMoreJobPostings"));
     assert.equal(searches.length, 4); assert.equal(h.calls.length, 4);              // no job pages
     assert.ok(searches.every((u) => /f_TPR=r604800/.test(u) && !/cookie/i.test(u)));   // first run: the past week
@@ -94,14 +96,34 @@ const cfg = normalize(CONFIG);
     assert.equal(add[0].jobs.find((j) => j.id === "li:101").url, "https://www.linkedin.com/jobs/view/101");
     assert.equal(r.status, "done");
   });
-  await ok("progress: searches done, found, handed to the bot", () => {
-    assert.deepEqual(prog[0], { done: 0, total: 4, found: 0, handed: 0 });
+  await ok("progress: requests done, found, handed to the bot, pages read", () => {
+    assert.deepEqual(prog[0], { done: 0, total: 4, found: 0, handed: 0, pages: 0 });
     assert.equal(prog.at(-1).done, 4); assert.ok(prog.at(-1).handed >= 1);
   });
-  await ok("gentle: 60-90 s between LinkedIn requests, at most 10 a run", () => {
+  await ok("gentle: 60-90 s between LinkedIn requests, at most 14 a run", () => {
     assert.equal(h.waits.length, h.calls.length - 1);
     assert.ok(h.waits.every((ms) => ms >= 60000 && ms <= 90000));
-    assert.ok(h.calls.length <= 10);
+    assert.ok(h.calls.length <= 14);
+  });
+}
+{
+  const many = Array.from({ length: 20 }, (_, i) => `li:${900 + i}`);
+  const h = harness({ needtext: many });
+  const r = await L.run(cfg, h.deps);
+  await ok("then the job pages the bot has no description for, with what's left of the 14 - each text sent at once", () => {
+    const pages = h.calls.filter((u) => u.includes("/jobPosting/"));
+    assert.equal(h.calls.length, 14); assert.equal(pages.length, 10);
+    assert.equal(pages[0], "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/900");
+    const texts = h.posted.filter((p) => p.op === "text");
+    assert.equal(texts.length, 10); assert.match(texts[0].jobs[0].text, /SQL & Python/); assert.equal(texts[0].jobs[0].kind, "Teilzeit");
+    assert.equal(r.pages, 10);
+  });
+}
+{
+  const h = harness({ needtext: ["li:1", "li:2", "li:3"], limitAt: 6 });
+  const r = await L.run(cfg, h.deps);
+  await ok("LinkedIn says no while reading pages: stops; what was read is with the bot", () => {
+    assert.equal(r.status, "limited"); assert.equal(h.posted.filter((p) => p.op === "text").length, 1);
   });
 }
 {

@@ -7,8 +7,10 @@
 // hands the new jobs to the Worker (POST /ingest/jobs), which matches and
 // posts them like the rest.
 //
-// Gentle on purpose: at most 10 LinkedIn searches a run, 60-90 s apart, and
-// no job pages (the bot matches on title, company and place). If
+// Gentle on purpose: at most 14 LinkedIn requests a run, 60-90 s apart -
+// the searches, then the pages of jobs the bot has no description for yet
+// (the German they ask for is on them; the bot holds new LinkedIn jobs back
+// up to 30 minutes for it). If
 // LinkedIn says no (429, 999, a login wall), the run stops at once.
 //
 // neustart.yaml, optional:
@@ -25,7 +27,7 @@ import { CF, check, readConfigFile, readEnv } from "./lib.mjs";
 const { jobRejectReason } = await import(resolve(CF, "src/jobs.ts"));
 const { unescapeHtml } = await import(resolve(CF, "src/scraper.ts"));
 
-const MAX_REQUESTS = 10;
+const MAX_REQUESTS = 14;          // searches first, then job pages with what's left
 const GAP_MS = [60_000, 90_000];
 const TERMS_PER_QUERY = 4;
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36";
@@ -92,19 +94,25 @@ export async function run(cfg, { fetch, sleep, now, state = STATE, env, log = ()
   };
 
   const queries = queriesFor(cfg, active, opts).slice(0, MAX_REQUESTS);
+  let asked = 0;
+  const wait = async (p) => { if (asked++) await sleep(GAP_MS[0] + Math.random() * (GAP_MS[1] - GAP_MS[0]), p); };
+  const linkedin = async (url) => {
+    const r = await fetch(url, { headers: { "User-Agent": UA, "Accept-Language": "de-DE,de;q=0.9,en;q=0.8" }, redirect: "manual" });
+    if (r.status !== 200) throw new Limited(`LinkedIn answered ${r.status}`);
+    const html = await r.text();
+    if (/authwall|uas\/login/.test(html.slice(0, 3000))) throw new Limited("LinkedIn wants a login");
+    return html;
+  };
   const since = lookBack(st.lastRun, now());
-  const p = { done: 0, total: queries.length, found: 0, handed: 0 };
+  const p = { done: 0, total: queries.length, found: 0, handed: 0, pages: 0 };
   progress(p);
   const seen = new Set();
   try {
     for (const q of queries) {
-      if (p.done) { const ms = GAP_MS[0] + Math.random() * (GAP_MS[1] - GAP_MS[0]); await sleep(ms, p); }
+      await wait(p);
       log(`search ${p.done + 1}/${p.total}: ${q.keywords.slice(0, 70)} in ${q.location}`);
-      const r = await fetch(searchUrl(q, since), { headers: { "User-Agent": UA, "Accept-Language": "de-DE,de;q=0.9,en;q=0.8" }, redirect: "manual" });
       p.done++;
-      if (r.status !== 200) throw new Limited(`LinkedIn answered ${r.status}`);
-      const html = await r.text();
-      if (/authwall|uas\/login/.test(html.slice(0, 3000))) throw new Limited("LinkedIn wants a login");
+      const html = await linkedin(searchUrl(q, since));
       // handed to the bot at once: a refusal later loses nothing
       const jobs = parseSearch(html).filter((c) => !seen.has(c.id)).map((c) => {
         seen.add(c.id);
@@ -121,12 +129,25 @@ export async function run(cfg, { fetch, sleep, now, state = STATE, env, log = ()
       } else log("  nothing found");
       progress(p);
     }
-    return done("done", { found: p.found, new: p.handed });
+    // then the job pages the bot still needs (the German they ask for is on them), with what's left
+    const need = (await bot({ op: "needtext", jobs: [] })).ids ?? [];
+    const pages = need.slice(0, MAX_REQUESTS - asked);
+    p.total += pages.length;
+    if (pages.length) log(`reading ${pages.length} job page${pages.length > 1 ? "s" : ""} (of ${need.length} without a description)`);
+    for (const id of pages) {
+      await wait(p);
+      const html = await linkedin(jobUrl(id.slice(3)));
+      p.done++; p.pages++;
+      const d = parseJob(html);
+      if (d.text) await bot({ op: "text", jobs: [{ id, text: d.text, kind: d.kind }] });
+      progress(p);
+    }
+    return done("done", { found: p.found, new: p.handed, pages: p.pages });
   } catch (e) {
     if (!(e instanceof Limited)) throw e;
     progress(p);
     log(`${e.message} - stopping here; the ${p.handed} new job(s) found so far are with the bot`);
-    return done("limited", { found: p.found, new: p.handed });
+    return done("limited", { found: p.found, new: p.handed, pages: p.pages });
   }
 }
 
@@ -137,14 +158,14 @@ async function main() {
   // keep the log small: its last 300 lines
   if (existsSync(LOG)) { const l = readFileSync(LOG, "utf8").split("\n"); if (l.length > 400) writeFileSync(LOG, l.slice(-300).join("\n")); }
   const log = (m) => { const line = `${new Date().toISOString()} ${m}`; console.log(line); appendFileSync(LOG, line + "\n"); };
-  console.log("Searching LinkedIn once: up to 10 searches, 60-90 s apart (about 10-15 minutes).");
+  console.log("Searching LinkedIn once: the searches, then job pages for their German - up to 14 requests, 60-90 s apart (about 15-20 minutes).");
   // the progress bar, on its own line, redrawn in place (only in a terminal)
   const tty = process.stdout.isTTY;
-  let last = { done: 0, total: 0, found: 0, handed: 0 }, wait = "";
+  let last = { done: 0, total: 0, found: 0, handed: 0, pages: 0 }, wait = "";
   const bar = () => {
     if (!tty || !last.total) return;
     const w = 20, f = Math.round((last.done / last.total) * w);
-    process.stdout.write(`\r\x1b[2K[${"█".repeat(f)}${"░".repeat(w - f)}] ${last.done}/${last.total} searches · ${last.found} found · ${last.handed} to the bot${wait}`);
+    process.stdout.write(`\r\x1b[2K[${"█".repeat(f)}${"░".repeat(w - f)}] ${last.done}/${last.total} requests · ${last.found} found · ${last.handed} to the bot · ${last.pages ?? 0} pages read${wait}`);
   };
   const say = (m) => { if (tty) process.stdout.write("\r\x1b[2K"); log(m); bar(); };
   const sleep = async (ms) => {
@@ -165,7 +186,7 @@ async function main() {
   }
   if (r.status !== "done") log(`run: ${r.status}`);
   else if (!r.found) log("nothing found");
-  else log(`done - ${r.new} new job(s) went to the bot; the ones that fit show up in the jobs topic within the next half hour`);
+  else log(`done - ${r.new} new job(s) went to the bot, ${r.pages ?? 0} job page(s) read; the ones that fit show up in the jobs topic within the next half hour`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();
