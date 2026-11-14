@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="canvas"><rect width="1024" height="1024"/></clipPath>
+    <clipPath id="scarf"><rect x="350" y="592" width="324" height="96" rx="44"/></clipPath>
+    <clipPath id="tail"><rect x="0" y="0" width="70" height="170" rx="18"/></clipPath>
+  </defs>
+  <g clip-path="url(#canvas)" stroke="#1E2A2E" stroke-width="18" stroke-linejoin="round" stroke-linecap="round">
+    <rect width="1024" height="1024" fill="#2F6B67" stroke="none"/>
+    <circle cx="512" cy="500" r="372" fill="#367671" stroke="none"/>
+
+    <!-- body -->
+    <rect x="252" y="640" width="520" height="520" rx="130" fill="#F3EBDD"/>
+    <!-- chest badge: Telegram paper plane -->
+    <circle cx="512" cy="830" r="74" fill="#F2B636"/>
+    <g stroke="none" transform="translate(-7 2)">
+      <path d="M464 826 L556 790 Q562 788 561 795 L545 870 Q543 878 536 873 L511 855 L498 868 Q494 871 494 865 L496 842 Z" fill="#1E2A2E"/>
+      <path d="M496 842 L543 801 L504 850 Z" fill="#4A5559"/>
+    </g>
+
+    <!-- neck -->
+    <rect x="470" y="560" width="84" height="60" fill="#E2D6C0"/>
+
+    <!-- antenna -->
+    <line x1="512" y1="252" x2="512" y2="196"/>
+    <circle cx="512" cy="176" r="26" fill="#D9432B"/>
+
+    <!-- ears -->
+    <rect x="246" y="360" width="62" height="118" rx="24" fill="#E2D6C0"/>
+    <rect x="716" y="360" width="62" height="118" rx="24" fill="#E2D6C0"/>
+
+    <!-- head -->
+    <rect x="290" y="252" width="444" height="336" rx="96" fill="#F3EBDD"/>
+    <!-- screen -->
+    <rect x="350" y="318" width="324" height="206" rx="62" fill="#1E2A2E"/>
+    <!-- happy eyes -->
+    <path d="M410 432 q34 -44 68 0 M546 432 q34 -44 68 0" fill="none" stroke="#F2B636" stroke-width="22"/>
+    <!-- smile -->
+    <path d="M480 470 q32 28 64 0" fill="none" stroke="#F2B636" stroke-width="16"/>
+    <!-- cheeks -->
+    <circle cx="398" cy="474" r="15" fill="#D9432B" stroke="none" opacity="0.75"/>
+    <circle cx="626" cy="474" r="15" fill="#D9432B" stroke="none" opacity="0.75"/>
+
+    <!-- scarf tail (black / red / gold) -->
+    <g transform="translate(574 640) rotate(-8)">
+      <g clip-path="url(#tail)" stroke="none">
+        <rect x="0" y="0" width="24" height="170" fill="#3B4549"/>
+        <rect x="23" y="0" width="24" height="170" fill="#D9432B"/>
+        <rect x="46" y="0" width="24" height="170" fill="#F2B636"/>
+      </g>
+      <rect x="0" y="0" width="70" height="170" rx="18" fill="none"/>
+    </g>
+    <!-- scarf wrap -->
+    <g clip-path="url(#scarf)" stroke="none">
+      <rect x="350" y="592" width="324" height="34" fill="#3B4549"/>
+      <rect x="350" y="625" width="324" height="32" fill="#D9432B"/>
+      <rect x="350" y="656" width="324" height="34" fill="#F2B636"/>
+    </g>
+    <rect x="350" y="592" width="324" height="96" rx="44" fill="none"/>
+  </g>
+</svg>
