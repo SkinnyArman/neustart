@@ -115,6 +115,7 @@ export function letterIssues(l: Letter, cv: string, ad: string, adSkills: string
 
 const ADJUST: Record<string, string> = {
   short: "Make it noticeably shorter (about two thirds of the length), keeping the specific opening and the concrete matches.",
+  long: "Make it noticeably longer (about a third more): more about what this ad asks for and where the CV shows it, never filler or repetition.",
   formal: "Make the tone more formal and polished.",
   casual: "Make the tone warmer and a little more casual - still respectful and professional.",
   de: "Rewrite it in German, as a proper Anschreiben with \"Sie\" (subject, salutation and closing in German too).",
@@ -130,6 +131,7 @@ export async function adjustLetter(ai: AI, model: string, l: Letter, how: string
 /** How a press changes the person's default for later letters. */
 export function learn(s: Style, how: string): Style {
   if (how === "short") return { ...s, words: Math.max(90, s.words - 20) };
+  if (how === "long") return { ...s, words: Math.min(260, s.words + 20) };
   if (how === "formal") return { ...s, tone: Math.min(2, s.tone + 1) };
   if (how === "casual") return { ...s, tone: Math.max(-2, s.tone - 1) };
   return s;

@@ -787,7 +787,7 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
   const id = row.id;
 
   // ✍️ a cover letter, and its buttons: shorter, more formal, more casual, the other language, a new one
-  if (act === "letter" || /^w(short|formal|casual|de|en|redo|any|tell)$/.test(act)) {
+  if (act === "letter" || /^w(short|long|formal|casual|de|en|redo|any|tell)$/.test(act)) {
     await letterButton(env, store, tg, cfg, row, act, who, { answer: (t) => tg.answerCallback(cq.id, t), message: cq.message, from: cq.from?.id });
     return;
   }
@@ -942,13 +942,17 @@ const OR_ENGLISH = /\b(oder|or)\s+(englisch|english)|(englisch|english)\w*\s+(od
 const LANG = /deutschkenntnis\w*|deutsch-\s|\bdeutsch\b|deutsche sprache|\bgerman\b/gi;
 // where a clause ends: a sentence end (not "min." or "mind."), a comma, a semicolon, a bullet, a dash, a line break
 const CUT = /(?<!\b(?:min|mind|ca|bzw|inkl|z|b|d|h|u|a|etc|e\.g|i\.e))\.(?=\s)|[\n;•|·,]| - /gi;
-const LANG_CUE = /\bplus\b|advantage|vorteil|nice[- ]to[- ]have|optional|fluent|fluency|proficien|speak|spoken|written|language|skills|level|knowledge|native|\b[abc][12]\b|english|englisch|required|wort und schrift|kenntnis|niveau|sprache/i;
+const LANG_CUE = /\bplus\b|advantage|excellent|very good|command|mastery|vorteil|nice[- ]to[- ]have|optional|fluent|fluency|proficien|speak|spoken|written|language|skills|level|knowledge|native|\b[abc][12]\b|english|englisch|required|wort und schrift|kenntnis|niveau|sprache/i;
+// "German" about Germany, not the language: German companies, the German market, German customers…
+const GERMANY_NOUN = /^[\s-]+(compan|market|firm|employer|brand|start-?up|engineering|automotive|corporat|customer|client|cit(y|ies)|hospital|government|law|universit|subsidiar|headquarter|office|team|mittelstand)/i;
 const NOT_LANG = /learning budget|lessons|course|kurs|unterricht|classes|we offer|bieten/i;
+// C1 and C2 only when the ad says so: words alone ("sehr gut", "fließend",
+// "very good", even "native") are B2 at most, so a job that doesn't name
+// the level still reaches someone with B2
 const wordRank = (s: string): number | null =>
-  /mutterspr|native|c2/i.test(s) ? 6
-    : /fließend|fliessend|verhandlungssicher|sehr gut|excellent|fluent|fluency|proficien|business|professional/i.test(s) ? 5
-      : /\bgut|good|well|solid|working knowledge/i.test(s) ? 4
-        : /grundkenntnis|basic|some german|erste kenntnis|a2/i.test(s) ? 2 : null;
+  /\bc2\b/i.test(s) ? 6 : /\bc1\b/i.test(s) ? 5
+    : /mutterspr|native|fließend|fliessend|verhandlungssicher|sehr gut|excellent|fluent|fluency|proficien|business|professional|very good|very strong|command|mastery|\bgut|good|well|solid|working knowledge/i.test(s) ? 4
+      : /grundkenntnis|basic|some german|erste kenntnis|\ba2\b/i.test(s) ? 2 : null;
 
 /**
  * The German an ad asks for, as a level number (0 = not required), or null
@@ -969,6 +973,7 @@ export function germanRank(ai: string | undefined, text = ""): number | null {
     const to = Math.min(t.length, ...cuts.filter((c) => c >= at + word.length));
     const clause = t.slice(from, to).slice(0, 220);
     if (/^german$/i.test(word) && !LANG_CUE.test(clause.replace(word, ""))) continue;   // German companies, German hospitals…
+    if (/^german$/i.test(word) && GERMANY_NOUN.test(t.slice(at + word.length, at + word.length + 25))) continue;   // "an excellent German company"
     if (NOT_LANG.test(clause)) continue;
     if (OPTIONAL.test(clause) || OR_ENGLISH.test(clause)) { optional = true; continue; }
     // a level written next to the word: "Deutsch auf C1/C2", "German (min. C2)", "C1-Deutschkenntnisse"
@@ -983,8 +988,10 @@ export function germanRank(ai: string | undefined, text = ""): number | null {
   const g = (ai ?? "").trim();
   if (!g || /not (stated|mentioned)|unknown|unclear|n\/a/i.test(g)) return null;
   if (OPTIONAL.test(g) || /^(no|none|nein)\b/i.test(g) || /english only/i.test(g)) return 0;
+  // the AI's note: C1/C2 from it count only when the ad itself names that level
   const c = /\b([ABC][12])\b/i.exec(g);
-  return c ? LEVELS.indexOf(c[1].toUpperCase()) : wordRank(g) ?? 4;
+  const lvl = c ? LEVELS.indexOf(c[1].toUpperCase()) : wordRank(g) ?? 4;
+  return lvl >= 5 && !/\bC[12]\b/i.test(t) ? 4 : lvl;
 }
 /** How the card and the spreadsheet show it. */
 export const germanLabel = (r: number | null) =>
@@ -1089,9 +1096,9 @@ export async function sendTracker(db: D1Database, store: Store, tg: Telegram, cf
 }
 
 // ---------------------------------------------------------------- cover letters
-const LETTER_ACTS: [string, string][] = [["wshort", "✂️ Shorter"], ["wformal", "🎩 More formal"], ["wcasual", "😊 More casual"]];
+const LETTER_ACTS: [string, string][][] = [[["wshort", "✂️ Shorter"], ["wlong", "📏 Longer"]], [["wformal", "🎩 More formal"], ["wcasual", "😊 More casual"]]];
 const letterKeyboard = (l: Letter, who: string, id: string): Button[][] => [
-  LETTER_ACTS.map(([a, label]) => ({ text: label, callback_data: buttonData(a, who, id) })),
+  ...LETTER_ACTS.map((row) => row.map(([a, label]) => ({ text: label, callback_data: buttonData(a, who, id) }))),
   [l.lang === "de" ? { text: "🇬🇧 English", callback_data: buttonData("wen", who, id) } : { text: "🇩🇪 Deutsch", callback_data: buttonData("wde", who, id) },
    { text: "🔄 New version", callback_data: buttonData("wredo", who, id) }],
   // in their own words: "say I did X", "drop Y", "add Z"
@@ -1171,7 +1178,7 @@ async function letterButton(env: JobsEnv, store: Store, tg: Telegram, cfg: Confi
     } else {
       const how = act.slice(1);
       l = await adjustLetter(call, cheap, saved!.l, how, p.cv, notes);
-      if (["short", "formal", "casual"].includes(how)) await store.kvSet(`letter_style:${w}`, JSON.stringify(learn(await styleOf(store, w), how)));
+      if (["short", "long", "formal", "casual"].includes(how)) await store.kvSet(`letter_style:${w}`, JSON.stringify(learn(await styleOf(store, w), how)));
     }
     await aiWorked(store);
   } catch (e: any) {

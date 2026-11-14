@@ -219,7 +219,7 @@ await ok("✍️ Cover letter: one call to the better model - her profile and CV
 await ok("…the message: subject, the whole letter to copy, a 'Why us?' for the form, and the buttons", () => {
   const m = letterMsg(calls);
   assert.match(m.body.text, /^✍️ <b>Cover letter for Diba<\/b> · [^\n]+\n\n<b>Subject:<\/b> Bewerbung als Werkstudentin Data Analyst \(Ref\. 10001\)\n\n<pre>Sehr geehrte Damen und Herren,\n\nIhr ETCS-Dashboard[\s\S]*Mit freundlichen Grüßen\nDiba [^<]+<\/pre>\n\n💬 <b>Why us\?<\/b> \(for the application form\)\n<pre>Weil Ihr Team/);
-  assert.deepEqual(m.body.reply_markup.inline_keyboard.map((r) => r.map((b) => b.text)), [["✂️ Shorter", "🎩 More formal", "😊 More casual"], ["🇬🇧 English", "🔄 New version"], ["✏️ Change something"]]);
+  assert.deepEqual(m.body.reply_markup.inline_keyboard.map((r) => r.map((b) => b.text)), [["✂️ Shorter", "📏 Longer"], ["🎩 More formal", "😊 More casual"], ["🇬🇧 English", "🔄 New version"], ["✏️ Change something"]]);
   assert.equal(m.body.reply_to_message_id, 7);
 });
 await ok("…and a PDF of it, ready to upload (no CV saved yet, so none sent)", () => {
@@ -261,9 +261,16 @@ calls = await press(lbtn("🇬🇧 English"), 555, -100, lmId);
 await ok("🇬🇧 English: rewritten in English; the button now offers Deutsch; the language isn't learned (it follows the ad)", async () => {
   const e = calls.find((c) => c.method === "editMessageText");
   assert.match(e.body.text, /<pre>Dear Hiring Team,/); assert.match(pdfOf(calls).body.caption, /Cover letter as PDF/);
-  assert.deepEqual(e.body.reply_markup.inline_keyboard[1].map((b) => b.text), ["🇩🇪 Deutsch", "🔄 New version"]);
+  assert.deepEqual(e.body.reply_markup.inline_keyboard[2].map((b) => b.text), ["🇩🇪 Deutsch", "🔄 New version"]);
   assert.deepEqual(JSON.parse(await st.kvGet("letter_style:diba")), { words: 140, tone: -1 });
 });
+calls = await press(lbtn("📏 Longer"), 555, -100, lmId);
+await ok("📏 Longer: the cheap model makes it longer, with substance, and her next letters aim a bit longer again", async () => {
+  assert.match(net.edits.at(-1).todo, /noticeably longer[\s\S]*never filler/);
+  assert.ok(calls.find((c) => c.method === "editMessageText"));
+  assert.equal(JSON.parse(await st.kvGet("letter_style:diba")).words, 160);
+});
+await press(lbtn("✂️ Shorter"), 555, -100, lmId);
 calls = await press(`jb:letter:diba:${analyst}`);
 await ok("the next letter is written to her style: shorter and a little casual", () =>
   assert.match(net.letters.at(-1).user, /About 140 words in the body\. Tone: warm and a little casual\.$/));
@@ -363,12 +370,12 @@ await ok("the CSV's guesses: work mode, German and its level", () => {
   assert.equal(J.workMode({ remote: 0, place: "Berlin · home office possible", text: "", title: "" }), "hybrid");
   assert.equal(J.workMode({ remote: 0, place: "Berlin", text: "2 Tage remote pro Woche", title: "" }), "hybrid");
   assert.equal(J.workMode({ remote: 0, place: "Cottbus", text: "Vor Ort im Büro", title: "" }), "on-site");
-  assert.deepEqual(J.germanOf("B2"), ["yes", "B2"]); assert.deepEqual(J.germanOf("fließend (C1)"), ["yes", "C1"]);
-  assert.deepEqual(J.germanOf("fluent"), ["yes", "C1"]); assert.deepEqual(J.germanOf("not stated"), ["not stated", ""]);
+  assert.deepEqual(J.germanOf("B2"), ["yes", "B2"]); assert.deepEqual(J.germanOf("fließend (C1)"), ["yes", "B2"]);   // the AI saying C1 isn't the ad saying it
+  assert.deepEqual(J.germanOf("fluent"), ["yes", "B2"]); assert.deepEqual(J.germanOf("not stated"), ["not stated", ""]);
   assert.deepEqual(J.germanOf(""), ["not stated", ""]); assert.deepEqual(J.germanOf("nice to have"), ["no", ""]);
   // nothing from the AI: the ad's own words
   assert.deepEqual(J.germanOf("", "Sehr gute Deutschkenntnisse (C1) erforderlich."), ["yes", "C1"]);
-  assert.deepEqual(J.germanOf("not stated", "Fließend Deutsch in Wort und Schrift."), ["yes", "C1"]);
+  assert.deepEqual(J.germanOf("not stated", "Fließend Deutsch in Wort und Schrift."), ["yes", "B2"]);
   assert.deepEqual(J.germanOf("", "Deutschkenntnisse sind von Vorteil."), ["no", ""]);
   assert.deepEqual(J.germanOf("", "We work in English."), ["not stated", ""]);
 });
@@ -645,15 +652,15 @@ console.log("\n7. jobs handed in from outside (LinkedIn, via the Mac)");
 console.log("\n8. German: what an ad asks for, and each person's limit");
 await ok("read from the ad's own words, the way real ads put it", () => {
   const r = (t, ai) => J.germanLabel(J.germanRank(ai, t));
-  assert.equal(r("Sehr gute Deutschkenntnisse in Wort und Schrift , Englischkenntnisse sind von Vorteil"), "C1");
+  assert.equal(r("Sehr gute Deutschkenntnisse in Wort und Schrift , Englischkenntnisse sind von Vorteil"), "B2");   // C1 only when the ad names it
   assert.equal(r("Fluent in German (min. C2) Professional proficiency in English"), "C2");
   assert.equal(r("Language skills: Fluent German (C2) for customer communication, and solid English"), "C2");
   assert.equal(r("Ihr Profil\nDeutsch auf C1/C2 Niveau\nSQL"), "C1");
   assert.equal(r("Gute Deutschkenntnisse, sehr gute Polnischkenntnisse"), "B2");
-  assert.equal(r("Full professional fluency in English and German (written and spoken)"), "C1");
-  assert.equal(r("You speak fluent German and English, more languages are a plus"), "C1");
+  assert.equal(r("Full professional fluency in English and German (written and spoken)"), "B2");
+  assert.equal(r("You speak fluent German and English, more languages are a plus"), "B2");
   assert.equal(r("you communicate well in both English and German"), "B2");
-  assert.equal(r("Proficiency in spoken and written German and professional working proficiency in English"), "C1");
+  assert.equal(r("Proficiency in spoken and written German and professional working proficiency in English"), "B2");
   // not required
   assert.equal(r("Fließende Deutschkenntnisse Von Vorteil\nErfahrung mit KI"), "not required");
   assert.equal(r("You speak English fluently C1 - German is a plus but not required."), "not required");
@@ -664,7 +671,7 @@ await ok("read from the ad's own words, the way real ads put it", () => {
   assert.equal(r("Deutschlandticket, Urban Sports Club, German language learning budget"), "not stated");
   assert.equal(r("Kenntnisse im deutschen Arbeitsrecht. Remote in Deutschland."), "not stated");
   // the ad says nothing: the AI's note
-  assert.equal(r("SQL, Python", "C1"), "C1"); assert.equal(r("SQL", "fluent"), "C1"); assert.equal(r("SQL", "not stated"), "not stated");
+  assert.equal(r("SQL, Python", "C1"), "B2"); assert.equal(r("SQL", "fluent"), "B2");   // the AI's C1 alone: B2 assert.equal(r("SQL", "not stated"), "not stated");
   assert.equal(r("SQL", "not needed"), "not required"); assert.equal(r("SQL", "nicht nötig"), "not required");
   // the ad's words win over the AI's
   assert.equal(r("Deutsch auf C1-Niveau", "B2"), "C1"); assert.equal(r("German is a plus", "C1"), "not required");
@@ -695,9 +702,9 @@ await ok("read from the ad's own words, the way real ads put it", () => {
   put("li:fl", "approved", null, "fluent German", null);
   put("li:ok", "posted", "Gute Deutschkenntnisse, SQL.", "B2", 4002);
   net.tg = []; await J.jobsStep(E8, st8, tg8);
-  await ok("asking for more than her limit: posted card deleted, waiting-list job dropped, both skipped with the reason", () => {
+  await ok("an ad naming C1 over her B2 limit: card deleted, skipped with the reason; 'fluent' from the AI alone stays on her waiting list", () => {
     assert.deepEqual([row(DB8, "li:c1").status, row(DB8, "li:c1").why], ["skipped", "German C1"]);
-    assert.deepEqual([row(DB8, "li:fl").status, row(DB8, "li:fl").why], ["skipped", "German C1"]);
+    assert.deepEqual([row(DB8, "li:fl").status, row(DB8, "li:fl").why], ["approved", null]);
     assert.equal(row(DB8, "li:ok").status, "posted");
     assert.ok(net.tg.some((x) => x.method === "deleteMessage" && x.body.message_id === 4001));
     assert.ok(!net.tg.some((x) => x.method === "deleteMessage" && x.body.message_id === 4002));
@@ -721,12 +728,21 @@ await ok("read from the ad's own words, the way real ads put it", () => {
     assert.equal(row(DB8, "li:777").status, "new");
     const need = await (await hand9({ op: "needtext", jobs: [] })).json();
     assert.ok(need.ids.includes("li:777"));
-    assert.equal(need.ids[0], "li:777");
+    assert.equal(need.ids[0], "li:fl");                                 // the waiting list's page first
   });
   await hand9({ op: "text", jobs: [{ id: "li:777", text: "Sehr gute Deutschkenntnisse in Wort und Schrift", kind: "Teilzeit" }] });
   for (let i = 0; i < 3; i++) await J.jobsStep(E8, st8, tg8);
-  await ok("…its page says 'sehr gute Deutschkenntnisse' (≈ C1): left out", () => {
-    assert.equal(row(DB8, "li:777").status, "skipped"); assert.equal(row(DB8, "li:777").why, "German C1");
+  await ok("C1 or C2 only when the ad names it: very good / excellent / sehr gut / fließend / native German are B2", () => {
+    for (const t of ["You have very good German and good English communication skills.", "Excellent German.", "Very good command of German", "very strong German skills",
+      "Sehr gute Deutschkenntnisse", "Verhandlungssicheres Deutsch", "Deutsch als Muttersprache", "Good German skills."])
+      assert.equal(J.germanLabel(J.germanRank("", t)), "B2", t);
+    assert.equal(J.germanLabel(J.germanRank("", "Sehr gute Deutschkenntnisse (mind. C1)")), "C1");
+    assert.equal(J.germanLabel(J.germanRank("", "We are an excellent German company with English as our working language.")), "not stated");
+    assert.equal(J.germanLabel(J.germanRank("", "Very good knowledge of the German market.")), "not stated");
+    assert.equal(J.germanLabel(J.germanRank("", "You speak very good German.")), "B2");
+  });
+  await ok("…its page says 'sehr gute Deutschkenntnisse' but names no level: B2, so it isn't left out for German", () => {
+    assert.notEqual(row(DB8, "li:777").why, "German C1"); assert.notEqual(row(DB8, "li:777").status, "new");
   });
   // a LinkedIn job whose page didn't come within the 30 minutes: matched on its title, and still gets its page later
   await hand9({ op: "add", jobs: [{ id: "li:888", source: "LinkedIn", title: "Werkstudent Data Analytics", company: "Spät GmbH", place: "Berlin", url: "https://www.linkedin.com/jobs/view/888" }] });
