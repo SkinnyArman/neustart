@@ -7,13 +7,14 @@
 // have been used.
 //
 //   jobs:
-//     nudge: { person: diba, mention: "@her_username", at: "10:00" }
+//     nudge: { person: diba, mention: "@her_username", at: "10:00" }   # or a list, or nudge: on a person
 //
-// kv nudge_now=1 (or =funny): one now, whatever the day says.
+// /nudge in the group changes them (who's mentioned, the time, on/off, one
+// now). kv nudge_now=1 (or =funny): everyone's, now, whatever the day says.
 
 import type { Config } from "./config.ts";
 import type { Store } from "./store.ts";
-import { esc, inTopic, type Telegram } from "./telegram.ts";
+import { esc, inTopic, type Button, type Telegram } from "./telegram.ts";
 import { topicOf } from "./topics.ts";
 import { isCareer, type JobRow } from "./jobs.ts";
 
@@ -119,17 +120,56 @@ export function pickLine(ctx: { rejected: boolean; monday: boolean; pile: boolea
 
 const berlin = (t: number) => new Date(t).toLocaleString("sv-SE", { timeZone: "Europe/Berlin" });   // "2026-11-12 10:03:00"
 
-/** One tick: the nudge, if it's time and it fits. */
-export async function nudgeStep(db: D1Database, store: Store, tg: Telegram, cfg: Config): Promise<string> {
-  const n = cfg.jobs.nudge;
-  if (!n?.person || !n.mention) return "";
-  const forced = await store.kvGet("nudge_now");
-  const now = berlin(Date.now()), today = now.slice(0, 10);
-  if (!forced || forced === "0") {
-    if (now.slice(11, 16) < n.at || (await store.kvGet("nudge_day")) === today) return "";
+// ---------------------------------------------------------------- per person
+export interface Nudge { person: string; on: boolean; mention: string; at: string }
+/**
+ * Each person's nudge: the config's, changed from Telegram with /nudge
+ * (kv nudge:<id>). Only people in the jobs config; a nudge needs a mention.
+ */
+export async function nudgesOf(store: Store, cfg: Config): Promise<Nudge[]> {
+  const out: Nudge[] = [];
+  for (const p of cfg.jobs.people) {
+    const c = cfg.jobs.nudges.find((n) => n.person === p.id);
+    const k: Partial<Nudge> = JSON.parse((await store.kvGet(`nudge:${p.id}`)) ?? "{}");
+    const mention = k.mention ?? c?.mention ?? "";
+    out.push({ person: p.id, mention, at: k.at ?? c?.at ?? "10:00", on: (k.on ?? !!c) && !!mention });
   }
+  return out;
+}
+async function saveNudge(store: Store, person: string, change: Partial<Nudge>): Promise<void> {
+  const k = JSON.parse((await store.kvGet(`nudge:${person}`)) ?? "{}");
+  await store.kvSet(`nudge:${person}`, JSON.stringify({ ...k, ...change }));
+}
+// what was sent: per person; Diba's from before (one nudge for the whole group) carries over
+const dayKey = (p: string) => `nudge_day:${p}`, usedKey = (p: string) => `nudge_used:${p}`;
+async function kvOr(store: Store, key: string, legacy: string, first: boolean): Promise<string | null> {
+  return (await store.kvGet(key)) ?? (first ? await store.kvGet(legacy) : null);
+}
+
+/** One tick: each person's nudge, if it's their time and it fits. kv nudge_now=1|funny: everyone's, now. */
+export async function nudgeStep(db: D1Database, store: Store, tg: Telegram, cfg: Config): Promise<string> {
+  const forced = await store.kvGet("nudge_now");
+  const all = (await nudgesOf(store, cfg)).filter((n) => n.on);
+  if (!all.length) { if (forced && forced !== "0") await store.kvSet("nudge_now", "0"); return ""; }
+  const out: string[] = [];
+  for (const n of all) {
+    const r = await nudgeOne(db, store, tg, cfg, n, forced && forced !== "0" ? (forced === "funny" ? "F" : "any") : null, n === all[0]);
+    if (r) out.push(r);
+  }
+  if (forced && forced !== "0") await store.kvSet("nudge_now", "0");
+  return out.join(", ");
+}
+
+/**
+ * One person's nudge. now: send at once ("any" line, or "F": one of our own
+ * jokes), whatever the time and the day. first: the one whose earlier,
+ * group-wide record carries over.
+ */
+export async function nudgeOne(db: D1Database, store: Store, tg: Telegram, cfg: Config, n: Nudge, now: "any" | "F" | null, first = false): Promise<string> {
+  const stamp = berlin(Date.now()), today = stamp.slice(0, 10);
+  if (!now && (stamp.slice(11, 16) < n.at || (await kvOr(store, dayKey(n.person), "nudge_day", first)) === today)) return "";
   const j = cfg.jobs;
-  const mine = (r: JobRow) => (r.person ?? "").split(",").includes(n.person) || r.person === "both" || r.person === "all" || r.person === n.person;
+  const mine = (r: JobRow) => (r.person ?? "").split(",").includes(n.person) || r.person === "both" || r.person === "all";
   const { results } = await db.prepare(
     "SELECT * FROM jobs WHERE status IN ('posted','approved','applied','already','interview','rejected','offer','declined','accepted')").all<JobRow>();
   const rows = (results ?? []).filter(mine);
@@ -137,29 +177,80 @@ export async function nudgeStep(db: D1Database, store: Store, tg: Telegram, cfg:
   const fresh = rows.filter((r) => r.status === "posted" && career(r)).length;
   const later = rows.filter((r) => r.status === "approved" && career(r)).length;
   // the day starts at midnight in Berlin
-  const ahead = Date.parse(now.replace(" ", "T") + "Z") - Date.now();          // Berlin's lead on UTC, in ms
+  const ahead = Date.parse(stamp.replace(" ", "T") + "Z") - Date.now();          // Berlin's lead on UTC, in ms
   const midnight = (Date.parse(`${today}T00:00:00Z`) - ahead) / 1000;
   const appliedToday = rows.some((r) => r.applied_at && r.applied_at >= midnight && r.person === n.person && career(r));
-  if (!forced || forced === "0") {
-    await store.kvSet("nudge_day", today);
-    if (!fresh && !later) return "nudge: nothing to apply to";
-    if (appliedToday) return "nudge: applied today already";
-  } else await store.kvSet("nudge_now", "0");
+  if (!now) {
+    await store.kvSet(dayKey(n.person), today);
+    if (!fresh && !later) return `nudge ${n.person}: nothing to apply to`;
+    if (appliedToday) return `nudge ${n.person}: applied today already`;
+  }
   const lastApplied = Math.max(0, ...rows.filter((r) => r.applied_at && r.person === n.person).map((r) => r.applied_at!));
   const ctx = {
     rejected: rows.some((r) => r.status === "rejected" && (r.replied_at ?? 0) > Date.now() / 1000 - 2 * 86400),
     monday: new Date(`${today}T12:00:00Z`).getUTCDay() === 1,
     pile: later >= 3,
     quiet: !!lastApplied && Date.now() / 1000 - lastApplied > 3 * 86400,
-    only: forced === "funny" ? ("F" as When) : undefined,
+    only: now === "F" ? ("F" as When) : undefined,
   };
-  const used: string[] = JSON.parse((await store.kvGet("nudge_used")) ?? "[]");
+  const used: string[] = JSON.parse((await kvOr(store, usedKey(n.person), "nudge_used", first)) ?? "[]");
   const line = pickLine(ctx, used);
   await tg.send(nudgeText(line, n.mention, { fresh, later }), inTopic(await topicOf(cfg, store, tg, "jobs")));
   // sent lines stay out until every line has had its turn; then a new round
   // (without the one just sent, so it can't come twice in a row)
   const ids = new Set(LINES.map((l) => l.id));
   const next = [...new Set([...used.filter((x) => ids.has(x)), line.id])];
-  await store.kvSet("nudge_used", JSON.stringify(next.length >= LINES.length ? [line.id] : next));
-  return `nudge: sent "${line.id}"`;
+  await store.kvSet(usedKey(n.person), JSON.stringify(next.length >= LINES.length ? [line.id] : next));
+  return `nudge ${n.person}: sent "${line.id}"`;
+}
+
+// ---------------------------------------------------------------- /nudge
+/** /nudge: each person's nudge, with buttons. */
+export async function nudgeCard(store: Store, cfg: Config): Promise<[string, Button[][]]> {
+  const ns = await nudgesOf(store, cfg);
+  const p = (id: string) => cfg.jobs.people.find((x) => x.id === id)!;
+  const lines = ns.map((n) => `${p(n.person).icon} <b>${esc(p(n.person).name)}</b>: ` + (n.on ? `on · ${n.at} · ${esc(n.mention)}`
+    : n.mention ? `off (${esc(n.mention)})` : `off · no one to mention yet: /nudge ${n.person} @username`));
+  const text = [`💌 <b>Daily nudge</b>: a lyric line or a joke, once a day, when there's a career job to apply to and none was applied to yet that day.`,
+    ...lines, `<i>/nudge ${ns[0]?.person ?? "name"} @username · /nudge ${ns[0]?.person ?? "name"} 9:30 · /nudge ${ns[0]?.person ?? "name"} off</i>`].join("\n\n");
+  const many = ns.length > 1;
+  const kb: Button[][] = ns.filter((n) => n.mention).map((n) => {
+    const who = many ? `${p(n.person).icon} ` : "";
+    return [
+      { text: `${who}${n.on ? "⏸ Off" : "▶️ On"}`, callback_data: `jb:nudge:${n.person}:${n.on ? "off" : "on"}` },
+      { text: "−30 min", callback_data: `jb:nudge:${n.person}:earlier` },
+      { text: "+30 min", callback_data: `jb:nudge:${n.person}:later` },
+      { text: "📨 Now", callback_data: `jb:nudge:${n.person}:now` },
+    ];
+  });
+  return [text, kb];
+}
+
+const shift = (at: string, mins: number) => {
+  const [h, m] = at.split(":").map(Number);
+  const t = (((h * 60 + m + mins) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+};
+/** /nudge diba @user · 9:30 · on · off · now - and the buttons (earlier, later). The answer to show. */
+export async function setNudge(db: D1Database, store: Store, tg: Telegram, cfg: Config, who: string, what: string): Promise<string> {
+  const id = (who || "").toLowerCase().replace(/^@/, "");
+  const person = cfg.jobs.people.find((p) => p.id === id || p.name.toLowerCase() === id);
+  if (!person) return `Try /nudge ${cfg.jobs.people[0]?.id ?? "name"} @username (or 9:30, on, off, now)`;
+  const n = (await nudgesOf(store, cfg)).find((x) => x.person === person.id)!;
+  const v = (what || "").trim();
+  if (/^@\w{3,}$/.test(v)) { await saveNudge(store, person.id, { mention: v, on: true }); return `💌 ${person.name}'s nudge: on, mentioning ${v}, at ${n.at}`; }
+  if (!n.mention) return `First, who to mention: /nudge ${person.id} @username`;
+  const time = /^(\d{1,2})[:.](\d{2})$/.exec(v);
+  if (time && Number(time[1]) < 24 && Number(time[2]) < 60) {
+    const at = `${time[1].padStart(2, "0")}:${time[2]}`;
+    await saveNudge(store, person.id, { at, on: true });
+    return `💌 ${person.name}'s nudge: at ${at} (Berlin time)`;
+  }
+  if (v === "earlier" || v === "later") { const at = shift(n.at, v === "earlier" ? -30 : 30); await saveNudge(store, person.id, { at }); return `💌 ${person.name}: at ${at}`; }
+  if (v === "on" || v === "off") { await saveNudge(store, person.id, { on: v === "on" }); return `💌 ${person.name}'s nudge: ${v}`; }
+  if (v === "now") {
+    const r = await nudgeOne(db, store, tg, cfg, { ...n, on: true }, "any");
+    return r ? `💌 Sent to ${person.name}` : "Couldn't send it";
+  }
+  return `Try /nudge ${person.id} @username, /nudge ${person.id} 9:30, /nudge ${person.id} off, /nudge ${person.id} now`;
 }

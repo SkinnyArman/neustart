@@ -306,7 +306,7 @@ console.log("\n4. modules switched off, no config at all");
   await tick(E, 13);
   await ok("the '/' menu leaves them out", () => {
     const owner = tgCalls("setMyCommands").find((c) => c.body.scope.type === "chat_member").body.commands.map((x) => x.command);
-    assert.deepEqual(owner, ["status", "start", "jobs", "waitinglist", "tracker", "cv", "jobreport", "skills", "help"]);
+    assert.deepEqual(owner, ["status", "start", "jobs", "waitinglist", "tracker", "german", "nudge", "cv", "jobreport", "skills", "help"]);
   });
   net.calls = [];
   await send(E, "/status");

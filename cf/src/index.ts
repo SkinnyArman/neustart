@@ -22,7 +22,8 @@ import { noteOk, problems, watchdog } from "./watch.ts";
 import { setupActive, setupAnswer, setupButton, setupCommand } from "./wizard.ts";
 import { CASUAL_CRON, casualLine, casualSettings, casualStep, setCasual } from "./casual.ts";
 import { EVENTS_CRON, eventsCard, eventsLine, eventsStep, setEvents } from "./events.ts";
-import { JOBS_CRON, ingestJobs, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, sendTracker, sendTrackerCsv, sendWaitingList, skillsCommand, weeklyReport } from "./jobs.ts";
+import { nudgeCard, setNudge } from "./nudge.ts";
+import { JOBS_CRON, germanCard, ingestJobs, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, sendTracker, sendTrackerCsv, sendWaitingList, setGerman, skillsCommand, weeklyReport } from "./jobs.ts";
 import {
   FINDS_CRON, findsKeyboard, findsLine, findsStatus, findsStep, loadFindSettings,
   parseItem, setFindKm, setFindSetting, setItemOn, ITEMS, type ItemKey,
@@ -441,12 +442,30 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
     return handleFinds(update, env, tg, store);
   // the jobs belong to everyone searching: open to the group too
   // /waiting-list can't be a Telegram command (no "-" allowed): /waitinglist, /waiting_list and /waitlist work too
-  const jobCmd = /^\/(jobs|skills|jobreport|cv|tracker|waiting[-_]?list|waitlist)(@\w+)?(\s|$)/i.exec(text.trim());
+  const jobCmd = /^\/(jobs|skills|jobreport|cv|tracker|waiting[-_]?list|waitlist|german|nudge)(@\w+)?(\s|$)/i.exec(text.trim());
   const jobBtn = String(update.callback_query?.data ?? "").startsWith("jb:");
   if ((jobCmd || jobBtn) && (isOwner || inGroup)) {
     if (jobBtn) return jobButton(env, store, tg, update.callback_query);
     const [, ...a] = text.trim().split(/\s+/);
     if (/^cv$/i.test(jobCmd![1])) return cvCommand(store, tg, update.message, a, sameTopic(update.message));
+    if (/^nudge$/i.test(jobCmd![1])) {
+      const cfg = await loadConfig(store);
+      if (!cfg?.modules.jobs) { await tg.send(cfg ? "💼 Jobs are switched off in the config." : NO_CONFIG, sameTopic(update.message), chatId); return; }
+      // one person: /nudge 9:30 works without the name
+      const solo = cfg.jobs.people.length === 1 && a.length === 1 && !cfg.jobs.people.some((p) => p.id === a[0].toLowerCase());
+      if (a.length) await tg.send(await setNudge(env.DB, store, tg, cfg, solo ? cfg.jobs.people[0].id : a[0], solo ? a[0] : a.slice(1).join(" ")), sameTopic(update.message), chatId);
+      if (!/^now$/i.test(a.at(-1) ?? "")) { const [t, kb] = await nudgeCard(store, cfg); await tg.send(t, { ...sameTopic(update.message), ...(kb.length ? tg.keyboard(kb) : {}) }, chatId); }
+      return;
+    }
+    if (/^german$/i.test(jobCmd![1])) {
+      const cfg = await loadConfig(store);
+      if (!cfg?.modules.jobs) { await tg.send(cfg ? "💼 Jobs are switched off in the config." : NO_CONFIG, sameTopic(update.message), chatId); return; }
+      const solo = cfg.jobs.people.length === 1 && a.length === 1;      // one person: /german b2
+      if (a.length) await tg.send(await setGerman(store, cfg, solo ? cfg.jobs.people[0].id : a[0], solo ? a[0] : a[1] ?? ""), sameTopic(update.message), chatId);
+      const [t, kb] = await germanCard(store, cfg);
+      await tg.send(t, { ...sameTopic(update.message), ...tg.keyboard(kb) }, chatId);
+      return;
+    }
     if (/^(tracker|waiting[-_]?list|waitlist)$/i.test(jobCmd![1])) {
       const cfg = await loadConfig(store);
       if (!cfg?.modules.jobs) { await tg.send(cfg ? "💼 Jobs are switched off in the config." : NO_CONFIG, sameTopic(update.message), chatId); return; }
@@ -892,6 +911,8 @@ function commandMenus(cfg: Config) {
       { command: "jobs", description: "Job stats per person" },
       { command: "waitinglist", description: "Ads saved to apply later" },
       { command: "tracker", description: "Applications and their status" },
+      { command: "german", description: "The most German a job may ask for" },
+      { command: "nudge", description: "The daily nudge: who, when, on/off" },
       { command: "cv", description: "Send the CVs" },
       { command: "jobreport", description: "Jobs report: matches, answers, what to learn" },
       { command: "skills", description: `Skills list, e.g. /skills ${first} + Power BI` },
