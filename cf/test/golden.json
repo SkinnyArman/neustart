@@ -519,7 +519,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -542,7 +542,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -565,7 +565,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -866,10 +866,10 @@
    "step": "tick jobs 13"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/MTAwMDk="
@@ -885,7 +885,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -908,7 +908,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -931,7 +931,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -1143,10 +1143,10 @@
    "step": "tick jobs 23"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://api.openai.com/v1/chat/completions",
@@ -1159,7 +1159,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -1179,7 +1179,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -1389,10 +1389,10 @@
    "step": "tick jobs 33"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 34"
@@ -1485,10 +1485,10 @@
    "step": "tick jobs 43"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 44"
@@ -1589,10 +1589,10 @@
    "step": "tick jobs 53"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 54"
@@ -1693,10 +1693,10 @@
    "step": "tick jobs 3"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 4"
@@ -1835,10 +1835,10 @@
    "step": "tick jobs 13"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Business+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Business+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 14"
@@ -1869,10 +1869,10 @@
    "step": "tick jobs 23"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Frontend&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Frontend&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 24"
@@ -1911,10 +1911,10 @@
    "step": "tick jobs 33"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Softwareentwicklung&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Softwareentwicklung&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 34"
@@ -1952,10 +1952,10 @@
    "step": "tick jobs 43"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Webentwicklung&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Webentwicklung&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Business+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 44"
@@ -1990,10 +1990,10 @@
    "step": "tick jobs 53"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Frontend&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Business+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Frontend&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Business+Analyst&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 54"
@@ -2032,10 +2032,10 @@
    "step": "tick jobs 3"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Frontend&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Frontend&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://www.arbeitnow.com/api/job-board-api"
@@ -2072,10 +2072,10 @@
    "step": "tick jobs 13"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React+Native&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Frontend&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React+Native&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Softwareentwicklung&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 14"
@@ -2114,10 +2114,10 @@
    "step": "tick jobs 23"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Softwareentwicklung&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Softwareentwicklung&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 24"
@@ -2156,10 +2156,10 @@
    "step": "tick jobs 33"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Webentwicklung&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Webentwicklung&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 34"
@@ -2193,10 +2193,10 @@
    "step": "tick jobs 43"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Webentwicklung&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Frontend&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 44"
@@ -2235,10 +2235,10 @@
    "step": "tick jobs 53"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Frontend&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Frontend&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 54"
@@ -7356,10 +7356,10 @@
    "step": "tick jobs 3"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 4"
@@ -7397,10 +7397,10 @@
    "step": "tick jobs 13"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React+Native&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 14"
@@ -7435,10 +7435,10 @@
    "step": "tick jobs 23"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React+Native&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React+Native&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 24"
@@ -7469,10 +7469,10 @@
    "step": "tick jobs 33"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Business+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Business+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 34"
@@ -7514,10 +7514,10 @@
    "step": "tick jobs 43"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Frontend&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Frontend&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 44"
@@ -7548,10 +7548,10 @@
    "step": "tick jobs 53"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Softwareentwicklung&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Softwareentwicklung&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 54"
@@ -7582,10 +7582,10 @@
    "step": "tick jobs 3"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Webentwicklung&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Webentwicklung&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://www.arbeitnow.com/api/job-board-api"
@@ -7634,10 +7634,10 @@
    "step": "tick jobs 13"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Frontend&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Frontend&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 14"
@@ -7668,10 +7668,10 @@
    "step": "tick jobs 23"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 24"
@@ -7710,10 +7710,10 @@
    "step": "tick jobs 33"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React+Native&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React+Native&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 34"
@@ -7747,10 +7747,10 @@
    "step": "tick jobs 43"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 44"
@@ -7781,10 +7781,10 @@
    "step": "tick jobs 53"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 54"
@@ -7823,10 +7823,10 @@
    "step": "tick jobs 3"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://api.telegram.org/botT/deleteMessage",
@@ -8056,10 +8056,10 @@
    "step": "tick jobs 13"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Business+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 14"
@@ -8094,10 +8094,10 @@
    "step": "tick jobs 23"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Business+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Business+Analyst&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://api.telegram.org/botT/deleteMessage",
@@ -8164,10 +8164,10 @@
    "step": "tick jobs 33"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Frontend&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Frontend&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://api.openai.com/v1/chat/completions",
@@ -8180,7 +8180,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -8200,7 +8200,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -8220,7 +8220,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -8384,10 +8384,10 @@
    "step": "tick jobs 43"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Frontend&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Softwareentwicklung&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://api.openai.com/v1/chat/completions",
@@ -8400,7 +8400,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -8487,10 +8487,10 @@
    "step": "tick jobs 53"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Business+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Softwareentwicklung&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Business+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Softwareentwicklung&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 54"
@@ -8525,10 +8525,10 @@
    "step": "tick jobs 53"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Frontend&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Webentwicklung&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Frontend&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Webentwicklung&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://www.arbeitnow.com/api/job-board-api"
@@ -8634,10 +8634,10 @@
    "step": "tick jobs 3"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Softwareentwicklung&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Webentwicklung&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Softwareentwicklung&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Frontend&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/MTAwMDk="
@@ -8692,10 +8692,10 @@
    "step": "tick jobs 13"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Webentwicklung&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Frontend&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Webentwicklung&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Frontend&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 14"
@@ -8738,10 +8738,10 @@
    "step": "tick jobs 23"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Frontend&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Frontend&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 24"
@@ -8779,10 +8779,10 @@
    "step": "tick jobs 33"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React+Native&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 34"
@@ -8817,10 +8817,10 @@
    "step": "tick jobs 43"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React+Native&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React+Native&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React+Native&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=React+Native&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 44"
@@ -8904,10 +8904,10 @@
    "step": "tick jobs 3"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 4"
@@ -8984,10 +8984,10 @@
    "step": "tick jobs 13"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/MTAwMTI="
@@ -9003,7 +9003,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -9055,10 +9055,10 @@
    "step": "tick jobs 23"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/MTAwMTI="
@@ -9074,7 +9074,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -9143,10 +9143,10 @@
    "step": "tick jobs 33"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/MTAwMTI="
@@ -9162,7 +9162,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -9252,10 +9252,10 @@
    "step": "tick jobs 43"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 44"
@@ -9286,10 +9286,10 @@
    "step": "tick jobs 53"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://www.arbeitnow.com/api/job-board-api"
@@ -9326,10 +9326,10 @@
    "step": "tick jobs 3"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Business+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Business+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 4"
@@ -9360,10 +9360,10 @@
    "step": "tick jobs 13"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Frontend&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Frontend&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 14"
@@ -9390,10 +9390,10 @@
    "step": "tick jobs 23"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Softwareentwicklung&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Softwareentwicklung&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 24"
@@ -9427,10 +9427,10 @@
    "step": "tick jobs 33"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Webentwicklung&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Webentwicklung&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Business+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 34"
@@ -9730,7 +9730,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -9753,7 +9753,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -9776,7 +9776,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -10077,10 +10077,10 @@
    "step": "tick jobs 13"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/MTAwMTA="
@@ -10096,7 +10096,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -10119,7 +10119,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -10142,7 +10142,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -10338,10 +10338,10 @@
    "step": "tick jobs 23"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://api.openai.com/v1/chat/completions",
@@ -10354,7 +10354,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -10523,10 +10523,10 @@
    "step": "tick jobs 33"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 34"
@@ -10619,10 +10619,10 @@
    "step": "tick jobs 43"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 44"
@@ -10688,10 +10688,10 @@
    "step": "tick jobs 53"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 54"
@@ -10792,10 +10792,10 @@
    "step": "tick jobs 3"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Engineer&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 4"
@@ -10934,10 +10934,10 @@
    "step": "tick jobs 13"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Business+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Business+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 14"
@@ -10968,10 +10968,10 @@
    "step": "tick jobs 23"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 24"
@@ -11337,7 +11337,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -11360,7 +11360,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -11383,7 +11383,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -11684,10 +11684,10 @@
    "step": "tick jobs 13"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/MTAwMTA="
@@ -11703,7 +11703,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -11726,7 +11726,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -11749,7 +11749,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -11945,10 +11945,10 @@
    "step": "tick jobs 23"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Analyst&veroeffentlichtseit=7&size=50"
   },
   {
    "url": "https://api.openai.com/v1/chat/completions",
@@ -11961,7 +11961,7 @@
     "messages": [
      {
       "role": "system",
-      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
+      "content": "You match German job ads to two job seekers. Both are non-EU master's students in Cottbus on a student residence permit: they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.\n\nDIBA wants: Data Scientist (not senior), Data Analyst, Data Engineer, BI/analytics roles - Werkstudent roles first, then internships and junior roles.\nARMAN wants: frontend / web / React / React Native / mobile developer roles - Werkstudent first, then junior or mid-level.\n\nReturn JSON only:\n{\"for\": \"diba\"|\"arman\"|\"both\"|\"none\", \"reason\": string, \"kind\": \"werkstudent\"|\"internship\"|\"thesis\"|\"part-time\"|\"other\", \"why\": string, \"gaps\": [string], \"german\": string, \"hours\": string, \"start\": string, \"deadline\": string, \"onsite\": string, \"lang\": \"de\"|\"en\", \"skills\": [string]}\n\nfor: who should apply, from the profiles below. \"none\" for senior roles, unrelated work, roles needing far more experience than they have, roles requiring native German, and full-time jobs - including a regular job whose ad never says it's for students, part-time or an internship (in Germany those are full-time). Keep Werkstudent jobs, internships, thesis positions and jobs that say part-time is possible. If \"none\", give reason (max 8 words, \"full-time\" for full-time jobs) and leave the rest empty. They live in Berlin or Cottbus and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in Berlin, Cottbus. Answer \"none\" with reason \"on-site in <city>\" if it needs regular presence anywhere else.\nwhy: one line, under 110 characters, why it fits that person - name the concrete overlap.\ngaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. \"dbt - mention the SQL reporting pipelines from the last job\").\ngerman: the German level the ad needs, short (\"C1 / fluent\", \"basic\", \"not needed\"). hours: hours a week if stated, else \"\". start/deadline: as stated, else \"\". lang: the ad's language.\nonsite: where the work happens and how often in person, short: \"fully remote\", \"remote, on-site 1 day/month in Munich\", \"hybrid, 2 days/week in Leipzig\", \"on-site in Berlin\"; \"\" if the ad doesn't say.\nskills: up to 8 concrete skills/tools the ad asks for, short canonical names (\"Power BI\", \"dbt\", \"TypeScript\").\nNever invent facts about the people."
      },
      {
       "role": "user",
@@ -12130,10 +12130,10 @@
    "step": "tick jobs 33"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 34"
@@ -12226,10 +12226,10 @@
    "step": "tick jobs 43"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Data+Science&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Analyst&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 44"
@@ -12295,10 +12295,10 @@
    "step": "tick jobs 53"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Berlin&umkreis=25&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
   },
   {
-   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Data+Scientist&wo=Cottbus&umkreis=50&veroeffentlichtseit=7&size=50"
+   "url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?was=Werkstudent+Business+Intelligence&veroeffentlichtseit=7&size=50"
   },
   {
    "step": "tick wg 54"
@@ -14562,7 +14562,7 @@
    },
    {
     "k": "jobs_query",
-    "v": "2"
+    "v": "18"
    },
    {
     "k": "watch_at",

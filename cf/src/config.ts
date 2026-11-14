@@ -62,6 +62,7 @@ export interface Config {
     student_permit: boolean;
     situation: string;
     cities: City[];
+    near: string[];         // cities where a hybrid job is fine too (on-site now and then): Dresden, Leipzig…
     remote: boolean;
     arbeitnow: boolean;
     people: Person[];
@@ -207,6 +208,7 @@ export function normalize(raw: unknown): Config {
         `they may work up to 20 hours a week during the semester (Werkstudent jobs and internships fit); a full-time job does not fit that permit.`
       : ""),
     cities: cities.length ? cities : [{ name: city, radius_km: 50 }],
+    near: list(j.near),
     remote: bool(j.remote, true),
     arbeitnow: bool(j.arbeitnow, true),
     people,

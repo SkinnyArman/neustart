@@ -670,4 +670,24 @@ await ok("read from the ad's own words, the way real ads put it", () => {
   await ok("/german diba any: no limit again", async () => assert.equal((await J.germanLimits(st8, JOBS)).diba, 6));
 }
 
+console.log("\n9. remote jobs in other cities, hybrid ones close by");
+await ok("the Jobbörse: each search also once for all of Germany (no city), keeping home-office jobs only", async () => {
+  const qs = J.searchesFor(JOBS, ["diba"]);
+  assert.ok(qs.some((q) => q.wo === "" && q.r === 0));
+  assert.equal(qs.filter((q) => q.wo === "").length, JOBS.people.find((p) => p.id === "diba").searches.length);
+  assert.ok(!J.searchesFor({ ...JOBS, remote: false }, ["diba"]).some((q) => q.wo === ""), "remote off: the cities only");
+});
+await ok("the matcher is told where they can work: their cities, from home, hybrid only in the cities close by", async () => {
+  const cfgN = normalize({ ...CONFIG, jobs: { ...CONFIG.jobs, near: ["Dresden", "Leipzig"] } });
+  const p = J.matchPrompt(cfgN.jobs);
+  assert.match(p, /They live in Berlin or Cottbus and can work there on-site, or remotely from home\. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely \(a few days a month at most\), or if it's hybrid in Berlin, Cottbus, Dresden, Leipzig\./);
+  assert.match(p, /onsite: where the work happens and how often in person/);
+  assert.ok(!/They live in/.test(J.matchPrompt({ ...cfgN.jobs, remote: false })));
+});
+await ok("the card says where and how often in person", () => {
+  const r = { id: "ba:x", title: "Werkstudent Data", company: "Firma", place: "München · home office possible", source: "Jobbörse", url: "https://x", status: "posted",
+    person: "diba", text: "", facts: JSON.stringify({ kind: "werkstudent", why: "fits", onsite: "remote, on-site 1 day/month in Munich" }) };
+  assert.match(J.card(r, JOBS), /\n\n🏠 Where: remote, on-site 1 day\/month in Munich\n🗣 German: not stated/);
+});
+
 console.log(`\nall ${pass} jobs checks passed`);

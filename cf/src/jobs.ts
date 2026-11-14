@@ -74,9 +74,11 @@ const day = (ts: number) => new Date(ts * 1000).toISOString().slice(0, 10).split
 
 // ---------------------------------------------------------------- searches
 /** Each active person's keywords × each city, in config order. */
+// each search in each city; with remote on, also once for all of Germany, keeping home-office jobs only
 export const searchesFor = (j: Jobs, active: string[]) =>
   j.people.filter((p) => active.includes(p.id))
-    .flatMap((p) => p.searches.flatMap((q) => j.cities.map((c) => ({ q, wo: c.name, r: c.radius_km }))));
+    .flatMap((p) => p.searches.flatMap((q) => [...j.cities.map((c) => ({ q, wo: c.name, r: c.radius_km })),
+      ...(j.remote ? [{ q, wo: "", r: 0 }] : [])]));
 
 const BA = "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service";
 const BA_KEY = { "X-API-Key": "jobboerse-jobsuche" };   // the Jobbörse's public client key
@@ -158,7 +160,7 @@ export interface JobRow {
 interface Facts {
   for: string;   // a person's id, everyone ("both"/"all"), some ("a,b"), or "none"
   reason?: string; kind: string; why: string;
-  gaps: string[]; german: string; hours: string; start: string; deadline: string;
+  gaps: string[]; german: string; hours: string; start: string; deadline: string; onsite?: string;
   lang: string; skills: string[];
 }
 
@@ -182,13 +184,14 @@ interface Found { id: string; source: string; title: string; company: string; pl
 
 async function fetchBA(q: { q: string; wo: string; r: number }): Promise<Found[]> {
   const u = new URL(`${BA}/pc/v6/jobs`);
-  for (const [k, v] of Object.entries({ was: q.q, wo: q.wo, umkreis: String(q.r), veroeffentlichtseit: "7", size: "50" }))
+  // no city: all of Germany (the Jobbörse's own home-office filter finds nothing; its flag on each job works)
+  for (const [k, v] of Object.entries({ was: q.q, ...(q.wo ? { wo: q.wo, umkreis: String(q.r) } : {}), veroeffentlichtseit: "7", size: "50" }))
     u.searchParams.set(k, v);
   const r = await fetch(u, { headers: BA_KEY });
   if (!r.ok) throw new Error(`Jobbörse ${r.status}`);
   const d = (await r.json()) as any;
   return (d.ergebnisliste ?? [])
-    .filter((j: any) => !["AUSBILDUNG", "SELBSTAENDIGKEIT"].includes(j.stellenangebotsart))
+    .filter((j: any) => !["AUSBILDUNG", "SELBSTAENDIGKEIT"].includes(j.stellenangebotsart) && (q.wo || j.homeofficemoeglich))
     .map((j: any) => {
       const loc = j.stellenlokationen?.[0]?.adresse ?? {};
       return {
@@ -217,8 +220,12 @@ async function fetchArbeitnow(jobs: Jobs): Promise<Found[]> {
   if (!r.ok) throw new Error(`Arbeitnow ${r.status}`);
   const d = (await r.json()) as any;
   const here = new RegExp(jobs.cities.map((c) => escRx(c.name.toLowerCase())).join("|"), "i");
+  const near = jobs.near.length ? new RegExp(jobs.near.map((c) => escRx(c.toLowerCase())).join("|"), "i") : null;
+  const hybrid = /hybrid|home ?office|homeoffice|remote|mobile[sn]? arbeiten/i;
   return (d.data ?? [])
-    .filter((j: any) => (jobs.remote && j.remote) || here.test(j.location ?? ""))
+    // in the cities; remote from anywhere; hybrid in a city close by
+    .filter((j: any) => (jobs.remote && j.remote) || here.test(j.location ?? "")
+      || (jobs.remote && near?.test(j.location ?? "") && hybrid.test(String(j.description ?? ""))))
     .map((j: any) => ({
       id: "an:" + j.slug, source: "Arbeitnow", title: j.title ?? "", company: j.company_name ?? "",
       place: [j.location, j.remote ? "remote" : ""].filter(Boolean).join(" · "), url: j.url,
@@ -238,6 +245,13 @@ async function people(store: Store, j: Jobs): Promise<Record<string, Person>> {
 }
 
 const COUNT = ["no", "one", "two", "three", "four", "five", "six"];
+/** Where they can work: in their cities, from home, and now and then in the cities close by. */
+const whereRule = (j: Jobs) => {
+  const live = j.cities.map((c) => c.name).join(" or ");
+  const near = [...j.cities.map((c) => c.name), ...j.near].join(", ");
+  return `They live in ${live} and can work there on-site, or remotely from home. A job elsewhere in Germany fits only if it's fully remote or asks for presence rarely (a few days a month at most), or if it's hybrid in ${near}. Answer "none" with reason "on-site in <city>" if it needs regular presence anywhere else.`;
+};
+export const matchPrompt = (j: Jobs) => MATCH(j);
 const MATCH = (j: Jobs) => {
   const n = j.people.length;
   const q = (s: string) => JSON.stringify(s);
@@ -250,12 +264,13 @@ const MATCH = (j: Jobs) => {
 ${j.people.map((p) => `${p.name.toUpperCase()} wants: ${p.wants}`).join("\n")}
 
 Return JSON only:
-{"for": ${fors}, "reason": string, "kind": "werkstudent"|"internship"|"thesis"|"part-time"|"other", "why": string, "gaps": [string], "german": string, "hours": string, "start": string, "deadline": string, "lang": "de"|"en", "skills": [string]}
+{"for": ${fors}, "reason": string, "kind": "werkstudent"|"internship"|"thesis"|"part-time"|"other", "why": string, "gaps": [string], "german": string, "hours": string, "start": string, "deadline": string, "onsite": string, "lang": "de"|"en", "skills": [string]}
 
-for: who should apply, from the profiles below. ${none}
+for: who should apply, from the profiles below. ${none}${j.remote ? ` ${whereRule(j)}` : ""}
 why: one line, under 110 characters, why it fits that person - name the concrete overlap.
 gaps: 0-3 short things the ad asks for that the profile doesn't show, each with a hint how to cover it if there is one (e.g. "dbt - mention the SQL reporting pipelines from the last job").
 german: the German level the ad needs, short ("C1 / fluent", "basic", "not needed"). hours: hours a week if stated, else "". start/deadline: as stated, else "". lang: the ad's language.
+onsite: where the work happens and how often in person, short: "fully remote", "remote, on-site 1 day/month in Munich", "hybrid, 2 days/week in Leipzig", "on-site in Berlin"; "" if the ad doesn't say.
 skills: up to 8 concrete skills/tools the ad asks for, short canonical names ("Power BI", "dbt", "TypeScript").
 Never invent facts about the people.`;
 };
@@ -506,7 +521,7 @@ export function card(row: JobRow, j: Jobs): string {
     [`💼 <b>${esc(row.title)}</b>`, `🏢 ${esc(row.company)}`, `📍 ${[row.place ? esc(row.place) : "", `via ${esc(row.source)}`].filter(Boolean).join(" · ")}`].join("\n"),
     [forWhom(j, row.person), KIND[f.kind ?? "other"] ?? KIND.other].filter(Boolean).join(" · "),
     f.why ? `<i>${esc(f.why)}</i>` : "",
-    [`🗣 German: ${germanLabel(germanRank(f.german, row.text ?? ""))}`, f.hours ? `⏱ Hours: ${esc(f.hours)}` : "",
+    [f.onsite ? `🏠 Where: ${esc(f.onsite)}` : "", `🗣 German: ${germanLabel(germanRank(f.german, row.text ?? ""))}`, f.hours ? `⏱ Hours: ${esc(f.hours)}` : "",
       f.start ? `📅 Start: ${esc(f.start)}` : "", f.deadline ? `⏳ Apply by: ${esc(f.deadline)}` : ""].filter(Boolean).join("\n"),
     f.gaps?.length ? `⚠️ <b>Gaps</b>\n${f.gaps.map((g) => `• ${esc(g)}`).join("\n")}` : "",
     `🔗 <a href="${esc(row.url)}">Open the job</a>`,

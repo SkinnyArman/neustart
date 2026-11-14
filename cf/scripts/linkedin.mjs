@@ -57,19 +57,25 @@ export function parseJob(html) {
   return { text: lines.join("\n").slice(0, 6000), kind: item ? text(item[2]) : "" };
 }
 
-/** The searches: each active person's, a few terms per query, in each of the config's cities. */
+/**
+ * The searches: each active person's, a few terms per query, in each of the
+ * config's cities - and, with remote on, once in all of Germany for remote
+ * and hybrid jobs (the bot keeps the ones that need presence rarely, or in a
+ * city close by).
+ */
 export function queriesFor(cfg, active, opts = {}) {
   const terms = opts.searches?.length ? opts.searches
     : cfg.jobs.people.filter((p) => active.includes(p.id)).flatMap((p) => p.searches);
   const groups = [];
   for (let i = 0; i < terms.length; i += TERMS_PER_QUERY)
     groups.push(terms.slice(i, i + TERMS_PER_QUERY).map((t) => `"${t}"`).join(" OR "));
-  return groups.flatMap((keywords) => cfg.jobs.cities.map((c) => ({ keywords, location: c.name })));
+  return groups.flatMap((keywords) => [...cfg.jobs.cities.map((c) => ({ keywords, location: c.name })),
+    ...(cfg.jobs.remote ? [{ keywords, location: "Germany", remote: true }] : [])]);
 }
 
 // posted since: the seconds back to the last run, at least a day, at most a week
 const searchUrl = (q, since = 86400) => "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?" +
-  new URLSearchParams({ keywords: q.keywords, location: q.location, f_TPR: `r${since}` });
+  new URLSearchParams({ keywords: q.keywords, location: q.location, f_TPR: `r${since}`, ...(q.remote ? { f_WT: "2,3" } : {}) });   // 2 remote, 3 hybrid
 export const lookBack = (lastRun, t) => Math.min(7 * 86400, Math.max(86400, Math.ceil((t - (lastRun ?? 0)) / 1000) + 3600));
 const jobUrl = (id) => `https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${id}`;
 
@@ -110,7 +116,7 @@ export async function run(cfg, { fetch, sleep, now, state = STATE, env, log = ()
   try {
     for (const q of queries) {
       await wait(p);
-      log(`search ${p.done + 1}/${p.total}: ${q.keywords.slice(0, 70)} in ${q.location}`);
+      log(`search ${p.done + 1}/${p.total}: ${q.keywords.slice(0, 70)} in ${q.location}${q.remote ? " (remote/hybrid)" : ""}`);
       p.done++;
       const html = await linkedin(searchUrl(q, since));
       // handed to the bot at once: a refusal later loses nothing

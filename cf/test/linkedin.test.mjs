@@ -51,10 +51,12 @@ await ok("a job page: the description as text, and the employment type", () => {
 await ok("searches: each active person's, a few terms per query, in each city", () => {
   const cfg = normalize(CONFIG);
   const q = L.queriesFor(cfg, ["diba"]);
-  assert.equal(q.length, 4);                         // 8 searches in 2 queries x Berlin, Cottbus
+  assert.equal(q.length, 6);                         // 8 searches in 2 queries x Berlin, Cottbus, Germany (remote/hybrid)
   assert.equal(q[0].location, "Berlin");
+  assert.deepEqual(q.filter((x) => x.remote).map((x) => x.location), ["Germany", "Germany"]);
+  assert.equal(L.queriesFor({ ...cfg, jobs: { ...cfg.jobs, remote: false } }, ["diba"]).length, 4, "remote off: the cities only");
   assert.equal(q[0].keywords, '"Werkstudent Data" OR "Werkstudent Data Analyst" OR "Werkstudent Data Science" OR "Werkstudent Business Intelligence"');
-  assert.deepEqual(L.queriesFor(cfg, ["diba"], { searches: ["Data Analyst"] }).map((x) => x.keywords), ['"Data Analyst"', '"Data Analyst"']);
+  assert.deepEqual(L.queriesFor(cfg, ["diba"], { searches: ["Data Analyst"] }).map((x) => x.keywords), ['"Data Analyst"', '"Data Analyst"', '"Data Analyst"']);
 });
 
 // ---------------------------------------------------------------- a run
@@ -88,7 +90,9 @@ const cfg = normalize(CONFIG);
   const r = await L.run(cfg, { ...h.deps, progress: (p) => prog.push({ ...p }) });
   await ok("the searches, and after each one the new jobs go straight to the bot", () => {
     const searches = h.calls.filter((u) => u.includes("seeMoreJobPostings"));
-    assert.equal(searches.length, 4); assert.equal(h.calls.length, 4);              // no job pages
+    assert.equal(searches.length, 6); assert.equal(h.calls.length, 6);              // no job pages needed
+    assert.equal(searches.filter((u) => /location=Germany/.test(u) && /f_WT=2%2C3/.test(u)).length, 2);   // remote and hybrid, all of Germany
+    assert.ok(!searches.some((u) => /location=(Berlin|Cottbus)/.test(u) && /f_WT/.test(u)));
     assert.ok(searches.every((u) => /f_TPR=r604800/.test(u) && !/cookie/i.test(u)));   // first run: the past week
     const add = h.posted.filter((p) => p.op === "add");
     assert.equal(add.length, 1, "the same jobs in later searches aren't handed in twice");
@@ -97,8 +101,8 @@ const cfg = normalize(CONFIG);
     assert.equal(r.status, "done");
   });
   await ok("progress: requests done, found, handed to the bot, pages read", () => {
-    assert.deepEqual(prog[0], { done: 0, total: 4, found: 0, handed: 0, pages: 0 });
-    assert.equal(prog.at(-1).done, 4); assert.ok(prog.at(-1).handed >= 1);
+    assert.deepEqual(prog[0], { done: 0, total: 6, found: 0, handed: 0, pages: 0 });
+    assert.equal(prog.at(-1).done, 6); assert.ok(prog.at(-1).handed >= 1);
   });
   await ok("gentle: 60-90 s between LinkedIn requests, at most 14 a run", () => {
     assert.equal(h.waits.length, h.calls.length - 1);
@@ -112,15 +116,15 @@ const cfg = normalize(CONFIG);
   const r = await L.run(cfg, h.deps);
   await ok("then the job pages the bot has no description for, with what's left of the 14 - each text sent at once", () => {
     const pages = h.calls.filter((u) => u.includes("/jobPosting/"));
-    assert.equal(h.calls.length, 14); assert.equal(pages.length, 10);
+    assert.equal(h.calls.length, 14); assert.equal(pages.length, 8);
     assert.equal(pages[0], "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/900");
     const texts = h.posted.filter((p) => p.op === "text");
-    assert.equal(texts.length, 10); assert.match(texts[0].jobs[0].text, /SQL & Python/); assert.equal(texts[0].jobs[0].kind, "Teilzeit");
-    assert.equal(r.pages, 10);
+    assert.equal(texts.length, 8); assert.match(texts[0].jobs[0].text, /SQL & Python/); assert.equal(texts[0].jobs[0].kind, "Teilzeit");
+    assert.equal(r.pages, 8);
   });
 }
 {
-  const h = harness({ needtext: ["li:1", "li:2", "li:3"], limitAt: 6 });
+  const h = harness({ needtext: ["li:1", "li:2", "li:3"], limitAt: 8 });
   const r = await L.run(cfg, h.deps);
   await ok("LinkedIn says no while reading pages: stops; what was read is with the bot", () => {
     assert.equal(r.status, "limited"); assert.equal(h.posted.filter((p) => p.op === "text").length, 1);
