@@ -690,4 +690,48 @@ await ok("the card says where and how often in person", () => {
   assert.match(J.card(r, JOBS), /\n\n🏠 Where: remote, on-site 1 day\/month in Munich\n🗣 German: not stated/);
 });
 
+console.log("\n10. workingstudentjobs.de");
+{
+  const WS = { data: [
+    { id: "a1", title: "Werkstudent Data Analytics (m/w/d)", company: { name: "Finanz GmbH" }, location: { city: "Berlin" }, url: "https://www.workingstudentjobs.de/jobs/a1",
+      types: ["working_student"], field: "tech", sub_field: "data-analytics", working_mode: "hybrid", skills: ["SQL", "Python"],
+      languages: { german: "required", english: "required" }, details: { german_level: { level: "fluent", cefr: "C1" }, hours_per_week: { min: 15, max: 20 }, remote_days_max: 2, start: { asap: true } } },
+    { id: "a2", title: "Working Student Data Science", company: { name: "Startup" }, location: { city: "Berlin" }, url: "https://www.workingstudentjobs.de/jobs/a2",
+      types: ["working_student"], working_mode: "onsite", languages: { german: "not_required", english: "required" }, details: {} },
+    { id: "a3", title: "Praktikum BI", company: { name: "Leipzig AG" }, location: { city: "Leipzig" }, url: "https://x/a3",
+      types: ["internship"], working_mode: "onsite", languages: { german: "required" }, details: { german_level: { level: "good", cefr: null } } },
+  ] };
+  await ok("the pages, in turn: the cities (Werkstudent and internship), the cities close by, all of Germany in tech", () => {
+    const j = normalize({ ...CONFIG, jobs: { ...CONFIG.jobs, workingstudentjobs: true, near: ["Leipzig"] } }).jobs;
+    assert.deepEqual(J.wsjPages(j).map((p) => `${p.q} ${p.keep}`), [
+      "city=berlin&type=working_student all", "city=berlin&type=internship all", "city=cottbus&type=working_student all", "city=cottbus&type=internship all",
+      "city=leipzig&type=working_student hybrid", "type=working_student&field=tech remote", "type=internship&field=tech remote"]);
+  });
+  await ok("a job: title, company, place with how it's worked, link, kind, and the employer's German as words the reader knows", () => {
+    const [a, b] = J.parseWsj(WS, "all");
+    assert.deepEqual([a.id, a.source, a.company, a.place, a.kind, a.remote], ["ws:a1", "workingstudentjobs.de", "Finanz GmbH", "Berlin · hybrid", "werkstudent", false]);
+    assert.match(a.text, /Deutschkenntnisse auf C1-Niveau\.\nEnglish required\.\n15-20 hours a week\.\nHybrid, up to 2 days a week remote\./);
+    assert.equal(J.germanLabel(J.germanRank("", a.text)), "C1");
+    assert.equal(J.germanLabel(J.germanRank("", b.text)), "not required");
+    assert.equal(J.germanLabel(J.germanRank("", J.parseWsj(WS, "all")[2].text)), "B2");
+    assert.equal(J.parseWsj(WS, "all")[2].kind, "internship");
+  });
+  await ok("close by: hybrid and remote only; all of Germany: remote only", () => {
+    assert.deepEqual(J.parseWsj(WS, "hybrid").map((x) => x.id), ["ws:a1"]);
+    assert.deepEqual(J.parseWsj(WS, "remote").map((x) => x.id), []);
+  });
+  const [DBw, stw, Ew] = await fresh({ ...CONFIG, jobs: { ...CONFIG.jobs, workingstudentjobs: true } });
+  const f0 = globalThis.fetch, asked = [];
+  globalThis.fetch = async (u, i) => (String(u).startsWith("https://www.workingstudentjobs.de/") ? (asked.push(String(u)), Response.json(WS)) : f0(u, i));
+  await stw.kvSet("jobs_german:diba", "b2");
+  for (let i = 0; i < 4; i++) await J.jobsStep(Ew, stw, tg);
+  globalThis.fetch = f0;
+  await ok("one page per tick, in turn, with ref=neustart; its jobs matched like the rest - the C1 one left out for Diba (B2)", () => {
+    assert.equal(asked.length, 4); assert.ok(asked.every((u) => /&ref=neustart$/.test(u)));
+    assert.equal(asked[0], "https://www.workingstudentjobs.de/api/v1/jobs?city=berlin&type=working_student&ref=neustart");
+    assert.equal(row(DBw, "ws:a1").status, "skipped"); assert.equal(row(DBw, "ws:a1").why, "German C1");
+    assert.notEqual(row(DBw, "ws:a2").status, "skipped");
+  });
+}
+
 console.log(`\nall ${pass} jobs checks passed`);

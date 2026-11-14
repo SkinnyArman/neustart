@@ -65,6 +65,7 @@ export interface Config {
     near: string[];         // cities where a hybrid job is fine too (on-site now and then): Dresden, Leipzig…
     remote: boolean;
     arbeitnow: boolean;
+    workingstudentjobs: boolean;   // workingstudentjobs.de: Werkstudent jobs and internships, with the German the employer asks for
     people: Person[];
     // daily nudges to apply to one career-centered job (nudge.ts), one per person who has one; /nudge changes them
     nudges: { person: string; mention: string; at: string }[];
@@ -211,6 +212,7 @@ export function normalize(raw: unknown): Config {
     near: list(j.near),
     remote: bool(j.remote, true),
     arbeitnow: bool(j.arbeitnow, true),
+    workingstudentjobs: bool(j.workingstudentjobs, true),
     people,
     // jobs.nudge: {person, mention, at} (or a list of them), or nudge: {mention, at} on a person
     nudges: [...(Array.isArray(j.nudge) ? j.nudge : j.nudge ? [j.nudge] : []),

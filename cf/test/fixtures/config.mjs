@@ -60,6 +60,7 @@ export const CONFIG = {
     availability: "master's student in Cottbus, as a Werkstudent up to 20 hours a week during the semester",
     cities: [{ name: "Berlin", radius_km: 25 }, { name: "Cottbus", radius_km: 50 }],
     remote: true,
+    workingstudentjobs: false,     // its own tests turn it on
     people: [
       {
         id: "diba", name: "Diba", icon: "👩‍💻", field: "data", full_name: DIBA.name,

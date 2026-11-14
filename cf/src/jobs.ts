@@ -18,7 +18,7 @@
 // jobs_skills:<id> once changed with /skills), never in this public repo.
 
 import { aiFailed, aiWorked } from "./aikey.ts";
-import { loadConfig, NO_CONFIG, type Config, type Person } from "./config.ts";
+import { loadConfig, NO_CONFIG, slugify, type Config, type Person } from "./config.ts";
 import { fmtLeft } from "./settings.ts";
 import type { Store } from "./store.ts";
 import { esc, inTopic, type Button, type Telegram } from "./telegram.ts";
@@ -181,6 +181,57 @@ async function takeLock(db: D1Database): Promise<boolean> {
 
 // ---------------------------------------------------------------- fetching
 interface Found { id: string; source: string; title: string; company: string; place: string; url: string; remote: boolean; kind: string; text?: string }
+
+// ---------------------------------------------------------------- workingstudentjobs.de
+// A public JSON feed of Werkstudent jobs and internships: the newest 100 per
+// city and type, each with its field, working mode and the German the
+// employer asks for. One page per tick, in turn: the cities (everything),
+// the cities close by (hybrid and remote only), all of Germany in tech
+// (remote only).
+const WSJ = "https://www.workingstudentjobs.de/api/v1/jobs";
+export function wsjPages(j: Jobs): { q: string; keep: "all" | "hybrid" | "remote" }[] {
+  const city = (c: string) => slugify(c);
+  const types = ["working_student", "internship"];
+  return [
+    ...j.cities.flatMap((c) => types.map((t) => ({ q: `city=${city(c.name)}&type=${t}`, keep: "all" as const }))),
+    ...(j.remote ? j.near.map((c) => ({ q: `city=${city(c)}&type=working_student`, keep: "hybrid" as const })) : []),
+    ...(j.remote ? types.map((t) => ({ q: `type=${t}&field=tech`, keep: "remote" as const })) : []),
+  ];
+}
+/** The employer's German as words the German reader understands, and the rest as a short text for the matcher. */
+export function wsjText(x: any): string {
+  const d = x.details ?? {}, g = d.german_level ?? {}, need = x.languages?.german;
+  const german = need === "not_required" ? "German is not required."
+    : need === "optional" ? "German is a plus."
+      : g.cefr ? `Deutschkenntnisse auf ${g.cefr}-Niveau.`
+        : g.level === "native" ? "Deutsch auf Muttersprachniveau."
+          : g.level === "fluent" ? "Fließende Deutschkenntnisse."
+            : g.level === "good" ? "Gute Deutschkenntnisse."
+              : g.level === "basic" ? "Grundkenntnisse in Deutsch." : need === "required" ? "Deutschkenntnisse erforderlich." : "";
+  const hours = d.hours_per_week?.max ? `${d.hours_per_week.min ?? ""}${d.hours_per_week.min ? "-" : ""}${d.hours_per_week.max} hours a week.` : "";
+  const mode = x.working_mode === "remote" ? "Fully remote." : x.working_mode === "hybrid" ? `Hybrid${d.remote_days_max ? `, up to ${d.remote_days_max} days a week remote` : ""}.` : "On-site.";
+  return [x.title, [x.field, x.sub_field].filter(Boolean).join(" / "), x.skills?.length ? `Skills: ${x.skills.join(", ")}.` : "",
+    german, x.languages?.english === "required" ? "English required." : "", hours, mode,
+    d.start?.asap ? "Start: as soon as possible." : d.start?.date ? `Start: ${d.start.date}.` : ""].filter(Boolean).join("\n");
+}
+export function parseWsj(json: any, keep: "all" | "hybrid" | "remote"): Found[] {
+  return (Array.isArray(json?.data) ? json.data : [])
+    .filter((x: any) => keep === "all" || x.working_mode === "remote" || (keep === "hybrid" && x.working_mode === "hybrid"))
+    .map((x: any) => ({
+      id: `ws:${x.id}`, source: "workingstudentjobs.de", title: String(x.title ?? ""), company: String(x.company?.name ?? ""),
+      place: [x.location?.city, x.working_mode === "onsite" ? "" : x.working_mode].filter(Boolean).join(" · "),
+      url: String(x.url ?? ""), remote: x.working_mode === "remote",
+      kind: (x.types ?? []).includes("internship") ? "internship" : "werkstudent", text: wsjText(x),
+    }));
+}
+async function fetchWsj(store: Store, j: Jobs): Promise<[string, Found[]]> {
+  const pages = wsjPages(j);
+  const i = Number((await store.kvGet("jobs_wsj_page")) ?? 0) % pages.length;
+  await store.kvSet("jobs_wsj_page", String((i + 1) % pages.length));
+  const r = await fetch(`${WSJ}?${pages[i].q}&ref=neustart`, { headers: { "User-Agent": "neustart job bot" } });
+  if (!r.ok) throw new Error(`workingstudentjobs.de ${r.status}`);
+  return [pages[i].q, parseWsj(await r.json(), pages[i].keep)];
+}
 
 async function fetchBA(q: { q: string; wo: string; r: number }): Promise<Found[]> {
   const u = new URL(`${BA}/pc/v6/jobs`);
@@ -366,6 +417,10 @@ async function collect(db: D1Database, store: Store, j: Jobs): Promise<string> {
       const f = await fetchArbeitnow(j); found.push(...f); out.push("Arbeitnow");
       await store.kvSet("jobs_arbeitnow_at", String(now())); await noteOk(store, "jobs_arbeitnow", f.length);
     } catch (e: any) { out.push(`Arbeitnow: ${e?.message ?? e}`); await noteError(store, "jobs_arbeitnow", e); }
+  }
+  if (j.workingstudentjobs) {
+    try { const [q, f] = await fetchWsj(store, j); found.push(...f); out.push(`workingstudentjobs ${q}`); await noteOk(store, "jobs_wsj", f.length); }
+    catch (e: any) { out.push(`workingstudentjobs: ${e?.message ?? e}`); await noteError(store, "jobs_wsj", e); }
   }
   if (!found.length) return out.join(" + ") + ": nothing";
   const { fresh, keep } = await saveFound(db, j, active, found);

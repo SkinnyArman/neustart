@@ -13,18 +13,18 @@ import { blockSecondsLeft, pauseState } from "./settings.ts";
 import type { Store } from "./store.ts";
 import { esc, type Telegram } from "./telegram.ts";
 
-export type Source = "rooms_wg" | "rooms_ka" | "finds" | "jobs_ba" | "jobs_arbeitnow" | "casual_ba" | "casual_ka" | "events_culture" | "events_career" | "events_sport";
+export type Source = "rooms_wg" | "rooms_ka" | "finds" | "jobs_ba" | "jobs_arbeitnow" | "jobs_wsj" | "casual_ba" | "casual_ka" | "events_culture" | "events_career" | "events_sport";
 
 const NAME: Record<Source, string> = {
   rooms_wg: "WG-Gesucht (rooms)", rooms_ka: "Kleinanzeigen (rooms)", finds: "Kleinanzeigen (finds)",
-  jobs_ba: "Jobbörse (jobs)", jobs_arbeitnow: "Arbeitnow (jobs)", casual_ba: "Jobbörse (casual jobs)",
+  jobs_ba: "Jobbörse (jobs)", jobs_arbeitnow: "Arbeitnow (jobs)", jobs_wsj: "workingstudentjobs.de (jobs)", casual_ba: "Jobbörse (casual jobs)",
   casual_ka: "Kleinanzeigen (casual jobs)", events_culture: "Cultural events", events_career: "Career events", events_sport: "Sport events",
 };
 const STALE_HOURS = 12;
 // empty pages in a row that mean something's wrong; 0: empty is normal there
 // (a niche keyword search on the Jobbörse often finds nothing)
 const EMPTY_LIMIT: Record<Source, number> = {
-  rooms_wg: 12, rooms_ka: 8, finds: 8, jobs_ba: 0, jobs_arbeitnow: 3, casual_ba: 12, casual_ka: 6, events_culture: 4, events_career: 0, events_sport: 0,
+  rooms_wg: 12, rooms_ka: 8, finds: 8, jobs_ba: 0, jobs_arbeitnow: 3, jobs_wsj: 0, casual_ba: 12, casual_ka: 6, events_culture: 4, events_career: 0, events_sport: 0,
 };
 const CHECK_EVERY = 3600;
 
@@ -68,6 +68,7 @@ async function watched(cfg: Config, store: Store): Promise<{ s: Source; skip: bo
     const off = (await store.kvGet("jobs_on")) === "0";
     out.push({ s: "jobs_ba", skip: off });
     if (cfg.jobs.arbeitnow) out.push({ s: "jobs_arbeitnow", skip: off });
+    if (cfg.jobs.workingstudentjobs) out.push({ s: "jobs_wsj", skip: off });
   }
   if (cfg.modules.casual_jobs) {
     const off = (await store.kvGet("casual_on")) === "0";
