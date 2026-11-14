@@ -24,6 +24,8 @@ import type { Store } from "./store.ts";
 import { esc, inTopic, type Button, type Telegram } from "./telegram.ts";
 import { xlsx } from "./xlsx.ts";
 import { nudgeCard, nudgeStep, setNudge } from "./nudge.ts";
+import { adjustLetter, adText, learn, letterIssues, letterSystem, letterText, letterUser, parseLetter, placeDate, styleOf, type Letter } from "./letter.ts";
+import { letterPdf } from "./pdf.ts";
 import { introduce, topicOf } from "./topics.ts";
 import { noteError, noteOk } from "./watch.ts";
 
@@ -106,6 +108,9 @@ export function jobRejectReason(title: string, j: Jobs, active: string[] = ids(j
   if (j.student_permit && (FULL_TIME.test(kind.toLowerCase()) || FULL_TIME.test(t)) && !STUDENT.test(t)) return "full-time";
   const who = j.people.filter((p) => active.includes(p.id));
   if (!who.some((p) => topicRx(p).test(t))) return `not ${who.map((p) => p.field).join(" or ")} work`;
+  // a language in the title that nobody searching speaks: "(Spanish Speaker)", "Working Student with Thai"
+  const langs = who.map((p) => otherLanguages(title, "", p.languages ?? ["german", "english"]));
+  if (langs.length && langs.every((l) => l.length)) return `needs ${langs[0].map((l) => l[0].toUpperCase() + l.slice(1)).join(" or ")}`;
   return null;
 }
 
@@ -220,7 +225,8 @@ export function parseWsj(json: any, keep: "all" | "hybrid" | "remote"): Found[] 
     .map((x: any) => ({
       id: `ws:${x.id}`, source: "workingstudentjobs.de", title: String(x.title ?? ""), company: String(x.company?.name ?? ""),
       place: [x.location?.city, x.working_mode === "onsite" ? "" : x.working_mode].filter(Boolean).join(" · "),
-      url: String(x.url ?? ""), remote: x.working_mode === "remote",
+      // the employer's own page: where she applies, and where the full ad is (the listing's page needs a browser)
+      url: String(x.apply_url || x.url || ""), remote: x.working_mode === "remote",
       kind: (x.types ?? []).includes("internship") ? "internship" : "werkstudent", text: wsjText(x),
     }));
 }
@@ -525,8 +531,8 @@ async function assess(env: JobsEnv, store: Store, tg: Telegram, j: Jobs): Promis
       await aiWorked(store);
       if (f.for === "none") { none++; await setJob(db, row.id, { status: "skipped", why: `ai: ${f.reason || "not a fit"}`, text: text.slice(0, 6000) }); continue; }
       // more German than anyone it's for can work in: left out
-      const g = fitsGerman({ person: f.for, facts: JSON.stringify(f), text }, j, limits);
-      if (!g.keep.length) { none++; await setJob(db, row.id, { status: "skipped", why: `German ${germanLabel(g.need)}`, person: f.for, kind: f.kind, facts: JSON.stringify(f), text: text.slice(0, 6000) }); continue; }
+      const g = fitsGerman({ person: f.for, facts: JSON.stringify(f), text, title: row.title }, j, limits);
+      if (!g.keep.length) { none++; await setJob(db, row.id, { status: "skipped", why: g.why, person: f.for, kind: f.kind, facts: JSON.stringify(f), text: text.slice(0, 6000) }); continue; }
       ok++;
       await setJob(db, row.id, { status: "ready", person: personOf(j, g.keep, f.for), kind: f.kind, facts: JSON.stringify(f), text: text.slice(0, 6000) });
     } catch (e: any) {
@@ -771,20 +777,9 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
   if (!row) { await tg.answerCallback(cq.id, "Unknown job"); return; }
   const id = row.id;
 
-  if (act === "letter") {
-    await tg.answerCallback(cq.id, "Writing the cover letter…");
-    const w = byId(j, who) ? who : ids(j)[0];
-    const where = await topic(cfg, store, tg);
-    try {
-      const letter = await coverLetter(env, store, row, w, j);
-      const r = await tg.send(`✍️ <b>Cover letter for ${nameOf(j, w)}</b> - ${esc(row.company)}\n\n<pre>${esc(letter)}</pre>`,
-        { ...where, ...(cq.message?.message_id ? { reply_to_message_id: cq.message.message_id } : {}) });
-      const cv = await store.kvGet(`jobs_cv:${w}`);
-      if (cv) await tg.sendDocument(cv, { ...where, reply_to_message_id: r?.result?.message_id, caption: `📎 ${nameOf(j, w)}'s CV` });
-    } catch (e: any) {
-      await aiFailed(store, tg, e);
-      await tg.send("Couldn't write it right now - try the button again in a bit.", where);
-    }
+  // ✍️ a cover letter, and its buttons: shorter, more formal, more casual, the other language, a new one
+  if (act === "letter" || /^w(short|formal|casual|de|en|redo)$/.test(act)) {
+    await letterButton(env, store, tg, cfg, row, act, who, cq);
     return;
   }
 
@@ -855,6 +850,37 @@ export function workMode(row: Pick<JobRow, "remote" | "place" | "text" | "title"
   if (row.remote || /\bremote\b|100 ?% remote|fully remote|vollständig remote/.test(t)) return "remote";
   return "on-site";
 }
+// ---------------------------------------------------------------- other languages
+// a job that needs a language the person doesn't speak: "(Spanish Speaker)", "Working Student with Thai", "fluent French required"
+export const LANGS: Record<string, RegExp> = {
+  spanish: /spanish|spanisch/, french: /french|französisch|franzoesisch/, italian: /italian|italienisch/, dutch: /dutch|niederländisch|holländisch/,
+  polish: /polish|polnisch/, czech: /czech|tschechisch/, slovak: /slovak|slowakisch/, hungarian: /hungarian|ungarisch/, romanian: /romanian|rumänisch/,
+  bulgarian: /bulgarian|bulgarisch/, croatian: /croatian|kroatisch/, serbian: /serbian|serbisch/, greek: /greek|griechisch/, turkish: /turkish|türkisch/,
+  arabic: /arabic|arabisch/, hebrew: /hebrew|hebräisch/, persian: /persian|farsi|persisch/, russian: /russian|russisch/, ukrainian: /ukrainian|ukrainisch/,
+  portuguese: /portuguese|portugiesisch/, chinese: /chinese|mandarin|cantonese|chinesisch/, japanese: /japanese|japanisch/, korean: /korean|koreanisch/,
+  thai: /\bthai\b/, vietnamese: /vietnamese|vietnamesisch/, hindi: /\bhindi\b/, swedish: /swedish|schwedisch/, danish: /danish|dänisch/,
+  norwegian: /norwegian|norwegisch/, finnish: /finnish|finnisch/,
+};
+const LANG_NEED = /speaker|speaking|native|fluent|fluency|fließend|fliessend|verhandlungssicher|sehr gute|kenntnis|muttersprach|proficien|required|erforderlich|\bc1\b|\bc2\b|\bb2\b/i;
+/** The languages a title or an ad asks for that someone who speaks `speaks` doesn't have. */
+export function otherLanguages(title: string, text: string, speaks: string[]): string[] {
+  const need = new Set<string>();
+  const t = title.toLowerCase();
+  for (const [lang, rx] of Object.entries(LANGS)) if (!speaks.includes(lang) && rx.test(t)) need.add(lang);
+  const body = (text ?? "").replace(/&nbsp;/g, " ");
+  const cuts = [...body.matchAll(CUT)].map((c) => c.index! + (c[0].startsWith(".") ? 1 : 0));
+  for (const [lang, rx] of Object.entries(LANGS)) {
+    if (speaks.includes(lang) || need.has(lang)) continue;
+    for (const m of body.matchAll(new RegExp(rx.source, "gi"))) {
+      const from = Math.max(0, ...cuts.filter((c) => c <= m.index!).map((c) => c + 1));
+      const to = Math.min(body.length, ...cuts.filter((c) => c >= m.index! + m[0].length));
+      const clause = body.slice(from, to);
+      if (LANG_NEED.test(clause) && !OPTIONAL.test(clause) && !OR_ENGLISH.test(clause)) { need.add(lang); break; }
+    }
+  }
+  return [...need];
+}
+
 // ---------------------------------------------------------------- German
 const CHOICES: [string, string][] = [["none", "Not required"], ["b1", "B1"], ["b2", "B2"], ["c1", "C1"], ["any", "No limit"]];
 /** /german: each person's limit, with buttons. */
@@ -892,7 +918,7 @@ async function enforceGerman(db: D1Database, store: Store, tg: Telegram, cfg: Co
     if (g.keep.length === peopleOf(cfg.jobs, r.person).length) continue;
     if (g.keep.length) { await setJob(db, r.id, { person: personOf(cfg.jobs, g.keep, r.person) }); continue; }
     if (r.msg_id) try { await tg.deleteMessage(r.msg_id); } catch { /* gone, or older than 48 h */ }
-    await setJob(db, r.id, { status: "skipped", why: `German ${germanLabel(g.need)}`, msg_id: null });
+    await setJob(db, r.id, { status: "skipped", why: g.why, msg_id: null });
     n++;
   }
   return n;
@@ -970,11 +996,17 @@ export async function germanLimits(store: Store, j: Jobs): Promise<Record<string
   return out;
 }
 /** Who a job is still for once the German it asks for is weighed: the people whose limit it fits. */
-function fitsGerman(r: Pick<JobRow, "person" | "facts" | "text">, j: Jobs, limits: Record<string, number>): { keep: string[]; need: number | null } {
+function fitsGerman(r: Pick<JobRow, "person" | "facts" | "text"> & { title?: string }, j: Jobs, limits: Record<string, number>): { keep: string[]; need: number | null; why: string } {
   const f: Partial<Facts> = r.facts ? JSON.parse(r.facts) : {};
   const need = germanRank(f.german, r.text ?? "");
   const ps = peopleOf(j, r.person);
-  return { keep: need === null ? ps : ps.filter((p) => need <= (limits[p] ?? 6)), need };
+  // the German they can work in, and no language they don't speak
+  const other: Record<string, string[]> = Object.fromEntries(ps.map((p) => [p, otherLanguages(r.title ?? "", r.text ?? "", byId(j, p)?.languages ?? ["german", "english"])]));
+  const keep = ps.filter((p) => (need === null || need <= (limits[p] ?? 6)) && !other[p].length);
+  const langs = [...new Set(ps.flatMap((p) => other[p]))];
+  const why = keep.length ? "" : langs.length && ps.every((p) => other[p].length)
+    ? `needs ${langs.map((l) => l[0].toUpperCase() + l.slice(1)).join(" or ")}` : `German ${germanLabel(need)}`;
+  return { keep, need, why };
 }
 const personOf = (j: Jobs, keep: string[], was: string | null) =>
   keep.length === peopleOf(j, was).length ? was : keep.length === 1 ? keep[0] : keep.join(",");
@@ -1046,28 +1078,69 @@ export async function sendTracker(db: D1Database, store: Store, tg: Telegram, cf
   for (const r of rows) await tg.send(trackerCard(r, cfg.jobs), { ...tg.keyboard(jobKeyboard(r, cfg.jobs)), ...where });
 }
 
-// Words that make a letter read as machine-written (or as a template) in either language.
-const STOCK = `passionate, excited, thrilled, eager, dynamic, innovative, cutting-edge, leverage, delve, foster, align, synergy, ` +
-  `seamless, robust, journey, landscape, tapestry, "I am confident", "I am writing to", "furthermore", "moreover", "in today's", ` +
-  `"hiermit bewerbe ich mich", "mit großem Interesse", "begeistert", "leidenschaftlich", "hochmotiviert", "spannende Herausforderung", ` +
-  `"Teamplayer", "zielorientiert", "Mehrwert", "innovativ", "dynamisch", "Ihr renommiertes Unternehmen", "abgerundet"`;
+// ---------------------------------------------------------------- cover letters
+const LETTER_ACTS: [string, string][] = [["wshort", "✂️ Shorter"], ["wformal", "🎩 More formal"], ["wcasual", "😊 More casual"]];
+const letterKeyboard = (l: Letter, who: string, id: string): Button[][] => [
+  LETTER_ACTS.map(([a, label]) => ({ text: label, callback_data: buttonData(a, who, id) })),
+  [l.lang === "de" ? { text: "🇬🇧 English", callback_data: buttonData("wen", who, id) } : { text: "🇩🇪 Deutsch", callback_data: buttonData("wde", who, id) },
+   { text: "🔄 New version", callback_data: buttonData("wredo", who, id) }],
+];
+const letterMessage = (l: Letter, p: Person, company: string) =>
+  `✍️ <b>Cover letter for ${esc(p.name)}</b> · ${esc(company)}\n\n<b>Subject:</b> ${esc(l.subject)}\n\n<pre>${esc(letterText(l, p.full_name))}</pre>` +
+  (l.why ? `\n\n💬 <b>Why us?</b> (for the application form)\n<pre>${esc(l.why)}</pre>` : "");
 
-async function coverLetter(env: JobsEnv, store: Store, row: JobRow, w: string, j: Jobs): Promise<string> {
-  const p = await people(store, j);
+async function letterButton(env: JobsEnv, store: Store, tg: Telegram, cfg: Config, row: JobRow, act: string, who: string, cq: any): Promise<void> {
+  const j = cfg.jobs;
+  const w = byId(j, who) ? who : peopleOf(j, row.person)[0] ?? ids(j)[0];
+  const p = (await people(store, j))[w];
+  const key = `letter:${row.id}:${w}`;
+  const saved: { l: Letter; pdf?: number; text?: string } | null = JSON.parse((await store.kvGet(key)) ?? "null");
+  const cheap = env.FINDS_MODEL || "gpt-5.6-luna";
+  const call = (model: string, sys: string, user: string, json: boolean) => ai(env.OPENAI_API_KEY, model, sys, user, json);
+  const where = await topic(cfg, store, tg);
   const f: Partial<Facts> = row.facts ? JSON.parse(row.facts) : {};
-  const lang = f.lang === "en" ? "English" : "German";
-  const sys = `Write a short cover letter for ${p[w].name} in ${lang}${lang === "German" ? ` (an Anschreiben, "Sie")` : ""}. It should read like ${p[w].name} wrote it in twenty minutes: plain, direct, a bit personal - not like a template and not like AI.
-
-- 120-170 words, body only (no address block, no date, no subject line), ending with a greeting and the name ${p[w].full_name}.
-- The first sentence names something specific from this ad - the product, the team, the project, a tool or task they mention - so it's clear the ad was actually read. No generic praise of the company.
-- Then 2 concrete matches between what the ad asks for and what the CV shows (a project, a tool, a number from the CV). Only facts from the CV - never invent experience, tools or numbers.
-- One sentence on availability: ${p[w].availability}.
-- Short, everyday words and short sentences. Vary sentence length. No em dashes, no lists, no rhetorical questions, no exaggeration.
-- Never use these: ${STOCK}.`;
-  const user = `=== CV ===\n${p[w].cv}\n\n=== JOB ===\nTitle: ${row.title}\nCompany: ${row.company}\nPlace: ${row.place}\n\n${(row.text ?? "").slice(0, 3000)}`;
-  const out = await ai(env.OPENAI_API_KEY, env.OPENAI_MODEL, sys, user, false);
-  await aiWorked(store);
-  return out.trim().replace(/\s*[—–]\s*/g, " - ");
+  if (act !== "letter" && !saved) { await tg.answerCallback(cq.id, "Tap ✍️ Cover letter on the job first"); return; }
+  await tg.answerCallback(cq.id, act === "letter" ? "Writing the cover letter…" : "Reworking it…");
+  let l: Letter, text = saved?.text ?? row.text ?? "";
+  try {
+    if (act === "letter" || act === "wredo") {
+      // the ad's full text from the employer's own page when what we have is thin
+      if (text.length < 800) { const more = await adText(row.url); if (more.length > text.length) text = more; }
+      const style = await styleOf(store, w);
+      l = parseLetter(await call(env.OPENAI_MODEL, letterSystem(p),
+        letterUser({ title: row.title, company: row.company, place: row.place, ref: row.id.startsWith("ba:") ? row.id.slice(3) : "", text }, style), true));
+      // a check that costs nothing; only a problem found costs a (cheap) fix
+      const issues = letterIssues(l, `${p.cv}\n${p.summary}\n${p.skills.join(", ")}`, text, f.skills ?? []);
+      if (issues.length) l = await adjustLetter(call, cheap, l, `Fix these problems: ${issues.join("; ")}.`, p.cv);
+    } else {
+      const how = act.slice(1);
+      l = await adjustLetter(call, cheap, saved!.l, how, p.cv);
+      if (["short", "formal", "casual"].includes(how)) await store.kvSet(`letter_style:${w}`, JSON.stringify(learn(await styleOf(store, w), how)));
+    }
+    await aiWorked(store);
+  } catch (e: any) {
+    await aiFailed(store, tg, e);
+    await tg.send("Couldn't write it right now - try the button again in a bit.", where);
+    return;
+  }
+  const body = letterMessage(l, p, row.company), kb = letterKeyboard(l, w, row.id);
+  let msgId = cq.message?.message_id;
+  if (act === "letter") {
+    const r = await tg.send(body, { ...where, ...tg.keyboard(kb), ...(msgId ? { reply_to_message_id: msgId } : {}) });
+    msgId = r?.result?.message_id;
+  } else {
+    try { await tg.editText(cq.message.chat.id, msgId, body, kb); } catch { /* unchanged */ }
+    if (saved?.pdf) try { await tg.deleteMessage(saved.pdf); } catch { /* gone */ }
+  }
+  const pdf = letterPdf({ name: p.full_name, contact: p.contact, place_date: placeDate(p.city || j.cities[0]?.name || ""), subject: l.subject,
+    salutation: l.salutation, body: l.body, closing: l.closing });
+  const file = `Anschreiben_${row.company.replace(/[^\p{L}\d]+/gu, "_").replace(/^_|_$/g, "").slice(0, 40) || "Bewerbung"}.pdf`;
+  const sentPdf = await tg.sendFile(file, pdf, "application/pdf", { ...where, ...(msgId ? { reply_to_message_id: msgId } : {}), caption: `📄 ${l.lang === "de" ? "Anschreiben" : "Cover letter"} as PDF` });
+  if (act === "letter") {
+    const cv = await store.kvGet(`jobs_cv:${w}`);
+    if (cv) await tg.sendDocument(cv, { ...where, ...(msgId ? { reply_to_message_id: msgId } : {}), caption: `📎 ${nameOf(j, w)}'s CV` });
+  }
+  await store.kvSet(key, JSON.stringify({ l, pdf: sentPdf?.result?.message_id ?? null, text: text.slice(0, 6000) }));
 }
 
 // ---------------------------------------------------------------- /jobs, /skills

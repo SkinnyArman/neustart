@@ -47,7 +47,7 @@ export class Telegram {
   }
 
   /** A file made here (a CSV…), uploaded as a document. */
-  async sendFile(name: string, content: string | Uint8Array, type: string, opts: Record<string, unknown> = {}, chatId?: string) {
+  async sendFile(name: string, content: string | Uint8Array, type: string, opts: Record<string, unknown> = {}, chatId?: string): Promise<any> {
     const form = new FormData();
     form.append("chat_id", String(chatId ?? this.chatId));
     for (const [k, v] of Object.entries(opts)) form.append(k, typeof v === "string" ? v : JSON.stringify(v));

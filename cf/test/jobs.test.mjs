@@ -47,7 +47,10 @@ const PEOPLE = {
 };
 
 // ---------------------------------------------------------------- network
-const net = { ai: "ok", calls: [], tg: [], ba: 0, an: 0, details: 0, letters: [] };
+const net = { ai: "ok", calls: [], tg: [], ba: 0, an: 0, details: 0, letters: [], edits: [], letter: null };
+const LETTER = { lang: "de", subject: "Bewerbung als Werkstudentin Data Analyst (Ref. 10001)", salutation: "Sehr geehrte Damen und Herren,",
+  body: "Ihr ETCS-Dashboard für den Bahnbetrieb hat mich sofort angesprochen.\n\nBei meinem letzten Job habe ich Dashboards mit SQL gebaut.\n\nIch kann 20 Stunden pro Woche arbeiten, ab sofort.",
+  closing: "Mit freundlichen Grüßen", why: "Weil Ihr Team Daten wirklich nutzt." };
 let msgId = 100;
 globalThis.fetch = async (url, init = {}) => {
   url = String(url);
@@ -64,9 +67,16 @@ globalThis.fetch = async (url, init = {}) => {
     const body = JSON.parse(init.body);
     const user = body.messages[1].content;
     if (net.ai === "401") return new Response('{"error":{"message":"Incorrect API key provided"}}', { status: 401 });
-    if (/Write a short cover letter/.test(body.messages[0].content)) {
-      net.letters.push({ model: body.model, sys: body.messages[0].content, user });
-      return Response.json({ choices: [{ message: { content: "Sehr geehrte Damen und Herren — Ihr ETCS-Dashboard … Mit freundlichen Grüßen, Diba Test" } }] });
+    if (/You write job applications/.test(body.messages[0].content)) {
+      net.letters.push({ model: body.model, sys: body.messages[0].content, user, json: body.response_format?.type });
+      return Response.json({ choices: [{ message: { content: JSON.stringify(net.letter ?? LETTER) } }] });
+    }
+    if (/You edit a job application letter/.test(body.messages[0].content)) {
+      const todo = /=== DO ===\n([\s\S]*)$/.exec(user)[1];
+      net.edits.push({ model: body.model, todo });
+      const en = /in English/.test(todo);
+      return Response.json({ choices: [{ message: { content: JSON.stringify({ ...LETTER, lang: en ? "en" : "de", salutation: en ? "Dear Hiring Team," : LETTER.salutation,
+        closing: en ? "Kind regards" : LETTER.closing, body: `${LETTER.body}\n\n(${todo.slice(0, 40)})` }) } }] });
     }
     const title = /Title: (.*)/.exec(user)[1];
     net.calls.push(title);
@@ -195,29 +205,71 @@ const press = async (data, from = 555, chat = -100, message_id = 7) => {
 };
 const analyst = "ba:10001";
 let calls = await press(`jb:letter:diba:${analyst}`);
-await ok("✍️ Cover letter: written on tap with the better model, from her CV, in the ad's language", () => {
+const letterMsg = (c) => c.find((x) => x.method === "sendMessage" && /Cover letter for/.test(x.body.text ?? ""));
+const pdfOf = (c) => c.find((x) => x.method === "sendDocument" && typeof x.body.document === "object");
+await ok("✍️ Cover letter: one call to the better model - her profile and CV first (cached), the ad and her style after", () => {
   const l = net.letters.at(-1);
-  assert.equal(l.model, "gpt-5.6-terra");
-  assert.match(l.sys, /in German \(an Anschreiben/);
-  assert.match(l.user, /Diba CV: two data/);
-  assert.match(calls.find((c) => c.method === "sendMessage").body.text, /Cover letter for Diba[\s\S]*<pre>Sehr geehrte/);
-  assert.ok(!calls.some((c) => c.method === "sendDocument"), "no CV saved yet, none sent");
+  assert.equal(net.letters.length, 1); assert.equal(l.model, "gpt-5.6-terra"); assert.equal(l.json, "json_object");
+  assert.match(l.sys, /^You write job applications for Diba/); assert.match(l.sys, /=== CV ===\nDiba CV: two data/);
+  assert.match(l.sys, /Only strengths\. Never mention a skill, tool or experience they don't have/);
+  assert.match(l.sys, /contact person if the ad names one/); assert.match(l.sys, /why: 2-3 sentences/);
+  assert.match(l.user, /^=== JOB ===\nTitle: Werkstudent Data Analyst[\s\S]*Reference: 10001[\s\S]*=== STYLE ===\nAbout 160 words in the body\. Tone: friendly and professional\.$/);
+  assert.ok(!/Tableau - mention/.test(l.sys + l.user), "the gaps are never handed to the writer");
 });
-await ok("…short, about this ad, plain words: 120-170 words, a detail from the ad first, stock phrases banned, no em dashes", () => {
-  const l = net.letters.at(-1);
-  assert.match(l.sys, /120-170 words/);
-  assert.match(l.sys, /first sentence names something specific from this ad/);
-  assert.match(l.sys, /passionate[\s\S]*hiermit bewerbe ich mich[\s\S]*Teamplayer/);
-  assert.match(calls.find((c) => c.method === "sendMessage").body.text, /Herren - Ihr ETCS/);
+await ok("…the message: subject, the whole letter to copy, a 'Why us?' for the form, and the buttons", () => {
+  const m = letterMsg(calls);
+  assert.match(m.body.text, /^✍️ <b>Cover letter for Diba<\/b> · [^\n]+\n\n<b>Subject:<\/b> Bewerbung als Werkstudentin Data Analyst \(Ref\. 10001\)\n\n<pre>Sehr geehrte Damen und Herren,\n\nIhr ETCS-Dashboard[\s\S]*Mit freundlichen Grüßen\nDiba [^<]+<\/pre>\n\n💬 <b>Why us\?<\/b> \(for the application form\)\n<pre>Weil Ihr Team/);
+  assert.deepEqual(m.body.reply_markup.inline_keyboard.map((r) => r.map((b) => b.text)), [["✂️ Shorter", "🎩 More formal", "😊 More casual"], ["🇬🇧 English", "🔄 New version"]]);
+  assert.equal(m.body.reply_to_message_id, 7);
 });
+await ok("…and a PDF of it, ready to upload (no CV saved yet, so none sent)", () => {
+  const d = pdfOf(calls);
+  assert.match(d.body.document.name, /^Anschreiben_.+\.pdf$/); assert.ok(d.body.document.text.startsWith("%PDF-1.4"));
+  assert.match(d.body.caption, /Anschreiben as PDF/);
+  assert.ok(!calls.some((c) => c.method === "sendDocument" && c.body.document === "FILE-DIBA"));
+});
+// the writer claims a tool from the ad that isn't in her CV: the free check catches it, the cheap model fixes it
+net.letter = { ...LETTER, body: LETTER.body + " Tableau nutze ich täglich, und die Berichtszeit sank um 73 %." };
+calls = await press(`jb:letter:diba:${analyst}`);
+await ok("a claim the CV doesn't back (a tool from the ad, a number from nowhere): found in code, fixed by the cheap model", () => {
+  const e = net.edits.at(-1);
+  assert.equal(e.model, "gpt-5.6-luna");
+  assert.match(e.todo, /claims "Tableau", which isn't in the CV/); assert.match(e.todo, /the number "73 ?%" isn't in the CV or the ad/);
+});
+net.letter = null;
+const before = net.edits.length;
+calls = await press(`jb:letter:diba:${analyst}`);
+await ok("…a clean letter costs nothing more: no second call", () => assert.equal(net.edits.length, before));
 await st.kvSet("jobs_cv:diba", "FILE-DIBA");
 calls = await press(`jb:letter:diba:${analyst}`);
 await ok("…and once her CV is saved, it comes right under the letter", () => {
-  const d = calls.find((c) => c.method === "sendDocument");
-  assert.equal(d.body.document, "FILE-DIBA");
-  assert.equal(d.body.message_thread_id, 965);
-  assert.ok(d.body.reply_to_message_id);
+  const d = calls.find((c) => c.method === "sendDocument" && c.body.document === "FILE-DIBA");
+  assert.ok(d); assert.equal(d.body.message_thread_id, 965); assert.ok(d.body.reply_to_message_id);
 });
+const lm = letterMsg(calls), lmId = 900;
+const lbtn = (label) => lm.body.reply_markup.inline_keyboard.flat().find((b) => b.text === label).callback_data;
+calls = await press(lbtn("✂️ Shorter"), 555, -100, lmId);
+await ok("✂️ Shorter: the cheap model edits it, the message changes in place, a new PDF replaces the old one", async () => {
+  assert.equal(net.edits.at(-1).model, "gpt-5.6-luna"); assert.match(net.edits.at(-1).todo, /noticeably shorter/);
+  const e = calls.find((c) => c.method === "editMessageText"); assert.equal(e.body.message_id, lmId); assert.match(e.body.text, /noticeably shorter/);
+  assert.ok(calls.some((c) => c.method === "deleteMessage")); assert.ok(pdfOf(calls));
+});
+await ok("…and it's learned: her next letters aim shorter", async () => assert.deepEqual(JSON.parse(await st.kvGet("letter_style:diba")), { words: 140, tone: 0 }));
+await press(lbtn("😊 More casual"), 555, -100, lmId); await press(lbtn("😊 More casual"), 555, -100, lmId); await press(lbtn("🎩 More formal"), 555, -100, lmId);
+await ok("more casual twice, more formal once: a little casual", async () => assert.equal(JSON.parse(await st.kvGet("letter_style:diba")).tone, -1));
+calls = await press(lbtn("🇬🇧 English"), 555, -100, lmId);
+await ok("🇬🇧 English: rewritten in English; the button now offers Deutsch; the language isn't learned (it follows the ad)", async () => {
+  const e = calls.find((c) => c.method === "editMessageText");
+  assert.match(e.body.text, /<pre>Dear Hiring Team,/); assert.match(pdfOf(calls).body.caption, /Cover letter as PDF/);
+  assert.deepEqual(e.body.reply_markup.inline_keyboard[1].map((b) => b.text), ["🇩🇪 Deutsch", "🔄 New version"]);
+  assert.deepEqual(JSON.parse(await st.kvGet("letter_style:diba")), { words: 140, tone: -1 });
+});
+calls = await press(`jb:letter:diba:${analyst}`);
+await ok("the next letter is written to her style: shorter and a little casual", () =>
+  assert.match(net.letters.at(-1).user, /About 140 words in the body\. Tone: warm and a little casual\.$/));
+calls = await press(`jb:wshort:diba:ba:10004`);
+await ok("a letter button on a job without a letter yet says what to do", () =>
+  assert.match(calls.find((c) => c.method === "answerCallbackQuery").body.text, /Tap ✍️ Cover letter on the job first/));
 const cardMsg = row(DB, analyst).msg_id;
 const editOf = (c) => c.find((x) => x.method === "editMessageText");
 const kbOf = (m) => m.body.reply_markup.inline_keyboard.flat().map((b) => b.text);
@@ -523,7 +575,11 @@ console.log("\n6. a job with a very long id");
     headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" },
     body: JSON.stringify({ callback_query: { id: "q", data, from: { id: 555 }, message: { chat: { id: -100 }, message_id: 7 } } }) }), E3); return net.tg; };
   let c = await tap(btn("✍️ Cover letter"));
-  await ok("its cover letter button finds the job", () => assert.match(c.find((x) => x.method === "sendMessage").body.text, /Cover letter for Diba<\/b> - AgentixLake/));
+  await ok("its cover letter button finds the job, and the letter's buttons fit too", () => {
+    const m = c.find((x) => x.method === "sendMessage" && /Cover letter for/.test(x.body.text));
+    assert.match(m.body.text, /Cover letter for Diba<\/b> · AgentixLake/);
+    assert.ok(m.body.reply_markup.inline_keyboard.flat().every((b) => new TextEncoder().encode(b.callback_data).length <= 64));
+  });
   c = await tap(btn("✅ Applied"));
   await ok("Applied finds that job, and its Undo and tracker buttons fit too", () => {
     assert.equal(row(DB3, id).status, "applied");
@@ -693,7 +749,7 @@ await ok("the card says where and how often in person", () => {
 console.log("\n10. workingstudentjobs.de");
 {
   const WS = { data: [
-    { id: "a1", title: "Werkstudent Data Analytics (m/w/d)", company: { name: "Finanz GmbH" }, location: { city: "Berlin" }, url: "https://www.workingstudentjobs.de/jobs/a1",
+    { id: "a1", title: "Werkstudent Data Analytics (m/w/d)", company: { name: "Finanz GmbH" }, location: { city: "Berlin" }, url: "https://www.workingstudentjobs.de/jobs/a1", apply_url: "https://finanz.example/jobs/a1",
       types: ["working_student"], field: "tech", sub_field: "data-analytics", working_mode: "hybrid", skills: ["SQL", "Python"],
       languages: { german: "required", english: "required" }, details: { german_level: { level: "fluent", cefr: "C1" }, hours_per_week: { min: 15, max: 20 }, remote_days_max: 2, start: { asap: true } } },
     { id: "a2", title: "Working Student Data Science", company: { name: "Startup" }, location: { city: "Berlin" }, url: "https://www.workingstudentjobs.de/jobs/a2",
@@ -710,6 +766,7 @@ console.log("\n10. workingstudentjobs.de");
   await ok("a job: title, company, place with how it's worked, link, kind, and the employer's German as words the reader knows", () => {
     const [a, b] = J.parseWsj(WS, "all");
     assert.deepEqual([a.id, a.source, a.company, a.place, a.kind, a.remote], ["ws:a1", "workingstudentjobs.de", "Finanz GmbH", "Berlin · hybrid", "werkstudent", false]);
+    assert.equal(a.url, "https://finanz.example/jobs/a1"); assert.equal(b.url, "https://www.workingstudentjobs.de/jobs/a2");   // the employer's page when there is one
     assert.match(a.text, /Deutschkenntnisse auf C1-Niveau\.\nEnglish required\.\n15-20 hours a week\.\nHybrid, up to 2 days a week remote\./);
     assert.equal(J.germanLabel(J.germanRank("", a.text)), "C1");
     assert.equal(J.germanLabel(J.germanRank("", b.text)), "not required");
@@ -733,5 +790,29 @@ console.log("\n10. workingstudentjobs.de");
     assert.notEqual(row(DBw, "ws:a2").status, "skipped");
   });
 }
+
+console.log("\n11. other languages, and letters that read like a person wrote them");
+await ok("a job needing a language nobody searching speaks is left out (Persian counts for someone who speaks it)", async () => {
+  const j = normalize({ ...CONFIG, jobs: { ...CONFIG.jobs, people: CONFIG.jobs.people.map((p) => p.id === "diba" ? { ...p, languages: ["persian"] } : p) } }).jobs;
+  assert.equal(J.jobRejectReason("Intern, Data Labeler (Spanish Speaker) - (Global Discovery, Consumer)", j, ["diba"]), "needs Spanish");
+  assert.equal(J.jobRejectReason("Working Student with Thai (m/f/d) - Data Annotation", j, ["diba"]), "needs Thai");
+  assert.equal(J.jobRejectReason("Data Analyst (Persian speaker)", j, ["diba"]), null);
+  assert.deepEqual(J.otherLanguages("Werkstudent Data", "Your profile: fluent French is required. SQL.", ["german", "english"]), ["french"]);
+  assert.deepEqual(J.otherLanguages("Werkstudent Data", "Spanish or French is a plus.", ["german", "english"]), []);
+  assert.deepEqual(J.otherLanguages("Werkstudent Data", "We work with Polish clients. SQL, Python.", ["german", "english"]), []);
+});
+const L = await import(SRC + "letter.ts");
+await ok("letters: no dashes as punctuation, the stock phrases and the even rhythm are caught for free", () => {
+  const l = L.parseLetter(JSON.stringify({ lang: "de", subject: "Bewerbung", body: "Ihr Team baut Dashboards — genau das kann ich. Und zwar gut – seit Jahren - mit SQL.", why: "x" }));
+  assert.ok(!/[—–]| - /.test(l.body), l.body);
+  const even = { ...l, body: "Ich habe zwei Jahre Daten analysiert und Berichte erstellt. Ich habe Dashboards mit SQL gebaut und gepflegt. Ich habe Modelle mit Python trainiert und geprüft. Ich habe Tests für Produkte ausgewertet und erklärt. Ich arbeite gern im Team mit vielen Leuten." };
+  assert.ok(L.letterIssues(even, "SQL Python", "", []).some((x) => /all about the same length/.test(x)));
+  assert.ok(L.letterIssues({ ...l, body: "Mit großem Interesse und Leidenschaft bewerbe ich mich, nicht nur wegen der Daten." }, "", "", []).length >= 3);
+});
+await ok("the writer is told the humanizer's rules", () => {
+  const sys = L.letterSystem({ name: "Diba", full_name: "Diba T", summary: "x", cv: "y", availability: "20 h a week", skills: [] });
+  assert.match(sys, /A cover letter is not the CV/); assert.match(sys, /No dashes as punctuation/); assert.match(sys, /nicht nur \.\.\., sondern auch/);
+  assert.match(sys, /mix very short sentences with longer ones/); assert.match(sys, /body starts lowercase/);
+});
 
 console.log(`\nall ${pass} jobs checks passed`);

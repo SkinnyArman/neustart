@@ -148,7 +148,9 @@ const ok = (o) => new Response(JSON.stringify({ choices: [{ message: { content: 
 globalThis.fetch = async (url, init = {}) => {
   url = String(url);
   let body = init.body ?? null;
-  try { body = body && JSON.parse(body); } catch { /* text */ }
+  // an upload (a PDF): its fields, and the file's name and size
+  if (body instanceof FormData) body = Object.fromEntries([...body.entries()].map(([k, v]) => [k, typeof v === "string" ? v : { file: v.name, bytes: v.size }]));
+  else try { body = body && JSON.parse(body); } catch { /* text */ }
   const entry = { url };
   if (init.method && init.method !== "GET") entry.method = init.method;
   if (body) entry.body = body;
@@ -187,7 +189,9 @@ globalThis.fetch = async (url, init = {}) => {
     if (body.messages.length === 1) return ok("OK");                     // /health?ai's tiny request
     const sys = body.messages[0].content, user = body.messages[1].content;
     const title = /Title: (.*)/.exec(user)?.[1] ?? "";
-    if (/cover letter/.test(sys)) return ok("Sehr geehrte Damen und Herren — Ihr Dashboard-Team … Mit freundlichen Grüßen");
+    if (/You write job applications|You edit a job application letter/.test(sys)) return ok({ lang: "de", subject: "Bewerbung als Werkstudent Data",
+      salutation: "Sehr geehrte Damen und Herren,", body: "Ihr Dashboard-Team hat mich angesprochen.\n\nSQL und Python nutze ich täglich.\n\nIch kann 20 Stunden pro Woche arbeiten.",
+      closing: "Mit freundlichen Grüßen", why: "Weil Ihr Team Daten nutzt." });
     if (/match German job ads/.test(sys)) {
       return ok(/Senior|Statista/.test(title) ? { for: "none", reason: /Statista/.test(title) ? "full-time" : "too senior" }
         : /Frontend|React/.test(title) ? { for: "arman", kind: "werkstudent", why: "React work fits", gaps: [], german: "B2", hours: "20 h/week", start: "asap", deadline: "", lang: "de", skills: ["React", "TypeScript"] }

@@ -34,6 +34,9 @@ export interface Person {
   availability: string;   // the cover letter's availability sentence
   active: boolean;
   german_max: string;     // the most German they can work in: A2…C2, "none" (only jobs without German); "" = no limit. /german changes it
+  contact: string[];      // the cover letter's letterhead: address, email, phone (each a line; private)
+  languages: string[];    // what they speak; a job needing another language is left out (German and English always count)
+  city: string;           // the letter's place and date line
 }
 
 export interface City { name: string; radius_km: number }
@@ -196,6 +199,9 @@ export function normalize(raw: unknown): Config {
       summary: str(p.summary), skills: list(p.skills), cv: str(p.cv), availability: str(p.availability, shared),
       active: bool(p.active, true),
       german_max: /^(none|[abc][12])$/i.test(str(p.german_max)) ? str(p.german_max).toLowerCase() : "",
+      contact: Array.isArray(p.contact) ? list(p.contact) : p.contact && typeof p.contact === "object" ? Object.values(p.contact).map((v) => str(v)).filter(Boolean) : list(p.contact),
+      city: str(p.city, city),
+      languages: [...new Set(["german", "english", ...list(p.languages).map((l) => l.toLowerCase())])],
     });
   });
   if (modules.jobs && !people.length) off("jobs", "jobs.people is empty");

@@ -5728,18 +5728,44 @@
    }
   },
   {
+   "url": "https://arbeitnow.example/2"
+  },
+  {
    "url": "https://api.openai.com/v1/chat/completions",
    "method": "POST",
    "body": {
     "model": "gpt-5.6-terra",
+    "response_format": {
+     "type": "json_object"
+    },
     "messages": [
      {
       "role": "system",
-      "content": "Write a short cover letter for Diba in English. It should read like Diba wrote it in twenty minutes: plain, direct, a bit personal - not like a template and not like AI.\n\n- 120-170 words, body only (no address block, no date, no subject line), ending with a greeting and the name Diba Test.\n- The first sentence names something specific from this ad - the product, the team, the project, a tool or task they mention - so it's clear the ad was actually read. No generic praise of the company.\n- Then 2 concrete matches between what the ad asks for and what the CV shows (a project, a tool, a number from the CV). Only facts from the CV - never invent experience, tools or numbers.\n- One sentence on availability: master's student in Cottbus, as a Werkstudent up to 20 hours a week during the semester.\n- Short, everyday words and short sentences. Vary sentence length. No em dashes, no lists, no rhetorical questions, no exaggeration.\n- Never use these: passionate, excited, thrilled, eager, dynamic, innovative, cutting-edge, leverage, delve, foster, align, synergy, seamless, robust, journey, landscape, tapestry, \"I am confident\", \"I am writing to\", \"furthermore\", \"moreover\", \"in today's\", \"hiermit bewerbe ich mich\", \"mit großem Interesse\", \"begeistert\", \"leidenschaftlich\", \"hochmotiviert\", \"spannende Herausforderung\", \"Teamplayer\", \"zielorientiert\", \"Mehrwert\", \"innovativ\", \"dynamisch\", \"Ihr renommiertes Unternehmen\", \"abgerundet\"."
+      "content": "You write job applications for Diba (Diba Test). Everything you may say about them is in the CV and profile below - never invent experience, tools, numbers, grades or dates.\n\n=== PROFILE ===\nData scientist, MDS student\n\n=== CV ===\nDiba CV: two data jobs, SQL -50% reporting time.\n\n=== RULES ===\nReturn JSON only: {\"lang\": \"de\"|\"en\", \"subject\": string, \"salutation\": string, \"body\": string, \"closing\": string, \"why\": string}\n- lang: the ad's language. German: a proper Anschreiben with \"Sie\".\n- subject: \"Bewerbung als <the role as the ad names it, without (m/w/d)>\" (German) or \"Application: <role>\" (English); add the reference number if one is given.\n- salutation: the contact person if the ad names one (\"Sehr geehrte Frau Schmidt,\" / \"Dear Ms Schmidt,\"), else \"Sehr geehrte Damen und Herren,\" / \"Dear Hiring Team,\".\n- body: 3 short paragraphs of different lengths, plain text, blank lines between, no greeting and no signature in it.\n  1) Start with something specific from this ad (the product, team, project, a task or tool they mention) - it must be clear the ad was read. No generic praise.\n  2) Why they fit: what the ad asks for and where the CV shows it. A cover letter is not the CV: no walk through jobs and tools, at most one concrete result with its number.\n  3) Availability and the practical side: master's student in Cottbus, as a Werkstudent up to 20 hours a week during the semester. A start date, and remote or on-site only if it matters for this ad.\n- Only strengths. Never mention a skill, tool or experience they don't have, and never say what they lack.\n- Write like a person, not a template: mix very short sentences with longer ones, vary how sentences start (a sentence may start with \"And\"/\"Und\" or \"But\"/\"Aber\"), everyday words.\n- No dashes as punctuation at all (no em dash, no en dash, no spaced hyphen): use a period, comma, colon or parentheses. No lists, no rhetorical questions, no exaggeration.\n- None of these patterns: \"not X but Y\" / \"nicht nur ..., sondern auch\", reflexive threes, recaps, a vague significance clause after a fact, puffery, claiming a quality instead of showing it.\n- German: after \"Sehr geehrte Frau X,\" the body starts lowercase (unless it starts with Sie/Ihr or a noun). Short closing line: \"Über ein Gespräch freue ich mich.\" rather than a long one.\n- Never use these: passionate, excited, thrilled, eager, dynamic, innovative, cutting-edge, leverage, delve, foster, synergy, seamless, robust, tapestry, pivotal, underscore, testament, enhance, crucial, multifaceted, holistic, unlock, elevate, game-changer, vibrant, realm, I am confident, I am writing to, furthermore, moreover, additionally, in today's, it's important to note, it is worth mentioning, in summary, in conclusion, not just, hiermit bewerbe ich mich, mit großem Interesse, begeistert, Begeisterung, leidenschaftlich, Leidenschaft, hochmotiviert, spannende Herausforderung, spannend, Teamplayer, zielorientiert, Mehrwert, Ihr renommiertes Unternehmen, abgerundet, wertvollen Beitrag, würde ich mich sehr freuen, darüber hinaus, des Weiteren, zusammenfassend, spielt eine entscheidende Rolle, spielt eine zentrale Rolle, nicht nur, vielschichtig, facettenreich, maßgeblich.\n- closing: \"Mit freundlichen Grüßen\" (German) or \"Kind regards\" (English).\n- why: 2-3 sentences for a \"Why do you want to work with us?\" form field, in the ad's language, specific to this company and role."
      },
      {
       "role": "user",
-      "content": "=== CV ===\nDiba CV: two data jobs, SQL -50% reporting time.\n\n=== JOB ===\nTitle: Working Student Machine Learning\nCompany: Acme AI\nPlace: Remote · remote\n\nPython, English"
+      "content": "=== JOB ===\nTitle: Working Student Machine Learning\nCompany: Acme AI\nPlace: Remote · remote\n\nPython, English\n\n=== STYLE ===\nAbout 160 words in the body. Tone: friendly and professional."
+     }
+    ]
+   }
+  },
+  {
+   "url": "https://api.openai.com/v1/chat/completions",
+   "method": "POST",
+   "body": {
+    "model": "gpt-5.6-luna",
+    "response_format": {
+     "type": "json_object"
+    },
+    "messages": [
+     {
+      "role": "system",
+      "content": "You edit a job application letter so it reads like a person wrote it. Keep every fact as it is; never add experience, tools or numbers that aren't in the letter or the CV, never mention what the applicant lacks. Mix very short and longer sentences, no dashes as punctuation, no \"not X but Y\" / \"nicht nur ... sondern auch\", no recaps, no stock phrases (passionate, excited, thrilled, eager, dynamic, innovative, cutting-edge, leverage, delve, foster, synergy, seamless, robust, tapestry, pivotal, underscore, testament, enhance, crucial, multifaceted, holistic, unlock, elevate, game-changer, vibrant, realm, I am confident, I am writing to, furthermore, moreover, additionally, in today's, it's important to note, it is worth mentioning, in summary, in conclusion, not just, hiermit bewerbe ich mich, mit großem Interesse, begeistert, Begeisterung, leidenschaftlich, Leidenschaft, hochmotiviert, spannende Herausforderung, spannend, Teamplayer, zielorientiert, Mehrwert, Ihr renommiertes Unternehmen, abgerundet, wertvollen Beitrag, würde ich mich sehr freuen, darüber hinaus, des Weiteren, zusammenfassend, spielt eine entscheidende Rolle, spielt eine zentrale Rolle, nicht nur, vielschichtig, facettenreich, maßgeblich). Return the same JSON shape: {\"lang\", \"subject\", \"salutation\", \"body\", \"closing\", \"why\"}."
+     },
+     {
+      "role": "user",
+      "content": "=== CV (the only facts allowed) ===\nDiba CV: two data jobs, SQL -50% reporting time.\n\n=== LETTER ===\n{\"lang\":\"de\",\"subject\":\"Bewerbung als Werkstudent Data\",\"salutation\":\"Sehr geehrte Damen und Herren,\",\"body\":\"Ihr Dashboard-Team hat mich angesprochen.\\n\\nSQL und Python nutze ich täglich.\\n\\nIch kann 20 Stunden pro Woche arbeiten.\",\"closing\":\"Mit freundlichen Grüßen\",\"why\":\"Weil Ihr Team Daten nutzt.\"}\n\n=== DO ===\nFix these problems: the number \"20\" isn't in the CV or the ad."
      }
     ]
    }
@@ -5749,11 +5775,53 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "✍️ <b>Cover letter for Diba</b> - Acme AI\n\n<pre>Sehr geehrte Damen und Herren - Ihr Dashboard-Team … Mit freundlichen Grüßen</pre>",
+    "text": "✍️ <b>Cover letter for Diba</b> · Acme AI\n\n<b>Subject:</b> Bewerbung als Werkstudent Data\n\n<pre>Sehr geehrte Damen und Herren,\n\nIhr Dashboard-Team hat mich angesprochen.\n\nSQL und Python nutze ich täglich.\n\nIch kann 20 Stunden pro Woche arbeiten.\n\nMit freundlichen Grüßen\nDiba Test</pre>\n\n💬 <b>Why us?</b> (for the application form)\n<pre>Weil Ihr Team Daten nutzt.</pre>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "message_thread_id": 965,
+    "reply_markup": {
+     "inline_keyboard": [
+      [
+       {
+        "text": "✂️ Shorter",
+        "callback_data": "jb:wshort:diba:an:acme-working-student-ml"
+       },
+       {
+        "text": "🎩 More formal",
+        "callback_data": "jb:wformal:diba:an:acme-working-student-ml"
+       },
+       {
+        "text": "😊 More casual",
+        "callback_data": "jb:wcasual:diba:an:acme-working-student-ml"
+       }
+      ],
+      [
+       {
+        "text": "🇬🇧 English",
+        "callback_data": "jb:wen:diba:an:acme-working-student-ml"
+       },
+       {
+        "text": "🔄 New version",
+        "callback_data": "jb:wredo:diba:an:acme-working-student-ml"
+       }
+      ]
+     ]
+    },
     "reply_to_message_id": 7
+   }
+  },
+  {
+   "url": "https://api.telegram.org/botT/sendDocument",
+   "method": "POST",
+   "body": {
+    "chat_id": "-1001234567890",
+    "message_thread_id": "965",
+    "reply_to_message_id": "1093",
+    "caption": "📄 Anschreiben as PDF",
+    "document": {
+     "file": "Anschreiben_Acme_AI.pdf",
+     "bytes": 1311
+    }
    }
   },
   {
@@ -5983,14 +6051,37 @@
    "method": "POST",
    "body": {
     "model": "gpt-5.6-terra",
+    "response_format": {
+     "type": "json_object"
+    },
     "messages": [
      {
       "role": "system",
-      "content": "Write a short cover letter for Arman in German (an Anschreiben, \"Sie\"). It should read like Arman wrote it in twenty minutes: plain, direct, a bit personal - not like a template and not like AI.\n\n- 120-170 words, body only (no address block, no date, no subject line), ending with a greeting and the name Arman Test.\n- The first sentence names something specific from this ad - the product, the team, the project, a tool or task they mention - so it's clear the ad was actually read. No generic praise of the company.\n- Then 2 concrete matches between what the ad asks for and what the CV shows (a project, a tool, a number from the CV). Only facts from the CV - never invent experience, tools or numbers.\n- One sentence on availability: master's student in Cottbus, as a Werkstudent up to 20 hours a week during the semester.\n- Short, everyday words and short sentences. Vary sentence length. No em dashes, no lists, no rhetorical questions, no exaggeration.\n- Never use these: passionate, excited, thrilled, eager, dynamic, innovative, cutting-edge, leverage, delve, foster, align, synergy, seamless, robust, journey, landscape, tapestry, \"I am confident\", \"I am writing to\", \"furthermore\", \"moreover\", \"in today's\", \"hiermit bewerbe ich mich\", \"mit großem Interesse\", \"begeistert\", \"leidenschaftlich\", \"hochmotiviert\", \"spannende Herausforderung\", \"Teamplayer\", \"zielorientiert\", \"Mehrwert\", \"innovativ\", \"dynamisch\", \"Ihr renommiertes Unternehmen\", \"abgerundet\"."
+      "content": "You write job applications for Arman (Arman Test). Everything you may say about them is in the CV and profile below - never invent experience, tools, numbers, grades or dates.\n\n=== PROFILE ===\nFrontend developer\n\n=== CV ===\nArman CV: React Native app.\n\n=== RULES ===\nReturn JSON only: {\"lang\": \"de\"|\"en\", \"subject\": string, \"salutation\": string, \"body\": string, \"closing\": string, \"why\": string}\n- lang: the ad's language. German: a proper Anschreiben with \"Sie\".\n- subject: \"Bewerbung als <the role as the ad names it, without (m/w/d)>\" (German) or \"Application: <role>\" (English); add the reference number if one is given.\n- salutation: the contact person if the ad names one (\"Sehr geehrte Frau Schmidt,\" / \"Dear Ms Schmidt,\"), else \"Sehr geehrte Damen und Herren,\" / \"Dear Hiring Team,\".\n- body: 3 short paragraphs of different lengths, plain text, blank lines between, no greeting and no signature in it.\n  1) Start with something specific from this ad (the product, team, project, a task or tool they mention) - it must be clear the ad was read. No generic praise.\n  2) Why they fit: what the ad asks for and where the CV shows it. A cover letter is not the CV: no walk through jobs and tools, at most one concrete result with its number.\n  3) Availability and the practical side: master's student in Cottbus, as a Werkstudent up to 20 hours a week during the semester. A start date, and remote or on-site only if it matters for this ad.\n- Only strengths. Never mention a skill, tool or experience they don't have, and never say what they lack.\n- Write like a person, not a template: mix very short sentences with longer ones, vary how sentences start (a sentence may start with \"And\"/\"Und\" or \"But\"/\"Aber\"), everyday words.\n- No dashes as punctuation at all (no em dash, no en dash, no spaced hyphen): use a period, comma, colon or parentheses. No lists, no rhetorical questions, no exaggeration.\n- None of these patterns: \"not X but Y\" / \"nicht nur ..., sondern auch\", reflexive threes, recaps, a vague significance clause after a fact, puffery, claiming a quality instead of showing it.\n- German: after \"Sehr geehrte Frau X,\" the body starts lowercase (unless it starts with Sie/Ihr or a noun). Short closing line: \"Über ein Gespräch freue ich mich.\" rather than a long one.\n- Never use these: passionate, excited, thrilled, eager, dynamic, innovative, cutting-edge, leverage, delve, foster, synergy, seamless, robust, tapestry, pivotal, underscore, testament, enhance, crucial, multifaceted, holistic, unlock, elevate, game-changer, vibrant, realm, I am confident, I am writing to, furthermore, moreover, additionally, in today's, it's important to note, it is worth mentioning, in summary, in conclusion, not just, hiermit bewerbe ich mich, mit großem Interesse, begeistert, Begeisterung, leidenschaftlich, Leidenschaft, hochmotiviert, spannende Herausforderung, spannend, Teamplayer, zielorientiert, Mehrwert, Ihr renommiertes Unternehmen, abgerundet, wertvollen Beitrag, würde ich mich sehr freuen, darüber hinaus, des Weiteren, zusammenfassend, spielt eine entscheidende Rolle, spielt eine zentrale Rolle, nicht nur, vielschichtig, facettenreich, maßgeblich.\n- closing: \"Mit freundlichen Grüßen\" (German) or \"Kind regards\" (English).\n- why: 2-3 sentences for a \"Why do you want to work with us?\" form field, in the ad's language, specific to this company and role."
      },
      {
       "role": "user",
-      "content": "=== CV ===\nArman CV: React Native app.\n\n=== JOB ===\nTitle: Werkstudent Business Intelligence (m/w/d)\nCompany: Deutsche Bahn AG\nPlace: Cottbus · home office possible\n\nAufgaben bei 10011: SQL, Python, Dashboards mit Tableau. Deutsch B2. 20 Std./Woche.\nApply: https://apply.example/10011"
+      "content": "=== JOB ===\nTitle: Werkstudent Business Intelligence (m/w/d)\nCompany: Deutsche Bahn AG\nPlace: Cottbus · home office possible\nReference: 10011\n\nAufgaben bei 10011: SQL, Python, Dashboards mit Tableau. Deutsch B2. 20 Std./Woche.\nApply: https://apply.example/10011\n\n=== STYLE ===\nAbout 160 words in the body. Tone: friendly and professional."
+     }
+    ]
+   }
+  },
+  {
+   "url": "https://api.openai.com/v1/chat/completions",
+   "method": "POST",
+   "body": {
+    "model": "gpt-5.6-luna",
+    "response_format": {
+     "type": "json_object"
+    },
+    "messages": [
+     {
+      "role": "system",
+      "content": "You edit a job application letter so it reads like a person wrote it. Keep every fact as it is; never add experience, tools or numbers that aren't in the letter or the CV, never mention what the applicant lacks. Mix very short and longer sentences, no dashes as punctuation, no \"not X but Y\" / \"nicht nur ... sondern auch\", no recaps, no stock phrases (passionate, excited, thrilled, eager, dynamic, innovative, cutting-edge, leverage, delve, foster, synergy, seamless, robust, tapestry, pivotal, underscore, testament, enhance, crucial, multifaceted, holistic, unlock, elevate, game-changer, vibrant, realm, I am confident, I am writing to, furthermore, moreover, additionally, in today's, it's important to note, it is worth mentioning, in summary, in conclusion, not just, hiermit bewerbe ich mich, mit großem Interesse, begeistert, Begeisterung, leidenschaftlich, Leidenschaft, hochmotiviert, spannende Herausforderung, spannend, Teamplayer, zielorientiert, Mehrwert, Ihr renommiertes Unternehmen, abgerundet, wertvollen Beitrag, würde ich mich sehr freuen, darüber hinaus, des Weiteren, zusammenfassend, spielt eine entscheidende Rolle, spielt eine zentrale Rolle, nicht nur, vielschichtig, facettenreich, maßgeblich). Return the same JSON shape: {\"lang\", \"subject\", \"salutation\", \"body\", \"closing\", \"why\"}."
+     },
+     {
+      "role": "user",
+      "content": "=== CV (the only facts allowed) ===\nArman CV: React Native app.\n\n=== LETTER ===\n{\"lang\":\"de\",\"subject\":\"Bewerbung als Werkstudent Data\",\"salutation\":\"Sehr geehrte Damen und Herren,\",\"body\":\"Ihr Dashboard-Team hat mich angesprochen.\\n\\nSQL und Python nutze ich täglich.\\n\\nIch kann 20 Stunden pro Woche arbeiten.\",\"closing\":\"Mit freundlichen Grüßen\",\"why\":\"Weil Ihr Team Daten nutzt.\"}\n\n=== DO ===\nFix these problems: claims \"SQL\", which isn't in the CV."
      }
     ]
    }
@@ -6000,11 +6091,53 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "✍️ <b>Cover letter for Arman</b> - Deutsche Bahn AG\n\n<pre>Sehr geehrte Damen und Herren - Ihr Dashboard-Team … Mit freundlichen Grüßen</pre>",
+    "text": "✍️ <b>Cover letter for Arman</b> · Deutsche Bahn AG\n\n<b>Subject:</b> Bewerbung als Werkstudent Data\n\n<pre>Sehr geehrte Damen und Herren,\n\nIhr Dashboard-Team hat mich angesprochen.\n\nSQL und Python nutze ich täglich.\n\nIch kann 20 Stunden pro Woche arbeiten.\n\nMit freundlichen Grüßen\nArman Test</pre>\n\n💬 <b>Why us?</b> (for the application form)\n<pre>Weil Ihr Team Daten nutzt.</pre>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "message_thread_id": 965,
+    "reply_markup": {
+     "inline_keyboard": [
+      [
+       {
+        "text": "✂️ Shorter",
+        "callback_data": "jb:wshort:arman:ba:10011"
+       },
+       {
+        "text": "🎩 More formal",
+        "callback_data": "jb:wformal:arman:ba:10011"
+       },
+       {
+        "text": "😊 More casual",
+        "callback_data": "jb:wcasual:arman:ba:10011"
+       }
+      ],
+      [
+       {
+        "text": "🇬🇧 English",
+        "callback_data": "jb:wen:arman:ba:10011"
+       },
+       {
+        "text": "🔄 New version",
+        "callback_data": "jb:wredo:arman:ba:10011"
+       }
+      ]
+     ]
+    },
     "reply_to_message_id": 7
+   }
+  },
+  {
+   "url": "https://api.telegram.org/botT/sendDocument",
+   "method": "POST",
+   "body": {
+    "chat_id": "-1001234567890",
+    "message_thread_id": "965",
+    "reply_to_message_id": "1104",
+    "caption": "📄 Anschreiben as PDF",
+    "document": {
+     "file": "Anschreiben_Deutsche_Bahn_AG.pdf",
+     "bytes": 1313
+    }
    }
   },
   {
@@ -6428,14 +6561,17 @@
    "method": "POST",
    "body": {
     "model": "gpt-5.6-terra",
+    "response_format": {
+     "type": "json_object"
+    },
     "messages": [
      {
       "role": "system",
-      "content": "Write a short cover letter for Diba in German (an Anschreiben, \"Sie\"). It should read like Diba wrote it in twenty minutes: plain, direct, a bit personal - not like a template and not like AI.\n\n- 120-170 words, body only (no address block, no date, no subject line), ending with a greeting and the name Diba Test.\n- The first sentence names something specific from this ad - the product, the team, the project, a tool or task they mention - so it's clear the ad was actually read. No generic praise of the company.\n- Then 2 concrete matches between what the ad asks for and what the CV shows (a project, a tool, a number from the CV). Only facts from the CV - never invent experience, tools or numbers.\n- One sentence on availability: master's student in Cottbus, as a Werkstudent up to 20 hours a week during the semester.\n- Short, everyday words and short sentences. Vary sentence length. No em dashes, no lists, no rhetorical questions, no exaggeration.\n- Never use these: passionate, excited, thrilled, eager, dynamic, innovative, cutting-edge, leverage, delve, foster, align, synergy, seamless, robust, journey, landscape, tapestry, \"I am confident\", \"I am writing to\", \"furthermore\", \"moreover\", \"in today's\", \"hiermit bewerbe ich mich\", \"mit großem Interesse\", \"begeistert\", \"leidenschaftlich\", \"hochmotiviert\", \"spannende Herausforderung\", \"Teamplayer\", \"zielorientiert\", \"Mehrwert\", \"innovativ\", \"dynamisch\", \"Ihr renommiertes Unternehmen\", \"abgerundet\"."
+      "content": "You write job applications for Diba (Diba Test). Everything you may say about them is in the CV and profile below - never invent experience, tools, numbers, grades or dates.\n\n=== PROFILE ===\nData scientist, MDS student\n\n=== CV ===\nDiba CV: two data jobs, SQL -50% reporting time.\n\n=== RULES ===\nReturn JSON only: {\"lang\": \"de\"|\"en\", \"subject\": string, \"salutation\": string, \"body\": string, \"closing\": string, \"why\": string}\n- lang: the ad's language. German: a proper Anschreiben with \"Sie\".\n- subject: \"Bewerbung als <the role as the ad names it, without (m/w/d)>\" (German) or \"Application: <role>\" (English); add the reference number if one is given.\n- salutation: the contact person if the ad names one (\"Sehr geehrte Frau Schmidt,\" / \"Dear Ms Schmidt,\"), else \"Sehr geehrte Damen und Herren,\" / \"Dear Hiring Team,\".\n- body: 3 short paragraphs of different lengths, plain text, blank lines between, no greeting and no signature in it.\n  1) Start with something specific from this ad (the product, team, project, a task or tool they mention) - it must be clear the ad was read. No generic praise.\n  2) Why they fit: what the ad asks for and where the CV shows it. A cover letter is not the CV: no walk through jobs and tools, at most one concrete result with its number.\n  3) Availability and the practical side: master's student in Cottbus, as a Werkstudent up to 20 hours a week during the semester. A start date, and remote or on-site only if it matters for this ad.\n- Only strengths. Never mention a skill, tool or experience they don't have, and never say what they lack.\n- Write like a person, not a template: mix very short sentences with longer ones, vary how sentences start (a sentence may start with \"And\"/\"Und\" or \"But\"/\"Aber\"), everyday words.\n- No dashes as punctuation at all (no em dash, no en dash, no spaced hyphen): use a period, comma, colon or parentheses. No lists, no rhetorical questions, no exaggeration.\n- None of these patterns: \"not X but Y\" / \"nicht nur ..., sondern auch\", reflexive threes, recaps, a vague significance clause after a fact, puffery, claiming a quality instead of showing it.\n- German: after \"Sehr geehrte Frau X,\" the body starts lowercase (unless it starts with Sie/Ihr or a noun). Short closing line: \"Über ein Gespräch freue ich mich.\" rather than a long one.\n- Never use these: passionate, excited, thrilled, eager, dynamic, innovative, cutting-edge, leverage, delve, foster, synergy, seamless, robust, tapestry, pivotal, underscore, testament, enhance, crucial, multifaceted, holistic, unlock, elevate, game-changer, vibrant, realm, I am confident, I am writing to, furthermore, moreover, additionally, in today's, it's important to note, it is worth mentioning, in summary, in conclusion, not just, hiermit bewerbe ich mich, mit großem Interesse, begeistert, Begeisterung, leidenschaftlich, Leidenschaft, hochmotiviert, spannende Herausforderung, spannend, Teamplayer, zielorientiert, Mehrwert, Ihr renommiertes Unternehmen, abgerundet, wertvollen Beitrag, würde ich mich sehr freuen, darüber hinaus, des Weiteren, zusammenfassend, spielt eine entscheidende Rolle, spielt eine zentrale Rolle, nicht nur, vielschichtig, facettenreich, maßgeblich.\n- closing: \"Mit freundlichen Grüßen\" (German) or \"Kind regards\" (English).\n- why: 2-3 sentences for a \"Why do you want to work with us?\" form field, in the ad's language, specific to this company and role."
      },
      {
       "role": "user",
-      "content": "=== CV ===\nDiba CV: two data jobs, SQL -50% reporting time.\n\n=== JOB ===\nTitle: Data Engineer (m/w/d) - Teilzeit\nCompany: Vattenfall GmbH\nPlace: Berlin · home office possible\n\nAufgaben bei 10006: SQL, Python, Dashboards mit Tableau. Deutsch B2. 20 Std./Woche.\nApply: https://apply.example/10006"
+      "content": "=== JOB ===\nTitle: Data Engineer (m/w/d) - Teilzeit\nCompany: Vattenfall GmbH\nPlace: Berlin · home office possible\nReference: 10006\n\nAufgaben bei 10006: SQL, Python, Dashboards mit Tableau. Deutsch B2. 20 Std./Woche.\nApply: https://apply.example/10006\n\n=== STYLE ===\nAbout 160 words in the body. Tone: friendly and professional."
      }
     ]
    }
@@ -6445,11 +6581,53 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "✍️ <b>Cover letter for Diba</b> - Vattenfall GmbH\n\n<pre>Sehr geehrte Damen und Herren - Ihr Dashboard-Team … Mit freundlichen Grüßen</pre>",
+    "text": "✍️ <b>Cover letter for Diba</b> · Vattenfall GmbH\n\n<b>Subject:</b> Bewerbung als Werkstudent Data\n\n<pre>Sehr geehrte Damen und Herren,\n\nIhr Dashboard-Team hat mich angesprochen.\n\nSQL und Python nutze ich täglich.\n\nIch kann 20 Stunden pro Woche arbeiten.\n\nMit freundlichen Grüßen\nDiba Test</pre>\n\n💬 <b>Why us?</b> (for the application form)\n<pre>Weil Ihr Team Daten nutzt.</pre>",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "message_thread_id": 965,
+    "reply_markup": {
+     "inline_keyboard": [
+      [
+       {
+        "text": "✂️ Shorter",
+        "callback_data": "jb:wshort:diba:ba:10006"
+       },
+       {
+        "text": "🎩 More formal",
+        "callback_data": "jb:wformal:diba:ba:10006"
+       },
+       {
+        "text": "😊 More casual",
+        "callback_data": "jb:wcasual:diba:ba:10006"
+       }
+      ],
+      [
+       {
+        "text": "🇬🇧 English",
+        "callback_data": "jb:wen:diba:ba:10006"
+       },
+       {
+        "text": "🔄 New version",
+        "callback_data": "jb:wredo:diba:ba:10006"
+       }
+      ]
+     ]
+    },
     "reply_to_message_id": 7
+   }
+  },
+  {
+   "url": "https://api.telegram.org/botT/sendDocument",
+   "method": "POST",
+   "body": {
+    "chat_id": "-1001234567890",
+    "message_thread_id": "965",
+    "reply_to_message_id": "1127",
+    "caption": "📄 Anschreiben as PDF",
+    "document": {
+     "file": "Anschreiben_Vattenfall_GmbH.pdf",
+     "bytes": 1311
+    }
    }
   },
   {
@@ -6459,7 +6637,7 @@
     "chat_id": "-1001234567890",
     "document": "FILE-D",
     "message_thread_id": 965,
-    "reply_to_message_id": 1125,
+    "reply_to_message_id": 1127,
     "caption": "📎 Diba's CV"
    }
   },
@@ -8104,31 +8282,31 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "message_id": 1161
-   }
-  },
-  {
-   "url": "https://api.telegram.org/botT/deleteMessage",
-   "method": "POST",
-   "body": {
-    "chat_id": "-1001234567890",
-    "message_id": 1162
-   }
-  },
-  {
-   "url": "https://api.telegram.org/botT/deleteMessage",
-   "method": "POST",
-   "body": {
-    "chat_id": "-1001234567890",
-    "message_id": 1163
-   }
-  },
-  {
-   "url": "https://api.telegram.org/botT/deleteMessage",
-   "method": "POST",
-   "body": {
-    "chat_id": "-1001234567890",
     "message_id": 1164
+   }
+  },
+  {
+   "url": "https://api.telegram.org/botT/deleteMessage",
+   "method": "POST",
+   "body": {
+    "chat_id": "-1001234567890",
+    "message_id": 1165
+   }
+  },
+  {
+   "url": "https://api.telegram.org/botT/deleteMessage",
+   "method": "POST",
+   "body": {
+    "chat_id": "-1001234567890",
+    "message_id": 1166
+   }
+  },
+  {
+   "url": "https://api.telegram.org/botT/deleteMessage",
+   "method": "POST",
+   "body": {
+    "chat_id": "-1001234567890",
+    "message_id": 1167
    }
   },
   {
@@ -13171,7 +13349,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1169,
+    "msg_id": 1172,
     "checked_at": 1794207180,
     "approved_at": null,
     "was": null
@@ -13223,7 +13401,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1170,
+    "msg_id": 1173,
     "checked_at": 1794207180,
     "approved_at": null,
     "was": null
@@ -13275,7 +13453,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1171,
+    "msg_id": 1174,
     "checked_at": 1794207780,
     "approved_at": null,
     "was": null
@@ -13301,7 +13479,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1172,
+    "msg_id": 1175,
     "checked_at": 1794207780,
     "approved_at": null,
     "was": null
@@ -13561,6 +13739,18 @@
     "v": "1"
    },
    {
+    "k": "letter:an:acme-working-student-ml:diba",
+    "v": "{\"l\":{\"lang\":\"de\",\"subject\":\"Bewerbung als Werkstudent Data\",\"salutation\":\"Sehr geehrte Damen und Herren,\",\"body\":\"Ihr Dashboard-Team hat mich angesprochen.\\n\\nSQL und Python nutze ich täglich.\\n\\nIch kann 20 Stunden pro Woche arbeiten.\",\"closing\":\"Mit freundlichen Grüßen\",\"why\":\"Weil Ihr Team Daten nutzt.\"},\"pdf\":1094,\"text\":\"Python, English\"}"
+   },
+   {
+    "k": "letter:ba:10006:diba",
+    "v": "{\"l\":{\"lang\":\"de\",\"subject\":\"Bewerbung als Werkstudent Data\",\"salutation\":\"Sehr geehrte Damen und Herren,\",\"body\":\"Ihr Dashboard-Team hat mich angesprochen.\\n\\nSQL und Python nutze ich täglich.\\n\\nIch kann 20 Stunden pro Woche arbeiten.\",\"closing\":\"Mit freundlichen Grüßen\",\"why\":\"Weil Ihr Team Daten nutzt.\"},\"pdf\":1128,\"text\":\"Aufgaben bei 10006: SQL, Python, Dashboards mit Tableau. Deutsch B2. 20 Std./Woche.\\nApply: https://apply.example/10006\"}"
+   },
+   {
+    "k": "letter:ba:10011:arman",
+    "v": "{\"l\":{\"lang\":\"de\",\"subject\":\"Bewerbung als Werkstudent Data\",\"salutation\":\"Sehr geehrte Damen und Herren,\",\"body\":\"Ihr Dashboard-Team hat mich angesprochen.\\n\\nSQL und Python nutze ich täglich.\\n\\nIch kann 20 Stunden pro Woche arbeiten.\",\"closing\":\"Mit freundlichen Grüßen\",\"why\":\"Weil Ihr Team Daten nutzt.\"},\"pdf\":1105,\"text\":\"Aufgaben bei 10011: SQL, Python, Dashboards mit Tableau. Deutsch B2. 20 Std./Woche.\\nApply: https://apply.example/10011\"}"
+   },
+   {
     "k": "outage:bikes",
     "v": "{\"since\":1794213900,\"streak\":1,\"notified\":false}"
    },
@@ -13699,7 +13889,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "bike",
-    "msg_id": 1184,
+    "msg_id": 1187,
     "checked_at": null
    },
    {
@@ -13762,7 +13952,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "bike",
-    "msg_id": 1192,
+    "msg_id": 1195,
     "checked_at": null
    },
    {
@@ -13804,7 +13994,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "bike",
-    "msg_id": 1201,
+    "msg_id": 1204,
     "checked_at": null
    },
    {
@@ -13846,7 +14036,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "bed",
-    "msg_id": 1196,
+    "msg_id": 1199,
     "checked_at": null
    },
    {
@@ -13867,7 +14057,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "kommode",
-    "msg_id": 1197,
+    "msg_id": 1200,
     "checked_at": null
    },
    {
@@ -13930,7 +14120,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "free",
-    "msg_id": 1195,
+    "msg_id": 1198,
     "checked_at": null
    },
    {
@@ -13972,7 +14162,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "carpet",
-    "msg_id": 1194,
+    "msg_id": 1197,
     "checked_at": null
    },
    {
@@ -14014,7 +14204,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "carpet",
-    "msg_id": 1199,
+    "msg_id": 1202,
     "checked_at": null
    },
    {
@@ -14035,7 +14225,7 @@
     "notes": "[\"Size not stated - ask\"]",
     "rating_why": "Cheap",
     "item": "carpet",
-    "msg_id": 1198,
+    "msg_id": 1201,
     "checked_at": null
    },
    {
@@ -14073,7 +14263,7 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1186,
+    "msg_id": 1189,
     "checked_at": null
    },
    {
@@ -14088,7 +14278,7 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1187,
+    "msg_id": 1190,
     "checked_at": null
    },
    {
@@ -14133,7 +14323,7 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1188,
+    "msg_id": 1191,
     "checked_at": null
    }
   ],
@@ -14159,7 +14349,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1193,
+    "msg_id": 1196,
     "checked_at": null,
     "approved_at": null,
     "was": null
@@ -14211,7 +14401,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1180,
+    "msg_id": 1183,
     "checked_at": null,
     "approved_at": null,
     "was": null
@@ -14315,7 +14505,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1181,
+    "msg_id": 1184,
     "checked_at": null,
     "approved_at": null,
     "was": null
@@ -14367,7 +14557,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1182,
+    "msg_id": 1185,
     "checked_at": null,
     "approved_at": null,
     "was": null
@@ -14393,7 +14583,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1189,
+    "msg_id": 1192,
     "checked_at": null,
     "approved_at": null,
     "was": null
@@ -14419,7 +14609,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1190,
+    "msg_id": 1193,
     "checked_at": null,
     "approved_at": null,
     "was": null
@@ -14445,7 +14635,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1191,
+    "msg_id": 1194,
     "checked_at": null,
     "approved_at": null,
     "was": null
@@ -14687,7 +14877,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "bike",
-    "msg_id": 1212,
+    "msg_id": 1215,
     "checked_at": null
    },
    {
@@ -14750,7 +14940,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "bike",
-    "msg_id": 1220,
+    "msg_id": 1223,
     "checked_at": null
    },
    {
@@ -14792,7 +14982,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "bed",
-    "msg_id": 1224,
+    "msg_id": 1227,
     "checked_at": null
    },
    {
@@ -14813,7 +15003,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "kommode",
-    "msg_id": 1225,
+    "msg_id": 1228,
     "checked_at": null
    },
    {
@@ -14876,7 +15066,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "free",
-    "msg_id": 1223,
+    "msg_id": 1226,
     "checked_at": null
    },
    {
@@ -14918,7 +15108,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "carpet",
-    "msg_id": 1222,
+    "msg_id": 1225,
     "checked_at": null
    },
    {
@@ -14960,7 +15150,7 @@
     "notes": "[\"Pickup only\"]",
     "rating_why": "Well kept and close",
     "item": "carpet",
-    "msg_id": 1227,
+    "msg_id": 1230,
     "checked_at": null
    },
    {
@@ -14981,7 +15171,7 @@
     "notes": "[\"Size not stated - ask\"]",
     "rating_why": "Cheap",
     "item": "carpet",
-    "msg_id": 1226,
+    "msg_id": 1229,
     "checked_at": null
    },
    {
@@ -15019,7 +15209,7 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1214,
+    "msg_id": 1217,
     "checked_at": null
    },
    {
@@ -15034,7 +15224,7 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1215,
+    "msg_id": 1218,
     "checked_at": null
    },
    {
@@ -15079,7 +15269,7 @@
     "attempts": 0,
     "first_seen": 1793088420,
     "posted_at": 1793088420,
-    "msg_id": 1216,
+    "msg_id": 1219,
     "checked_at": null
    }
   ],
@@ -15105,7 +15295,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1221,
+    "msg_id": 1224,
     "checked_at": null,
     "approved_at": null,
     "was": null
@@ -15157,7 +15347,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1208,
+    "msg_id": 1211,
     "checked_at": null,
     "approved_at": null,
     "was": null
@@ -15261,7 +15451,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1209,
+    "msg_id": 1212,
     "checked_at": null,
     "approved_at": null,
     "was": null
@@ -15313,7 +15503,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1210,
+    "msg_id": 1213,
     "checked_at": null,
     "approved_at": null,
     "was": null
@@ -15339,7 +15529,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1217,
+    "msg_id": 1220,
     "checked_at": null,
     "approved_at": null,
     "was": null
@@ -15365,7 +15555,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1218,
+    "msg_id": 1221,
     "checked_at": null,
     "approved_at": null,
     "was": null
@@ -15391,7 +15581,7 @@
     "applied_at": null,
     "replied_at": null,
     "reminded": 0,
-    "msg_id": 1219,
+    "msg_id": 1222,
     "checked_at": null,
     "approved_at": null,
     "was": null
