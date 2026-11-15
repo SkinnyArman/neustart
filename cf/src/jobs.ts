@@ -795,7 +795,7 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
   const id = row.id;
 
   // ✍️ a cover letter, and its buttons: shorter, more formal, more casual, the other language, a new one
-  if (act === "letter" || /^w(short|long|formal|casual|de|en|redo|any|tell)$/.test(act)) {
+  if (act === "letter" || /^w(short|long|formal|casual|de|en|redo|any|tell|edit|back|drop|sent)$/.test(act)) {
     await letterButton(env, store, tg, cfg, row, act, who, { answer: (t) => tg.answerCallback(cq.id, t), message: cq.message, from: cq.from?.id });
     return;
   }
@@ -1136,12 +1136,19 @@ export async function sendTracker(db: D1Database, store: Store, tg: Telegram, cf
 
 // ---------------------------------------------------------------- cover letters
 const LETTER_ACTS: [string, string][][] = [[["wshort", "✂️ Shorter"], ["wlong", "📏 Longer"]], [["wformal", "🎩 More formal"], ["wcasual", "😊 More casual"]]];
-const letterKeyboard = (l: Letter, who: string, id: string): Button[][] => [
+/** Under a letter: sent it (into the tracker), change it, or never mind. */
+const letterKeyboard = (_l: Letter, who: string, id: string): Button[][] => [
+  [{ text: "✅ Fine, I sent it", callback_data: buttonData("wsent", who, id) }],
+  [{ text: "✏️ Change the letter", callback_data: buttonData("wedit", who, id) }, { text: "🙅 Never mind", callback_data: buttonData("wdrop", who, id) }],
+];
+/** After ✏️ Change the letter: how. */
+const letterEditKeyboard = (l: Letter, who: string, id: string): Button[][] => [
   ...LETTER_ACTS.map((row) => row.map(([a, label]) => ({ text: label, callback_data: buttonData(a, who, id) }))),
   [l.lang === "de" ? { text: "🇬🇧 English", callback_data: buttonData("wen", who, id) } : { text: "🇩🇪 Deutsch", callback_data: buttonData("wde", who, id) },
    { text: "🔄 New version", callback_data: buttonData("wredo", who, id) }],
   // in their own words: "say I did X", "drop Y", "add Z"
   [{ text: "✏️ Change something", callback_data: buttonData("wtell", who, id) }],
+  [{ text: "⬅️ Back", callback_data: buttonData("wback", who, id) }],
 ];
 const letterMessage = (l: Letter, p: Person, company: string) =>
   `✍️ <b>Cover letter for ${esc(p.name)}</b> · ${esc(company)}\n\n<b>Subject:</b> ${esc(l.subject)}\n\n<pre>${esc(letterText(l, p.full_name))}</pre>` +
@@ -1171,6 +1178,33 @@ async function letterButton(env: JobsEnv, store: Store, tg: Telegram, cfg: Confi
   const resend = act === "wnote";
   if (!fresh && !saved) { await cq.answer("Tap ✍️ Cover letter on the job first"); return; }
   const notes = [...(saved?.notes ?? []), ...(resend && note ? [note.slice(0, 1000)] : [])].slice(-10);
+  const chatId = cq.message?.chat?.id;
+  // ✏️ Change the letter / ⬅️ Back: the same message, the other buttons
+  if (act === "wedit" || act === "wback") {
+    await cq.answer();
+    if (cq.message) try { await tg.editText(chatId!, cq.message.message_id, letterMessage(saved!.l, p, row.company),
+      act === "wedit" ? letterEditKeyboard(saved!.l, w, row.id) : letterKeyboard(saved!.l, w, row.id)); } catch { /* unchanged */ }
+    return;
+  }
+  // 🙅 Never mind: the letter and its PDF come down; the job stays as it is
+  if (act === "wdrop") {
+    await cq.answer("🙅 Letter removed");
+    for (const m of new Set([saved?.msg, saved?.pdf, cq.message?.message_id].filter(Boolean) as number[])) try { await tg.deleteMessage(m); } catch { /* gone */ }
+    await store.kvSet(key, "null");
+    return;
+  }
+  // ✅ Fine, I sent it: into the tracker as applied by them - the job's card turns into its one line with Undo
+  if (act === "wsent") {
+    const t = now();
+    await setJob(env.DB, row.id, { status: "applied", applied_at: t, replied_at: null, person: w, was: JSON.stringify({ status: row.status, person: row.person }), msg_id: null });
+    await cq.answer("✅ Moved to the tracker");
+    if (row.msg_id) try {
+      await tg.editText(chatId ?? tg.chat, row.msg_id, `✅ Ad for <b>${esc(row.title)}</b> at <b>${esc(row.company)}</b> moved to the tracker (applied by ${esc(p.name)}).\n<i>/tracker - all of them</i>`,
+        [[{ text: "↩️ Undo", callback_data: buttonData("undo", "-", row.id) }]]);
+    } catch { /* too old, or gone */ }
+    if (cq.message) try { await tg.editText(chatId!, cq.message.message_id, `${letterMessage(saved!.l, p, row.company)}\n\n✅ <b>Sent</b> · it's in the /tracker`, []); } catch { /* unchanged */ }
+    return;
+  }
   // ✏️ Change something: ask what, as a reply
   if (act === "wtell") {
     await cq.answer();

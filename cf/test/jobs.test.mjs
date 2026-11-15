@@ -219,7 +219,7 @@ await ok("✍️ Cover letter: one call to the better model - her profile and CV
 await ok("…the message: subject, the whole letter to copy, a 'Why us?' for the form, and the buttons", () => {
   const m = letterMsg(calls);
   assert.match(m.body.text, /^✍️ <b>Cover letter for Diba<\/b> · [^\n]+\n\n<b>Subject:<\/b> Bewerbung als Werkstudentin Data Analyst \(Ref\. 10001\)\n\n<pre>Sehr geehrte Damen und Herren,\n\nIhr ETCS-Dashboard[\s\S]*Mit freundlichen Grüßen\nDiba [^<]+<\/pre>\n\n💬 <b>Why us\?<\/b> \(for the application form\)\n<pre>Weil Ihr Team/);
-  assert.deepEqual(m.body.reply_markup.inline_keyboard.map((r) => r.map((b) => b.text)), [["✂️ Shorter", "📏 Longer"], ["🎩 More formal", "😊 More casual"], ["🇬🇧 English", "🔄 New version"], ["✏️ Change something"]]);
+  assert.deepEqual(m.body.reply_markup.inline_keyboard.map((r) => r.map((b) => b.text)), [["✅ Fine, I sent it"], ["✏️ Change the letter", "🙅 Never mind"]]);
   assert.equal(m.body.reply_to_message_id, 7);
 });
 await ok("…and a PDF of it, ready to upload (no CV saved yet, so none sent)", () => {
@@ -247,21 +247,34 @@ await ok("…and once her CV is saved, it comes right under the letter", () => {
   assert.ok(d); assert.equal(d.body.message_thread_id, 965); assert.ok(d.body.reply_to_message_id);
 });
 const lm = letterMsg(calls), lmId = 900;
-const lbtn = (label) => lm.body.reply_markup.inline_keyboard.flat().find((b) => b.text === label).callback_data;
+const mainBtn = (label) => lm.body.reply_markup.inline_keyboard.flat().find((b) => b.text === label).callback_data;
+calls = await press(mainBtn("✏️ Change the letter"), 555, -100, lmId);
+const editKb = calls.find((c) => c.method === "editMessageText").body.reply_markup.inline_keyboard;
+await ok("✏️ Change the letter: the same message shows how - shorter, longer, tone, language, new version, in my own words, back; no AI call", () => {
+  assert.deepEqual(editKb.map((r) => r.map((b) => b.text)), [["✂️ Shorter", "📏 Longer"], ["🎩 More formal", "😊 More casual"], ["🇬🇧 English", "🔄 New version"], ["✏️ Change something"], ["⬅️ Back"]]);
+  assert.equal(calls.find((c) => c.method === "editMessageText").body.message_id, lmId);
+  assert.ok(!calls.some((c) => c.method === "sendDocument"));
+});
+calls = await press(editKb.flat().find((b) => b.text === "⬅️ Back").callback_data, 555, -100, lmId);
+await ok("⬅️ Back: the three choices again", () =>
+  assert.deepEqual(calls.find((c) => c.method === "editMessageText").body.reply_markup.inline_keyboard.flat().map((b) => b.text), ["✅ Fine, I sent it", "✏️ Change the letter", "🙅 Never mind"]));
+const lbtn = (label) => editKb.flat().find((b) => b.text === label).callback_data;
 calls = await press(lbtn("✂️ Shorter"), 555, -100, lmId);
 await ok("✂️ Shorter: the cheap model edits it, the message changes in place, a new PDF replaces the old one", async () => {
   assert.equal(net.edits.at(-1).model, "gpt-5.6-luna"); assert.match(net.edits.at(-1).todo, /noticeably shorter/);
   const e = calls.find((c) => c.method === "editMessageText"); assert.equal(e.body.message_id, lmId); assert.match(e.body.text, /noticeably shorter/);
   assert.ok(calls.some((c) => c.method === "deleteMessage")); assert.ok(pdfOf(calls));
+  assert.deepEqual(e.body.reply_markup.inline_keyboard.flat().map((b) => b.text), ["✅ Fine, I sent it", "✏️ Change the letter", "🙅 Never mind"], "after a change: the three choices");
 });
 await ok("…and it's learned: her next letters aim shorter", async () => assert.deepEqual(JSON.parse(await st.kvGet("letter_style:diba")), { words: 140, tone: 0 }));
 await press(lbtn("😊 More casual"), 555, -100, lmId); await press(lbtn("😊 More casual"), 555, -100, lmId); await press(lbtn("🎩 More formal"), 555, -100, lmId);
 await ok("more casual twice, more formal once: a little casual", async () => assert.equal(JSON.parse(await st.kvGet("letter_style:diba")).tone, -1));
 calls = await press(lbtn("🇬🇧 English"), 555, -100, lmId);
-await ok("🇬🇧 English: rewritten in English; the button now offers Deutsch; the language isn't learned (it follows the ad)", async () => {
+await ok("🇬🇧 English: rewritten in English; its change menu now offers Deutsch; the language isn't learned (it follows the ad)", async () => {
   const e = calls.find((c) => c.method === "editMessageText");
   assert.match(e.body.text, /<pre>Dear Hiring Team,/); assert.match(pdfOf(calls).body.caption, /Cover letter as PDF/);
-  assert.deepEqual(e.body.reply_markup.inline_keyboard[2].map((b) => b.text), ["🇩🇪 Deutsch", "🔄 New version"]);
+  const again = (await press(mainBtn("✏️ Change the letter"), 555, -100, lmId)).find((c) => c.method === "editMessageText");
+  assert.deepEqual(again.body.reply_markup.inline_keyboard[2].map((b) => b.text), ["🇩🇪 Deutsch", "🔄 New version"]);
   assert.deepEqual(JSON.parse(await st.kvGet("letter_style:diba")), { words: 140, tone: -1 });
 });
 calls = await press(lbtn("📏 Longer"), 555, -100, lmId);
@@ -274,6 +287,20 @@ await press(lbtn("✂️ Shorter"), 555, -100, lmId);
 calls = await press(`jb:letter:diba:${analyst}`);
 await ok("the next letter is written to her style: shorter and a little casual", () =>
   assert.match(net.letters.at(-1).user, /About 140 words in the body\. Tone: warm and a little casual\.$/));
+// 🙅 Never mind on a fresh letter: letter and PDF come down, the job stays as it was
+calls = await press(`jb:letter:diba:${analyst}`);
+{
+  const kept = JSON.parse(await st.kvGet(`letter:${analyst}:diba`));
+  const nm = letterMsg(calls).body.reply_markup.inline_keyboard.flat().find((b) => b.text === "🙅 Never mind").callback_data;
+  const statusBefore = row(DB, analyst).status;
+  calls = await press(nm, 555, -100, kept.msg);
+  await ok("🙅 Never mind: the letter and its PDF are deleted, the job stays as it was", async () => {
+    const del = calls.filter((c) => c.method === "deleteMessage").map((c) => c.body.message_id);
+    assert.ok(del.includes(kept.msg) && del.includes(kept.pdf), JSON.stringify(del));
+    assert.equal(row(DB, analyst).status, statusBefore);
+    assert.equal(await st.kvGet(`letter:${analyst}:diba`), "null");
+  });
+}
 calls = await press(`jb:wshort:diba:ba:10004`);
 await ok("a letter button on a job without a letter yet says what to do", () =>
   assert.match(calls.find((c) => c.method === "answerCallbackQuery").body.text, /Tap ✍️ Cover letter on the job first/));
@@ -977,10 +1004,12 @@ console.log("\n13. ✏️ Change something: the letter rewritten from what they 
   const saved = async () => JSON.parse(await stc.kvGet("letter:ba:ch1:diba"));
   const { msg: letterAt, pdf: pdfAt } = await saved();
   const letter = sentOf(c, /Cover letter for Diba/);
-  await ok("the letter has ✏️ Change something under its other buttons", () => {
-    assert.deepEqual(letter.body.reply_markup.inline_keyboard.at(-1).map((b) => b.text), ["✏️ Change something"]);
+  const menu = (await tap(letter.body.reply_markup.inline_keyboard.flat().find((b) => b.text === "✏️ Change the letter").callback_data, letterAt))
+    .find((x) => x.method === "editMessageText").body.reply_markup.inline_keyboard;
+  await ok("its change menu has ✏️ Change something (in their own words) above ⬅️ Back", () => {
+    assert.deepEqual(menu.at(-2).map((b) => b.text), ["✏️ Change something"]); assert.deepEqual(menu.at(-1).map((b) => b.text), ["⬅️ Back"]);
   });
-  c = await tap(letter.body.reply_markup.inline_keyboard.at(-1)[0].callback_data, letterAt);
+  c = await tap(menu.at(-2)[0].callback_data, letterAt);
   const askAt = msgId;
   await ok("✏️ asks what should change, as a reply, with examples; no AI call yet", () => {
     assert.match(sentOf(c, /What should change/).body.text, /Reply to this message in your own words/);
@@ -1024,7 +1053,21 @@ console.log("\n13. ✏️ Change something: the letter rewritten from what they 
     assert.equal(net.letters.length, letters + 1);
     assert.match(net.letters.at(-1).user, /FROM THE APPLICANT[\s\S]*Churn-Modell[\s\S]*A\/B-Tests/);
   });
-
+  const at = (await saved()).msg;
+  c = await tap("jb:wsent:diba:ba:ch1", at);
+  await ok("✅ Fine, I sent it: in the tracker as applied by her; the job card turns into its one line with Undo; the letter says Sent", () => {
+    const r = DBc.raw.prepare("SELECT status, person, applied_at, msg_id FROM jobs WHERE id='ba:ch1'").get();
+    assert.deepEqual([r.status, r.person, r.msg_id], ["applied", "diba", null]); assert.ok(r.applied_at);
+    const card = c.find((x) => x.method === "editMessageText" && x.body.message_id === 1201);
+    assert.match(card.body.text, /^✅ Ad for <b>Werkstudent Data \(m\/w\/d\)<\/b> at <b>Change GmbH<\/b> moved to the tracker \(applied by Diba\)/);
+    assert.deepEqual(card.body.reply_markup.inline_keyboard.flat().map((b) => b.text), ["↩️ Undo"]);
+    const l = c.find((x) => x.method === "editMessageText" && x.body.message_id === at);
+    assert.match(l.body.text, /✅ <b>Sent<\/b> · it's in the \/tracker$/); assert.deepEqual(l.body.reply_markup.inline_keyboard, []);
+    assert.match(c.find((x) => x.method === "answerCallbackQuery").body.text, /Moved to the tracker/);
+  });
+  c = await tap("jb:undo:-:ba:ch1", 1201);
+  await ok("…and its Undo puts the job back where it was", () =>
+    assert.equal(DBc.raw.prepare("SELECT status FROM jobs WHERE id='ba:ch1'").get().status, "posted"));
 }
 
 console.log("\n12. how far: only jobs an all-of-Germany search found");

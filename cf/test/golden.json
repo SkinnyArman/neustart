@@ -5812,38 +5812,18 @@
      "inline_keyboard": [
       [
        {
-        "text": "✂️ Shorter",
-        "callback_data": "jb:wshort:diba:an:acme-working-student-ml"
-       },
-       {
-        "text": "📏 Longer",
-        "callback_data": "jb:wlong:diba:an:acme-working-student-ml"
+        "text": "✅ Fine, I sent it",
+        "callback_data": "jb:wsent:diba:an:acme-working-student-ml"
        }
       ],
       [
        {
-        "text": "🎩 More formal",
-        "callback_data": "jb:wformal:diba:an:acme-working-student-ml"
+        "text": "✏️ Change the letter",
+        "callback_data": "jb:wedit:diba:an:acme-working-student-ml"
        },
        {
-        "text": "😊 More casual",
-        "callback_data": "jb:wcasual:diba:an:acme-working-student-ml"
-       }
-      ],
-      [
-       {
-        "text": "🇬🇧 English",
-        "callback_data": "jb:wen:diba:an:acme-working-student-ml"
-       },
-       {
-        "text": "🔄 New version",
-        "callback_data": "jb:wredo:diba:an:acme-working-student-ml"
-       }
-      ],
-      [
-       {
-        "text": "✏️ Change something",
-        "callback_data": "jb:wtell:diba:an:acme-working-student-ml"
+        "text": "🙅 Never mind",
+        "callback_data": "jb:wdrop:diba:an:acme-working-student-ml"
        }
       ]
      ]
@@ -6140,38 +6120,18 @@
      "inline_keyboard": [
       [
        {
-        "text": "✂️ Shorter",
-        "callback_data": "jb:wshort:arman:ba:10011"
-       },
-       {
-        "text": "📏 Longer",
-        "callback_data": "jb:wlong:arman:ba:10011"
+        "text": "✅ Fine, I sent it",
+        "callback_data": "jb:wsent:arman:ba:10011"
        }
       ],
       [
        {
-        "text": "🎩 More formal",
-        "callback_data": "jb:wformal:arman:ba:10011"
+        "text": "✏️ Change the letter",
+        "callback_data": "jb:wedit:arman:ba:10011"
        },
        {
-        "text": "😊 More casual",
-        "callback_data": "jb:wcasual:arman:ba:10011"
-       }
-      ],
-      [
-       {
-        "text": "🇬🇧 English",
-        "callback_data": "jb:wen:arman:ba:10011"
-       },
-       {
-        "text": "🔄 New version",
-        "callback_data": "jb:wredo:arman:ba:10011"
-       }
-      ],
-      [
-       {
-        "text": "✏️ Change something",
-        "callback_data": "jb:wtell:arman:ba:10011"
+        "text": "🙅 Never mind",
+        "callback_data": "jb:wdrop:arman:ba:10011"
        }
       ]
      ]
@@ -6642,38 +6602,18 @@
      "inline_keyboard": [
       [
        {
-        "text": "✂️ Shorter",
-        "callback_data": "jb:wshort:diba:ba:10006"
-       },
-       {
-        "text": "📏 Longer",
-        "callback_data": "jb:wlong:diba:ba:10006"
+        "text": "✅ Fine, I sent it",
+        "callback_data": "jb:wsent:diba:ba:10006"
        }
       ],
       [
        {
-        "text": "🎩 More formal",
-        "callback_data": "jb:wformal:diba:ba:10006"
+        "text": "✏️ Change the letter",
+        "callback_data": "jb:wedit:diba:ba:10006"
        },
        {
-        "text": "😊 More casual",
-        "callback_data": "jb:wcasual:diba:ba:10006"
-       }
-      ],
-      [
-       {
-        "text": "🇬🇧 English",
-        "callback_data": "jb:wen:diba:ba:10006"
-       },
-       {
-        "text": "🔄 New version",
-        "callback_data": "jb:wredo:diba:ba:10006"
-       }
-      ],
-      [
-       {
-        "text": "✏️ Change something",
-        "callback_data": "jb:wtell:diba:ba:10006"
+        "text": "🙅 Never mind",
+        "callback_data": "jb:wdrop:diba:ba:10006"
        }
       ]
      ]
