@@ -13401,6 +13401,7 @@
     "msg_id": 1021,
     "checked_at": null,
     "approved_at": null,
+    "wide": 1,
     "was": "{\"status\":\"posted\",\"person\":\"diba\"}"
    },
    {
@@ -13427,6 +13428,7 @@
     "msg_id": 1022,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": "{\"status\":\"posted\",\"person\":\"arman\"}"
    },
    {
@@ -13453,6 +13455,7 @@
     "msg_id": 1008,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": "{\"status\":\"posted\",\"person\":\"diba\"}"
    },
    {
@@ -13479,6 +13482,7 @@
     "msg_id": null,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -13505,6 +13509,7 @@
     "msg_id": 1172,
     "checked_at": 1794207180,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -13531,6 +13536,7 @@
     "msg_id": null,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -13557,6 +13563,7 @@
     "msg_id": 1173,
     "checked_at": 1794207180,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -13583,6 +13590,7 @@
     "msg_id": null,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -13609,6 +13617,7 @@
     "msg_id": 1174,
     "checked_at": 1794207780,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -13635,6 +13644,7 @@
     "msg_id": 1175,
     "checked_at": 1794207780,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -13661,6 +13671,7 @@
     "msg_id": 1019,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": "{\"status\":\"posted\",\"person\":\"both\"}"
    },
    {
@@ -13687,6 +13698,7 @@
     "msg_id": null,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    }
   ],
@@ -14505,6 +14517,7 @@
     "msg_id": 1196,
     "checked_at": null,
     "approved_at": null,
+    "wide": 1,
     "was": null
    },
    {
@@ -14531,6 +14544,7 @@
     "msg_id": null,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -14557,6 +14571,7 @@
     "msg_id": 1183,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -14583,6 +14598,7 @@
     "msg_id": null,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -14609,6 +14625,7 @@
     "msg_id": null,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -14635,6 +14652,7 @@
     "msg_id": null,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -14661,6 +14679,7 @@
     "msg_id": 1184,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -14687,6 +14706,7 @@
     "msg_id": null,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -14713,6 +14733,7 @@
     "msg_id": 1185,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -14739,6 +14760,7 @@
     "msg_id": 1192,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -14765,6 +14787,7 @@
     "msg_id": 1193,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -14791,6 +14814,7 @@
     "msg_id": 1194,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    }
   ],
@@ -15451,6 +15475,7 @@
     "msg_id": 1224,
     "checked_at": null,
     "approved_at": null,
+    "wide": 1,
     "was": null
    },
    {
@@ -15477,6 +15502,7 @@
     "msg_id": null,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -15503,6 +15529,7 @@
     "msg_id": 1211,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -15529,6 +15556,7 @@
     "msg_id": null,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -15555,6 +15583,7 @@
     "msg_id": null,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -15581,6 +15610,7 @@
     "msg_id": null,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -15607,6 +15637,7 @@
     "msg_id": 1212,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -15633,6 +15664,7 @@
     "msg_id": null,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -15659,6 +15691,7 @@
     "msg_id": 1213,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -15685,6 +15718,7 @@
     "msg_id": 1220,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -15711,6 +15745,7 @@
     "msg_id": 1221,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    },
    {
@@ -15737,6 +15772,7 @@
     "msg_id": 1222,
     "checked_at": null,
     "approved_at": null,
+    "wide": 0,
     "was": null
    }
   ],

@@ -1027,4 +1027,20 @@ console.log("\n13. ✏️ Change something: the letter rewritten from what they 
 
 }
 
+console.log("\n12. how far: only jobs an all-of-Germany search found");
+await ok("an office job far away from an all-of-Germany search is left out; remote ones, the cities and the cities close by aren't", () => {
+  const j = normalize({ ...CONFIG, jobs: { ...CONFIG.jobs, near: ["Dresden"] } }).jobs;
+  const far = (place, extra = {}, f = {}) => J.tooFar({ place, remote: 0, text: "", wide: 1, ...extra }, f, j);
+  assert.equal(far("Nürnberg"), "on-site in Nürnberg");
+  assert.equal(far("München · hybrid", {}, { onsite: "hybrid, 2 days/week in Munich" }), "on-site in München");
+  assert.equal(far("München", {}, { onsite: "fully remote" }), null);
+  assert.equal(far("München · remote", { remote: 1, text: "Fully remote team" }), null);
+  assert.equal(far("Dresden · hybrid"), null); assert.equal(far("Berlin"), null); assert.equal(far("Germany"), null);
+  assert.equal(J.tooFar({ place: "Schönefeld", remote: 0, text: "", wide: 0 }, {}, j), null, "a city search's suburb stays");
+});
+await ok("the all-of-Germany searches mark what they find", () => {
+  const WSJ = { data: [{ id: "r1", title: "Werkstudent Data", company: { name: "X" }, location: { city: "Hamburg" }, url: "u", types: ["working_student"], working_mode: "remote", details: {} }] };
+  assert.equal(J.parseWsj(WSJ, "remote")[0].wide, true); assert.equal(J.parseWsj(WSJ, "all")[0].wide, false);
+});
+
 console.log(`\nall ${pass} jobs checks passed`);

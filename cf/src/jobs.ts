@@ -140,6 +140,7 @@ const COLUMNS: Record<string, string> = {
   replied_at: "INTEGER", reminded: "INTEGER NOT NULL DEFAULT 0", msg_id: "INTEGER",
   checked_at: "INTEGER",         // when a posted job was last looked up again
   approved_at: "INTEGER",        // put on the waiting list (🔖 Apply later)
+  wide: "INTEGER",               // found by an all-of-Germany search (remote ones): its place gets checked
   was: "TEXT",                   // JSON {status, person} before the last button: what ↩️ Undo goes back to
 };
 const ready = new WeakSet<D1Database>();
@@ -160,7 +161,7 @@ export interface JobRow {
   url: string; remote: number; kind: string | null; text: string | null; status: string;
   why: string | null; person: string | null; facts: string | null; attempts: number;
   first_seen: number; posted_at: number | null; applied_at: number | null;
-  replied_at: number | null; reminded: number; msg_id: number | null; approved_at?: number | null; was?: string | null;
+  replied_at: number | null; reminded: number; msg_id: number | null; approved_at?: number | null; was?: string | null; wide?: number | null;
 }
 interface Facts {
   for: string;   // a person's id, everyone ("both"/"all"), some ("a,b"), or "none"
@@ -185,7 +186,7 @@ async function takeLock(db: D1Database): Promise<boolean> {
 }
 
 // ---------------------------------------------------------------- fetching
-interface Found { id: string; source: string; title: string; company: string; place: string; url: string; remote: boolean; kind: string; text?: string }
+interface Found { id: string; source: string; title: string; company: string; place: string; url: string; remote: boolean; kind: string; text?: string; wide?: boolean }
 
 // ---------------------------------------------------------------- workingstudentjobs.de
 // A public JSON feed of Werkstudent jobs and internships: the newest 100 per
@@ -220,6 +221,7 @@ export function wsjText(x: any): string {
     d.start?.asap ? "Start: as soon as possible." : d.start?.date ? `Start: ${d.start.date}.` : ""].filter(Boolean).join("\n");
 }
 export function parseWsj(json: any, keep: "all" | "hybrid" | "remote"): Found[] {
+  const wide = keep === "remote";
   return (Array.isArray(json?.data) ? json.data : [])
     .filter((x: any) => keep === "all" || x.working_mode === "remote" || (keep === "hybrid" && x.working_mode === "hybrid"))
     .map((x: any) => ({
@@ -227,7 +229,7 @@ export function parseWsj(json: any, keep: "all" | "hybrid" | "remote"): Found[] 
       place: [x.location?.city, x.working_mode === "onsite" ? "" : x.working_mode].filter(Boolean).join(" · "),
       // the employer's own page: where she applies, and where the full ad is (the listing's page needs a browser)
       url: String(x.apply_url || x.url || ""), remote: x.working_mode === "remote",
-      kind: (x.types ?? []).includes("internship") ? "internship" : "werkstudent", text: wsjText(x),
+      kind: (x.types ?? []).includes("internship") ? "internship" : "werkstudent", text: wsjText(x), wide,
     }));
 }
 async function fetchWsj(store: Store, j: Jobs): Promise<[string, Found[]]> {
@@ -249,6 +251,7 @@ async function fetchBA(q: { q: string; wo: string; r: number }): Promise<Found[]
   const d = (await r.json()) as any;
   return (d.ergebnisliste ?? [])
     .filter((j: any) => !["AUSBILDUNG", "SELBSTAENDIGKEIT"].includes(j.stellenangebotsart) && (q.wo || j.homeofficemoeglich))
+    .map((j: any) => ({ ...j, _wide: !q.wo }))
     .map((j: any) => {
       const loc = j.stellenlokationen?.[0]?.adresse ?? {};
       return {
@@ -257,6 +260,7 @@ async function fetchBA(q: { q: string; wo: string; r: number }): Promise<Found[]
         url: `https://www.arbeitsagentur.de/jobsuche/jobdetail/${encodeURIComponent(j.referenznummer)}`,
         remote: !!j.homeofficemoeglich,
         kind: j.stellenangebotsart === "PRAKTIKUM_TRAINEE" ? "student/intern" : j.arbeitszeitVollzeit ? "full-time" : "",
+        wide: !!j._wide,
       };
     });
 }
@@ -284,6 +288,7 @@ async function fetchArbeitnow(jobs: Jobs): Promise<Found[]> {
     .filter((j: any) => (jobs.remote && j.remote) || here.test(j.location ?? "")
       || (jobs.remote && near?.test(j.location ?? "") && hybrid.test(String(j.description ?? ""))))
     .map((j: any) => ({
+      wide: !here.test(j.location ?? "") && !near?.test(j.location ?? ""),
       id: "an:" + j.slug, source: "Arbeitnow", title: j.title ?? "", company: j.company_name ?? "",
       place: [j.location, j.remote ? "remote" : ""].filter(Boolean).join(" · "), url: j.url,
       remote: !!j.remote, kind: (j.job_types ?? []).join(", "), text: strip(j.description ?? ""),
@@ -460,10 +465,10 @@ async function saveFound(db: D1Database, j: Jobs, active: string[], found: Found
     const why = jobRejectReason(f.title, j, active, f.kind);
     if (!why) keep++;
     await db.prepare(
-      `INSERT OR IGNORE INTO jobs (id,dkey,source,title,company,place,url,remote,kind,text,status,why,first_seen)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      `INSERT OR IGNORE INTO jobs (id,dkey,source,title,company,place,url,remote,kind,text,status,why,first_seen,wide)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
       .bind(f.id, dkey, f.source, f.title, f.company, f.place, f.url, f.remote ? 1 : 0, f.kind,
-            f.text ? f.text.slice(0, 6000) : null, why ? "skipped" : "new", why, now()).run();
+            f.text ? f.text.slice(0, 6000) : null, why ? "skipped" : "new", why, now(), f.wide ? 1 : 0).run();
   }
   return { fresh, keep };
 }
@@ -510,7 +515,7 @@ export async function ingestJobs(db: D1Database, store: Store, body: any): Promi
   const found: Found[] = list.map((f: any) => ({
     id: f.id, source: String(f.source ?? "outside").slice(0, 30), title: f.title.slice(0, 300), company: f.company.slice(0, 200),
     place: String(f.place ?? "").slice(0, 200), url: String(f.url ?? "").slice(0, 500), remote: !!f.remote,
-    kind: String(f.kind ?? "").slice(0, 100), text: f.text ? String(f.text).slice(0, 6000) : undefined,
+    kind: String(f.kind ?? "").slice(0, 100), text: f.text ? String(f.text).slice(0, 6000) : undefined, wide: f.wide === true,
   }));
   return { status: 200, json: await saveFound(db, cfg.jobs, await activePeople(store, cfg.jobs), found) };
 }
@@ -532,6 +537,9 @@ async function assess(env: JobsEnv, store: Store, tg: Telegram, j: Jobs): Promis
       const f = await match(env, j, p, row, text, active);
       await aiWorked(store);
       if (f.for === "none") { none++; await setJob(db, row.id, { status: "skipped", why: `ai: ${f.reason || "not a fit"}`, text: text ? text.slice(0, 6000) : null }); continue; }
+      // in a city too far away and not fully remote: left out (the matcher sometimes lets these through)
+      const far = j.remote ? tooFar(row, f, j) : null;
+      if (far) { none++; await setJob(db, row.id, { status: "skipped", why: far, person: f.for, kind: f.kind, facts: JSON.stringify(f), text: text.slice(0, 6000) }); continue; }
       // more German than anyone it's for can work in: left out
       const g = fitsGerman({ person: f.for, facts: JSON.stringify(f), text, title: row.title }, j, limits);
       if (!g.keep.length) { none++; await setJob(db, row.id, { status: "skipped", why: g.why, person: f.for, kind: f.kind, facts: JSON.stringify(f), text: text ? text.slice(0, 6000) : null }); continue; }
@@ -860,6 +868,30 @@ export function workMode(row: Pick<JobRow, "remote" | "place" | "text" | "title"
   if (row.remote || /\bremote\b|100 ?% remote|fully remote|vollständig remote/.test(t)) return "remote";
   return "on-site";
 }
+// ---------------------------------------------------------------- where
+const fold = (s: string) => s.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
+/**
+ * Too far: a job in another city that isn't fully remote. Their cities and
+ * the ones close by are fine (hybrid too); elsewhere only a job the listing
+ * or the ad calls fully remote. Checked in code - the matcher is told the
+ * same, but doesn't always keep to it. Null when it fits.
+ */
+export function tooFar(r: Pick<JobRow, "place" | "remote" | "text"> & { title?: string; wide?: number | null }, f: Partial<Facts>, j: Jobs): string | null {
+  // only jobs an all-of-Germany search found: a city search's suburbs (Schönefeld near Berlin) are fine
+  if (!r.wide) return null;
+  const place = (r.place ?? "").trim();
+  const city = place.split(/[,·(|]/)[0].trim();
+  if (!city || /^(germany|deutschland|remote|bundesweit|deutschlandweit)$/i.test(city)) return null;
+  const ok = [...j.cities.map((c) => c.name), ...j.near].map(fold);
+  if (ok.some((c) => fold(place).includes(c))) return null;
+  const onsite = fold(f.onsite ?? "");
+  // fully remote: the AI read it in the ad, or the listing says so (not just "home office possible")
+  const remote = /fully remote|100 ?% remote|vollstaendig remote|komplett remote|ortsunabhaengig|^remote\b/.test(onsite)
+    || (!onsite && (r.remote === 1 || /\bremote\b/i.test(place)) && /\bremote\b|ortsunabhängig|homeoffice|home office/i.test(`${place} ${r.text ?? ""}`) && !/hybrid/i.test(place));
+  if (remote && !/hybrid|days?\/week|tage?\/woche|vor ort|on-site [0-9]|weekly/.test(onsite)) return null;
+  return `on-site in ${city}`;
+}
+
 // ---------------------------------------------------------------- other languages
 // a job that needs a language the person doesn't speak: "(Spanish Speaker)", "Working Student with Thai", "fluent French required"
 export const LANGS: Record<string, RegExp> = {
@@ -924,6 +956,13 @@ async function enforceGerman(db: D1Database, store: Store, tg: Telegram, cfg: Co
   const { results } = await db.prepare("SELECT * FROM jobs WHERE status IN ('ready','posted','approved')").all<JobRow>();
   let n = 0;
   for (const r of results ?? []) {
+    const far = cfg.jobs.remote ? tooFar(r, r.facts ? JSON.parse(r.facts) : {}, cfg.jobs) : null;
+    if (far) {
+      if (r.msg_id) try { await tg.deleteMessage(r.msg_id); } catch { /* gone, or older than 48 h */ }
+      await setJob(db, r.id, { status: "skipped", why: far, msg_id: null });
+      n++;
+      continue;
+    }
     const g = fitsGerman(r, cfg.jobs, limits);
     if (g.keep.length === peopleOf(cfg.jobs, r.person).length) continue;
     if (g.keep.length) { await setJob(db, r.id, { person: personOf(cfg.jobs, g.keep, r.person) }); continue; }

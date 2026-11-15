@@ -123,7 +123,7 @@ export async function run(cfg, { fetch, sleep, now, state = STATE, env, log = ()
       const jobs = parseSearch(html).filter((c) => !seen.has(c.id)).map((c) => {
         seen.add(c.id);
         return { id: `li:${c.id}`, source: "LinkedIn", title: c.title, company: c.company, place: c.place,
-          url: `https://www.linkedin.com/jobs/view/${c.id}`, remote: /remote/i.test(c.place), kind: "" };
+          url: `https://www.linkedin.com/jobs/view/${c.id}`, remote: /remote/i.test(c.place), kind: "", wide: !!q.remote };
       });
       p.found += jobs.length;
       if (jobs.length) {
