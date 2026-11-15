@@ -54,6 +54,29 @@ const LEAD = /objektleit|teamleit|schichtleit|filialleit|marktleit|bereichsleit|
 const FULL_TIME = /vollzeit|full[- ]?time/;
 const CASUAL = /mini-?job|aushilf|teilzeit|nebenjob|werkstudent/;
 
+/**
+ * The age range an ad asks for - "18-20 Jahre", "zwischen 35 und 45 Jahren",
+ * "age 35–45", "ab 50 Jahren", "unter 25" - or null when it names none.
+ */
+export function ageRange(text: string): [number, number] | null {
+  const t = text.toLowerCase();
+  const AGE = "(?:jahre?n?|j\\.|years?|yrs|alt|alter|age)";
+  const m = new RegExp(`(?:alter|age|zwischen|between)?\\s*(\\d{2})\\s*(?:-|–|—|bis|to|und|and)\\s*(\\d{2})\\s*${AGE}`).exec(t)
+    ?? new RegExp(`(?:alter|age)\\s*:?\\s*(\\d{2})\\s*(?:-|–|—|bis|to)\\s*(\\d{2})`).exec(t);
+  if (m) { const a = Number(m[1]), b = Number(m[2]); if (a >= 14 && b <= 99 && a <= b) return [a, b]; }
+  const from = new RegExp(`(?:ab|from|über|ueber|over)\\s*(\\d{2})\\s*${AGE}`).exec(t);
+  if (from && Number(from[1]) >= 25) return [Number(from[1]), 99];
+  const until = new RegExp(`(?:unter|bis|under|younger than)\\s*(\\d{2})\\s*${AGE}`).exec(t);
+  if (until && Number(until[1]) <= 30) return [14, Number(until[1]) - (/unter|under|younger/.test(until[0]) ? 1 : 0)];
+  return null;
+}
+/** "for 18-20" when the ad's age range fits nobody who's looking, else null. */
+export function ageReason(text: string, ages: number[]): string | null {
+  if (!ages.length) return null;
+  const r = ageRange(text);
+  return r && !ages.some((a) => a >= r[0] && a <= r[1]) ? `for ages ${r[0]}-${r[1] === 99 ? "" : r[1]}`.replace(/-$/, "+") : null;
+}
+
 /** Why a casual job is left out, by its title, or null. */
 export function casualRejectReason(title: string): string | null {
   const t = title.toLowerCase();
@@ -160,7 +183,7 @@ export async function casualStep(env: CasualEnv, store: Store, tg: Telegram): Pr
   }
   if (src.includes("kleinanzeigen") && now() - Number((await store.kvGet("casual_ka_at")) ?? 0) >= KA_EVERY)
     did.push(await searchKleinanzeigen(db, store, w, cfg));
-  const ruled = await takeDownRuledOut(db, tg);
+  const ruled = await takeDownRuledOut(db, tg, cfg.casual_jobs.ages);
   if (ruled) did.push(`${ruled} taken down by a rule`);
   const gone = await recheck(db, store, tg);
   if (gone) did.push(`${gone} no longer listed`);
@@ -429,6 +452,8 @@ async function post(env: CasualEnv, store: Store, tg: Telegram, cfg: Config, w: 
         const html = await get(KA_BASE + row.id.slice(3), kaJar(store));
         const [text] = kaParseAd(html);
         if (!text && html.includes("data-adid=")) { await setRow(db, row.id, { status: "skipped", why: "gone" }); continue; }
+        const old = ageReason(`${row.title}\n${text}`, cfg.casual_jobs.ages);
+        if (old) { await setRow(db, row.id, { status: "skipped", why: old }); continue; }
         const v = await verdictFor(env, store, tg, cfg, { title: row.title, company: "", place: row.place, pay: payOf({}, `${row.title}\n${text}`), times: "", text });
         const sent = await tg.send(kaJobCard(row, text, v), inTopic(await topicOf(cfg, store, tg, "casual_jobs")));
         await setRow(db, row.id, { status: "posted", posted_at: now(), msg_id: sent?.result?.message_id ?? null, pay: payOf({}, `${row.title}\n${text}`) || null });
@@ -448,6 +473,8 @@ async function post(env: CasualEnv, store: Store, tg: Telegram, cfg: Config, w: 
       if (!r.ok) throw new Error(`Jobbörse details ${r.status}`);
       const d: any = await r.json();
       const text = describe(d?.stellenangebotsBeschreibung ?? "");
+      const old = ageReason(`${row.title}\n${text}`, cfg.casual_jobs.ages);
+      if (old) { await setRow(db, row.id, { status: "skipped", why: old }); continue; }
       const v = await verdictFor(env, store, tg, cfg, { title: row.title, company: row.company, place: row.place,
         pay: payOf(d, text), times: TIMES.filter(([k]) => d?.[k]).map(([, x]) => x).join(", ") + (row.id.startsWith("bt:") ? " (part-time)" : ""), text });
       const sent = await tg.send(casualCard(row, d, v), inTopic(await topicOf(cfg, store, tg, "casual_jobs")));
@@ -512,12 +539,13 @@ async function recheck(db: D1Database, store: Store, tg: Telegram): Promise<numb
  * Posted cards a title rule now leaves out (one added after they went out,
  * like lead roles): the message is deleted and the job skipped. No fetching.
  */
-async function takeDownRuledOut(db: D1Database, tg: Telegram): Promise<number> {
+async function takeDownRuledOut(db: D1Database, tg: Telegram, ages: number[] = []): Promise<number> {
   const { results } = await db.prepare("SELECT id, title, msg_id FROM casual WHERE status='posted'")
     .all<{ id: string; title: string; msg_id: number | null }>();
   let n = 0;
   for (const r of results ?? []) {
-    const why = r.id.startsWith("bt:") ? partTimeRejectReason(r.title) : r.id.startsWith("kj:") ? kaJobRejectReason(r.title) : casualRejectReason(r.title);
+    const why = (r.id.startsWith("bt:") ? partTimeRejectReason(r.title) : r.id.startsWith("kj:") ? kaJobRejectReason(r.title) : casualRejectReason(r.title))
+      ?? ageReason(r.title, ages);
     if (!why) continue;
     if (r.msg_id) try { await tg.deleteMessage(r.msg_id); } catch { /* already gone, or older than 48 h */ }
     await setRow(db, r.id, { status: "skipped", why, msg_id: null });

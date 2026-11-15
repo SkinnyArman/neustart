@@ -73,7 +73,7 @@ export interface Config {
     // daily nudges to apply to one career-centered job (nudge.ts), one per person who has one; /nudge changes them
     nudges: { person: string; mention: string; at: string }[];
   };
-  casual_jobs: { radius_km: number; only_city: boolean; sources: CasualSource[]; worth_it: boolean };
+  casual_jobs: { radius_km: number; only_city: boolean; sources: CasualSource[]; worth_it: boolean; ages: number[] };   // ages: who's looking (an ad for other ages is left out)
   events: {
     culture: boolean; career: boolean;   // the topics; sport only when asked for
     sport: boolean;
@@ -243,6 +243,7 @@ export function normalize(raw: unknown): Config {
     casual_jobs: {
       radius_km: num(r.casual_jobs?.radius_km, 25), only_city: bool(r.casual_jobs?.only_city, false),
       worth_it: bool(r.casual_jobs?.worth_it, false),
+      ages: (Array.isArray(r.casual_jobs?.ages) ? r.casual_jobs.ages : []).map(Number).filter((n: number) => n >= 14 && n <= 99),
       sources: ((s) => (s.length ? s : ["minijobs" as CasualSource]))(list(r.casual_jobs?.sources).filter((x): x is CasualSource => CASUAL_SOURCES.includes(x as CasualSource))),
     },
   };

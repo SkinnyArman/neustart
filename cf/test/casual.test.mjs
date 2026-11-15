@@ -89,6 +89,16 @@ await ok("trades, licences, apprenticeships and plain full-time titles are left 
     "Alltagsbegleiter (m/w/d) Minijob", "Schulbegleiter als Aushilfe"])
     assert.equal(C.casualRejectReason(t), null, t);
 });
+await ok("an ad for other ages is left out: 18-20, 35-45, 60+; 18-30 fits 24 and 26; prices aren't ages", () => {
+  const A = [24, 26];
+  assert.equal(C.ageReason("18-20 Jahre? Verdiene Geld mit kurzen Checks in 03051 Cottbus", A), "for ages 18-20");
+  assert.equal(C.ageReason("Studie für Personen zwischen 35 und 45 Jahren", A), "for ages 35-45");
+  assert.equal(C.ageReason("Participants age 35–45, 2 hours", A), "for ages 35-45");
+  assert.equal(C.ageReason("Rentner ab 60 Jahren gesucht", A), "for ages 60+");
+  assert.equal(C.ageReason("Aushilfe 18 bis 30 Jahre", A), null);
+  assert.equal(C.ageReason("Minijob, 12-15 € pro Stunde, 20 Stunden", A), null);
+  assert.equal(C.ageReason("18-20 Jahre", []), null, "no ages in the config: no check");
+});
 await ok("lead roles are left out: they want training and experience, not a student on the side", () => {
   for (const t of ["Objektleiter Reinigung (m/w/d) ab 19,00 €/h", "Teamleiter Lager (m/w/d) Teilzeit", "Schichtleitung Gastronomie Minijob",
     "Stellv. Filialleiter (m/w/d) Teilzeit", "Vorarbeiter Reinigung (m/w/d)", "Shift Manager (m/w/d) Teilzeit", "Supervisor Sicherheitsdienst"])
