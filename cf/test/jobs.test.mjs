@@ -1086,4 +1086,42 @@ await ok("the all-of-Germany searches mark what they find", () => {
   assert.equal(J.parseWsj(WSJ, "remote")[0].wide, true); assert.equal(J.parseWsj(WSJ, "all")[0].wide, false);
 });
 
+console.log("\n14. a long ad Telegram split in parts: one letter from all of it");
+{
+  const [DBs, sts, Es] = await fresh();
+  await J.jobsStep(Es, sts, tg);                                  // makes the table
+  const t0 = Math.floor(Date.now() / 1000);
+  DBs.raw.prepare("INSERT INTO jobs (id, dkey, source, title, company, place, url, remote, kind, text, status, person, facts, first_seen, posted_at, msg_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    .run("ba:sp1", "sp1", "Jobbörse", "Werkstudent Analytics (m/w/d)", "Split AG", "Berlin", "https://x/sp1", 0, "werkstudent",
+      "kurz", "posted", "diba", JSON.stringify({ kind: "werkstudent", german: "B2", skills: ["SQL"] }), t0, t0, 1301);
+  J.PASTE.waitMs = 30;
+  const waits = [];
+  const ctx = { waitUntil: (p) => waits.push(p) };
+  const post = async (body) => { await worker.fetch(new Request("https://w/", { method: "POST",
+    headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" }, body: JSON.stringify(body) }), Es, ctx); };
+  const msg = (message_id, text, reply_to) => ({ message: { message_id, text, from: { id: 555 }, chat: { id: -100 },
+    ...(reply_to ? { reply_to_message: { message_id: reply_to, from: { id: 42, is_bot: true } } } : {}) } });
+  const P1 = "Aufgaben: Dashboards mit SQL bauen und Berichte für den Vertrieb. ".repeat(62);   // ~4000 characters, cut by Telegram
+  const P2 = "Ansprechpartnerin: Erika Beispiel, Referenz 777.";
+  net.tg = []; const before = net.letters.length;
+  await post(msg(1400, P1, 1301));
+  await post(msg(1401, P2));
+  await Promise.all(waits);
+  await ok("the reply and the plain message right after it: one letter, from both parts in order", () => {
+    assert.equal(net.letters.length, before + 1);
+    assert.match(net.letters.at(-1).user, /Erika Beispiel/);
+    assert.equal(row(DBs, "ba:sp1").text, `${P1}\n${P2}`.slice(0, 6000));
+    assert.equal(net.tg.filter((x) => x.method === "sendMessage" && /Got the ad/.test(x.body.text)).length, 1);
+  });
+  net.tg = []; waits.length = 0;
+  await post(msg(1402, "danke, sieht gut aus"));
+  await Promise.all(waits);
+  await ok("a plain message later, with nothing being collected: ignored", () => {
+    assert.equal(net.letters.length, before + 1); assert.equal(net.tg.length, 0);
+  });
+  await post(msg(1403, "cool, danke!", 1301));
+  await ok("a short reply under a card isn't held back to wait for parts", () => assert.equal(waits.length, 0));
+  J.PASTE.waitMs = 6000;
+}
+
 console.log(`\nall ${pass} jobs checks passed`);

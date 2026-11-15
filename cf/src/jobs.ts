@@ -1292,6 +1292,57 @@ const PASTE_MIN = 300;
  * limit and the languages right away, then the letter is written from it.
  * False when the reply isn't about a job (the caller ignores it then).
  */
+// ---------------------------------------------------------------- a long paste, in parts
+// Telegram splits a text longer than 4096 characters into several messages:
+// the first is the reply, the rest come right after as plain messages. The
+// parts are collected and handled once, a few seconds after the last one.
+export const PASTE = { waitMs: 6000, windowS: 30, cut: 3500 };   // cut: shorter than this, the message wasn't split
+interface PasteBuffer { first: any; parts: { id: number; text: string }[]; at: number; token: string }
+const pasteKey = (msg: any) => `jobs_paste:${msg?.chat?.id}:${msg?.from?.id}`;
+/** Is this reply one the bot is waiting for: an ad it asked for, a ✏️ change, or an ad pasted under a job card? */
+async function wantsReply(env: JobsEnv, store: Store, to: number): Promise<boolean> {
+  if (JSON.parse((await store.kvGet(`jobs_letterask:${to}`)) ?? "null")) return true;
+  if (JSON.parse((await store.kvGet(`jobs_adask:${to}`)) ?? "null")) return true;
+  await ensureTable(env.DB);
+  return !!(await env.DB.prepare("SELECT 1 FROM jobs WHERE msg_id=?").bind(to).first());
+}
+/**
+ * One part of what someone sends: the reply itself (more: false), or a plain
+ * message right after it from the same person (more: true). Handled once,
+ * PASTE.waitMs after the last part, with all parts joined in order. Without
+ * a way to wait (waitUntil), the reply is handled at once.
+ */
+export async function pastePart(env: JobsEnv, store: Store, tg: Telegram, msg: any, wait: ((p: Promise<unknown>) => void) | undefined, more: boolean): Promise<boolean> {
+  const text = String(msg?.text ?? "");
+  if (!text) return false;
+  const key = pasteKey(msg);
+  let buf: PasteBuffer | null = JSON.parse((await store.kvGet(key)) ?? "null");
+  if (more) {
+    // only right after a reply the bot was waiting for, from the same person
+    if (!buf || Date.now() / 1000 - buf.at > PASTE.windowS) return false;
+  } else {
+    const to = msg?.reply_to_message?.message_id;
+    if (!to || !(await wantsReply(env, store, to))) return false;
+    // only a message near Telegram's 4096 limit can have more parts coming
+    if (!wait || text.length < PASTE.cut) return adReply(env, store, tg, msg);
+    buf = { first: { message_id: msg.message_id, chat: msg.chat, from: msg.from, reply_to_message: { message_id: to } }, parts: [], at: 0, token: "" };
+  }
+  const token = crypto.randomUUID();
+  buf!.parts.push({ id: msg.message_id, text });
+  buf!.at = Date.now() / 1000;
+  buf!.token = token;
+  await store.kvSet(key, JSON.stringify(buf));
+  wait!((async () => {
+    await new Promise((r) => setTimeout(r, PASTE.waitMs));
+    const now: PasteBuffer | null = JSON.parse((await store.kvGet(key)) ?? "null");
+    if (!now || now.token !== token) return;                 // a later part came in: that one finishes it
+    await store.kvSet(key, "null");
+    const all = now.parts.sort((a, b) => a.id - b.id).map((p) => p.text).join("\n");
+    await adReply(env, store, tg, { ...now.first, text: all });
+  })().catch((e) => console.error("paste failed:", e?.message ?? e)));
+  return true;
+}
+
 export async function adReply(env: JobsEnv, store: Store, tg: Telegram, msg: any): Promise<boolean> {
   const to = msg?.reply_to_message?.message_id, text = String(msg?.text ?? "").trim();
   if (!to) return false;

@@ -23,7 +23,7 @@ import { setupActive, setupAnswer, setupButton, setupCommand } from "./wizard.ts
 import { CASUAL_CRON, casualLine, casualSettings, casualStep, setCasual } from "./casual.ts";
 import { EVENTS_CRON, eventsCard, eventsLine, eventsStep, setEvents } from "./events.ts";
 import { nudgeCard, setNudge } from "./nudge.ts";
-import { JOBS_CRON, adReply, germanCard, ingestJobs, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, sendTracker, sendTrackerCsv, sendWaitingList, setGerman, skillsCommand, weeklyReport } from "./jobs.ts";
+import { JOBS_CRON, pastePart, germanCard, ingestJobs, cvCommand, jobButton, jobsBoard, jobsLine, jobsStep, sendTracker, sendTrackerCsv, sendWaitingList, setGerman, skillsCommand, weeklyReport } from "./jobs.ts";
 import {
   FINDS_CRON, findsKeyboard, findsLine, findsStatus, findsStep, loadFindSettings,
   parseItem, setFindKm, setFindSetting, setItemOn, ITEMS, type ItemKey,
@@ -408,7 +408,7 @@ const filtersKeyboard = (s: Settings): Button[][] => [
    { text: "(+50)", callback_data: "flt:max_rent:+50" }],
 ];
 
-async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> {
+async function handleUpdate(update: any, env: Env, tg: Telegram, wait?: (p: Promise<unknown>) => void): Promise<void> {
   const store = new Store(env.DB);
 
   // a caption counts too: a PDF sent with "/cv diba" under it
@@ -427,9 +427,12 @@ async function handleUpdate(update: any, env: Env, tg: Telegram): Promise<void> 
 
   // A job ad pasted as a reply to a job card (or to the bot asking for it):
   // the one kind of plain message the bot reads, and only replies to its own.
-  if (!update.callback_query && !isCommand && update.message?.reply_to_message?.from?.is_bot
-      && (isOwner || String(update.message.chat.id) === String(env.TELEGRAM_CHAT_ID))
-      && (await adReply(env, store, tg, update.message))) return;
+  // Telegram splits a long paste into several messages: the reply, then plain ones right after.
+  const ours = isOwner || String(update.message?.chat?.id) === String(env.TELEGRAM_CHAT_ID);
+  if (!update.callback_query && !isCommand && update.message?.reply_to_message?.from?.is_bot && ours
+      && (await pastePart(env, store, tg, update.message, wait, false))) return;
+  if (!update.callback_query && !isCommand && update.message?.text && !update.message.reply_to_message && ours
+      && (await pastePart(env, store, tg, update.message, wait, true))) return;
 
   // Ordinary group chatter is none of our business. Only commands and button
   // presses are even considered - otherwise the bot would answer every
@@ -1036,7 +1039,7 @@ export default {
       (e) => console.error("step failed:", e?.message ?? e)));
   },
 
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
     if (url.pathname === "/health") {
       // /health?ai also asks OpenAI whether the deployed key works
@@ -1064,7 +1067,8 @@ export default {
 
     const tg = new Telegram(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID);
     try {
-      await handleUpdate(await req.json(), env, tg);
+      // the answer to Telegram doesn't wait for slow work (a long paste's parts are collected first)
+      await handleUpdate(await req.json(), env, tg, ctx ? (p) => ctx.waitUntil(p) : undefined);
     } catch (e: any) {
       console.error("update failed:", e?.message ?? e);
     }
