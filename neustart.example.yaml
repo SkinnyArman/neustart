@@ -82,6 +82,8 @@ jobs:
       skills: [SQL, Python, pandas, Power BI, Excel, Statistics]
       # The CV as plain text, for the cover letters. Or keep it in its own file
       # next to this one: cv_file: alex.cv.txt (*.cv.txt is gitignored).
+      # The CV as Word files too (for tweaking it to a job): cv/alex.json or
+      # cv/alex-de.docx, then npm run cv - see cf/README.md.
       cv: |
         Alex Example - M.Sc. Data Science, Leipzig University (since 10/2026)
         Data Analyst, Example GmbH (2023-2026): SQL reporting, Power BI dashboards,

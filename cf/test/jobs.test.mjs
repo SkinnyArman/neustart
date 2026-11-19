@@ -71,6 +71,15 @@ globalThis.fetch = async (url, init = {}) => {
       net.letters.push({ model: body.model, sys: body.messages[0].content, user, json: body.response_format?.type });
       return Response.json({ choices: [{ message: { content: JSON.stringify(net.letter ?? LETTER) } }] });
     }
+    // 📄 a CV for a job: the gaps, then the tailored version (net.cvTailor: what the "AI" returns)
+    if (/You compare a job ad with a CV/.test(body.messages[0].content)) {
+      net.cvCalls = (net.cvCalls ?? []).concat({ model: body.model, kind: "gaps" });
+      return Response.json({ choices: [{ message: { content: JSON.stringify({ gaps: net.cvGaps ?? ["Docker", "Airflow", "SQL"] }) } }] });
+    }
+    if (/You tailor a CV to one job ad/.test(body.messages[0].content)) {
+      net.cvCalls = (net.cvCalls ?? []).concat({ model: body.model, kind: "tailor", user });
+      return Response.json({ choices: [{ message: { content: JSON.stringify(net.cvTailor ?? {}) } }] });
+    }
     if (/You edit a job application letter/.test(body.messages[0].content)) {
       const todo = /=== DO ===\n([\s\S]*)$/.exec(user)[1];
       net.edits.push({ model: body.model, todo });
@@ -191,7 +200,7 @@ await ok("a part-time job says so; Arman's React job is his", () => {
 });
 await ok("buttons on a new card: cover letter, applied, already applied, apply later, skip", () => {
   const kb = cardOf("Werkstudent Data Analyst").body.reply_markup.inline_keyboard.map((r) => r.map((b) => b.text));
-  assert.deepEqual(kb, [["✍️ Cover letter"], ["✅ Applied", "🔁 Already applied"], ["🔖 Apply later", "⏭ Skip", "🚫 Closed"]]);
+  assert.deepEqual(kb, [["✍️ Cover letter", "📄 CV"], ["✅ Applied", "🔁 Already applied"], ["🔖 Apply later", "⏭ Skip", "🚫 Closed"]]);
 });
 
 // ---------------------------------------------------------------- 3. buttons
@@ -322,7 +331,7 @@ await ok("↩️ Undo: back to a new job, the full card and its buttons again", 
   assert.deepEqual([r.status, r.applied_at], ["posted", null]);
   const e = editOf(calls);
   assert.match(e.body.text, /^💼 <b>Werkstudent Data Analyst/);
-  assert.deepEqual(kbOf(e), ["✍️ Cover letter", "✅ Applied", "🔁 Already applied", "🔖 Apply later", "⏭ Skip", "🚫 Closed"]);
+  assert.deepEqual(kbOf(e), ["✍️ Cover letter", "📄 CV", "✅ Applied", "🔁 Already applied", "🔖 Apply later", "⏭ Skip", "🚫 Closed"]);
 });
 calls = await press(`jb:skip:-:ba:10004`, 555, -100, row(DB, "ba:10004").msg_id);
 await ok("⏭ Skip: 'Ad for … at … skipped', with Undo", () => {
@@ -345,7 +354,7 @@ await ok("/waiting-list (or /waitinglist): every waitlisted ad as its card, to a
   const m = calls.filter((c) => c.method === "sendMessage");
   assert.match(m[0].body.text, /^🔖 <b>Waiting list<\/b> · 1 ad to apply to$/);
   assert.match(m[1].body.text, /^💼 /); assert.match(m[1].body.text, /🔖 On the waiting list by Diba/);
-  assert.deepEqual(kbOf(m[1]), ["✍️ Cover letter", "✅ Applied", "🔁 Already applied", "⏭ Skip", "🚫 Closed"]);
+  assert.deepEqual(kbOf(m[1]), ["✍️ Cover letter", "📄 CV", "✅ Applied", "🔁 Already applied", "⏭ Skip", "🚫 Closed"]);
   assert.ok(m.every((x) => x.body.message_thread_id === 965));
 });
 calls = await press(`jb:applied:diba:${later}`, 555, -100, row(DB, later).msg_id);
@@ -1122,6 +1131,122 @@ console.log("\n14. a long ad Telegram split in parts: one letter from all of it"
   await post(msg(1403, "cool, danke!", 1301));
   await ok("a short reply under a card isn't held back to wait for parts", () => assert.equal(waits.length, 0));
   J.PASTE.waitMs = 6000;
+}
+
+console.log("\n15. the full ad came in later: the gaps read again from all of it");
+{
+  const [DBg, stg, Eg] = await fresh();
+  await J.jobsStep(Eg, stg, tg);                                  // makes the table
+  const t0 = Math.floor(Date.now() / 1000);
+  const FULL = "Wir bauen Dashboards. ".repeat(120) + "\nDein Profil: Tableau, dbt und Airflow.";
+  DBg.raw.prepare("INSERT INTO jobs (id, dkey, source, title, company, place, url, remote, kind, text, status, person, facts, first_seen, posted_at, msg_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    .run("li:777", "rg1", "LinkedIn", "Werkstudent Regap Analytics", "Gap GmbH", "Berlin", "https://x/rg1", 0, "werkstudent", FULL, "posted", "diba",
+      JSON.stringify({ for: "diba", kind: "werkstudent", why: "fits her dashboards", gaps: ["from the snippet"], german: "", skills: [], seen: 200 }), t0, t0, 1501);
+  DBg.raw.prepare("INSERT INTO jobs (id, dkey, source, title, company, place, url, remote, kind, text, status, person, facts, first_seen, posted_at, msg_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    .run("li:778", "rg2", "LinkedIn", "Werkstudent Already Read", "Gap GmbH", "Berlin", "https://x/rg2", 0, "werkstudent", "Kurz. ".repeat(100), "posted", "diba",
+      JSON.stringify({ for: "diba", kind: "werkstudent", why: "fits", gaps: [], german: "", skills: [] }), t0, t0, 1502);
+  net.tg = [];
+  await J.jobsStep(Eg, stg, tg);
+  const f = JSON.parse(row(DBg, "li:777").facts);
+  await ok("a posted job matched on a snippet, its full ad in now: matched again, new gaps on its card, still Diba's", () => {
+    assert.ok(net.calls.includes("Werkstudent Regap Analytics"));
+    assert.deepEqual(f.gaps, ["Tableau - mention Power BI and Metabase"]);
+    assert.equal(f.for, "diba"); assert.equal(f.why, "fits her dashboards"); assert.equal(f.seen, FULL.length);
+    const e = net.tg.find((x) => x.method === "editMessageText" && x.body.message_id === 1501);
+    assert.match(e.body.text, /Tableau - mention Power BI/); assert.doesNotMatch(e.body.text, /from the snippet/);
+    assert.ok(e.body.reply_markup.inline_keyboard.length);
+  });
+  await ok("one matched before on as much as it has (old jobs: 1500 characters) isn't matched again", () =>
+    assert.ok(!net.calls.includes("Werkstudent Already Read")));
+  const n = net.calls.length;
+  await J.jobsStep(Eg, stg, tg);
+  await ok("…and the re-read one not a second time", () => assert.ok(!net.calls.slice(n).includes("Werkstudent Regap Analytics")));
+}
+
+console.log("\n16. 📄 a CV for the job: the gaps asked once, then as is or with the ad's skills");
+{
+  const [DBv, stv, Ev] = await fresh();
+  await J.jobsStep(Ev, stv, tg);                                  // makes the table
+  const t0 = Math.floor(Date.now() / 1000);
+  const AD = "Werkstudent Data Engineering. Du baust Pipelines mit Airflow und Docker, schreibst SQL und Python. ".repeat(12);
+  DBv.raw.prepare("INSERT INTO jobs (id, dkey, source, title, company, place, url, remote, kind, text, status, person, facts, first_seen, posted_at, msg_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    .run("ba:cv1", "cv1", "Jobbörse", "Werkstudent Data Engineering", "Pipe AG", "Berlin", "https://x/cv1", 0, "werkstudent", AD, "posted", "diba",
+      JSON.stringify({ kind: "werkstudent", german: "B2", lang: "de", skills: ["SQL"] }), t0, t0, 1601);
+  const BASE = { name: "Test Person", contact: { place: "Berlin", email: "t@example.com" }, versions: { de: {
+    title: "Data Analyst", h: { profile: "Profil", work: "Berufserfahrung", skills: "Kenntnisse" }, profile: "Zwei Jahre SQL und Python.",
+    jobs: [{ title: "Data Analyst", org: "Shop GmbH", dates: "01/2024 – 10/2026", place: "Berlin",
+      bullets: ["Berichte mit SQL gebaut: **50 % schneller**", "Prozesse mit Python automatisiert", "Dashboards in Metabase"] }],
+    skills: [["Programmierung:", "Python, SQL"], ["Tools:", "Metabase, Excel"]] } } };
+  const post = async (body) => { net.tg = []; await worker.fetch(new Request("https://w/", { method: "POST",
+    headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" }, body: JSON.stringify(body) }), Ev); return net.tg; };
+  const tap = (data, message_id = 1601) => post({ callback_query: { id: "q", data, from: { id: 555 }, message: { chat: { id: -100 }, message_id } } });
+
+  await ok("a posted card has 📄 CV next to ✍️ Cover letter", () => {
+    const kb = J.jobKeyboard(row(DBv, "ba:cv1"), JOBS);
+    assert.deepEqual(kb[0].map((b) => b.text), ["✍️ Cover letter", "📄 CV"]);
+  });
+  let c = await tap("jb:cv:diba:ba:cv1");
+  await ok("no base CV for the person: it says how to add one, and makes nothing", () => {
+    assert.match(c.find((x) => x.method === "answerCallbackQuery").body.text, /No base CV for Diba yet: put cv\/diba\.json in and run npm run cv/);
+    assert.ok(!c.some((x) => x.method === "sendMessage"));
+  });
+  await stv.kvSet("cv_content:diba", JSON.stringify(BASE));
+  await stv.kvSet("cv_skills:diba", JSON.stringify({ airflow: { name: "Airflow", level: "no" } }));
+  net.cvCalls = [];
+  c = await tap("jb:cv:diba:ba:cv1");
+  const card = c.find((x) => x.method === "sendMessage");
+  await ok("📄 CV: the gaps from the cheap model, what's on the CV already left out; asked about only the new ones", () => {
+    assert.equal(net.cvCalls[0].model, "gpt-5.6-luna");
+    assert.match(card.body.text, /❔ Docker/); assert.match(card.body.text, /✗ Airflow <i>\(never used\)<\/i>/);
+    assert.doesNotMatch(card.body.text, /SQL/, "SQL is on the CV: not a gap");
+    const kb = card.body.reply_markup.inline_keyboard;
+    assert.deepEqual(kb[0].map((b) => b.text), ["Docker · never", "basics", "used it"]);
+    assert.deepEqual(kb[kb.length - 1].map((b) => b.text), ["📄 As is", "🚀 With the ad's skills"]);
+    assert.equal(card.body.reply_to_message_id, 1601);
+  });
+  const cardId = msgId;
+  c = await tap("jb:ck0b:diba:ba:cv1", cardId);
+  await ok("a tap on basics: remembered for the person, the question goes from the message", async () => {
+    const known = JSON.parse(await stv.kvGet("cv_skills:diba"));
+    assert.deepEqual(known.docker, { name: "Docker", level: "basic" });
+    const e = c.find((x) => x.method === "editMessageText");
+    assert.match(e.body.text, /◐ Docker <i>\(basics\)<\/i>/);
+    assert.equal(e.body.reply_markup.inline_keyboard.length, 1, "only the two ways to write it left");
+  });
+
+  // the "AI" makes up a number in one bullet, puts Docker in the experience, adds Kubernetes to the skills
+  net.cvTailor = { profile: "Datenanalystin mit zwei Jahren SQL und Python, passend für Data Engineering.",
+    jobs: [{ bullets: ["Prozesse mit Python automatisiert", "Berichte mit SQL gebaut: **80 % schneller**", "Dashboards in Metabase"] }],
+    skills: [["Programmierung:", "SQL, Python, Kubernetes"], ["Tools:", "Metabase, Excel, Docker (Grundkenntnisse)"]] };
+  c = await tap("jb:cvh:diba:ba:cv1", cardId);
+  const doc = c.find((x) => x.method === "sendDocument");
+  await ok("📄 As is: the good model writes it; a made-up number keeps the bullets as they were; skills it wasn't given are dropped", () => {
+    assert.equal(net.cvCalls.at(-1).model, "gpt-5.6-terra");
+    assert.match(net.cvCalls.at(-1).user, /=== ADD to the skills ===\nDocker \(Grundkenntnisse\)/);
+    assert.doesNotMatch(net.cvCalls.at(-1).user, /ADD[\s\S]*Airflow[\s\S]*=== JOB AD/, "Airflow: never used, not added as is");
+    assert.equal(doc.body.document.name, "Lebenslauf_Test_Person_Pipe_AG.pdf");
+    assert.ok(doc.body.document.text.startsWith("%PDF-1.7"));
+    assert.match(doc.body.caption, /in the ad's words and order/); assert.match(doc.body.caption, /Added from what Diba knows: Docker \(Grundkenntnisse\)/);
+    assert.match(doc.body.caption, /Kept the base CV's wording for: jobs 1/);
+    assert.equal(doc.body.reply_to_message_id, String(cardId));
+  });
+  net.cvTailor = { ...net.cvTailor, jobs: [{ bullets: ["Prozesse mit Python und Docker automatisiert", "Berichte mit SQL gebaut: **50 % schneller**", "Dashboards in Metabase"] }] };
+  const J2 = await import(SRC + "cv.ts");
+  await ok("a skill from the gaps never goes into the experience, only the skills; the base's skills all stay", () => {
+    const r = J2.check(BASE, BASE.versions.de, JSON.stringify(net.cvTailor), ["Docker (Grundkenntnisse)", "Airflow"], ["Docker", "Airflow"]);
+    assert.deepEqual(r.v.jobs[0].bullets, BASE.versions.de.jobs[0].bullets, "Docker in a bullet: the base's bullets");
+    assert.deepEqual(r.v.skills, [["Programmierung:", "SQL, Python"], ["Tools:", "Metabase, Excel, Docker (Grundkenntnisse), Airflow"]]);
+    assert.equal(r.v.jobs[0].dates, "01/2024 – 10/2026");
+  });
+  net.cvTailor = { jobs: [{ bullets: ["Dashboards in Metabase", "Berichte mit SQL gebaut: **50 % schneller**", "Prozesse mit Python automatisiert"] }],
+    skills: [["Programmierung:", "SQL, Python"], ["Tools:", "Metabase, Excel, Docker (Grundkenntnisse), Airflow"]] };
+  c = await tap("jb:cvx:diba:ba:cv1", cardId);
+  await ok("🚀 With the ad's skills: every gap in the skills, and the caption names the new ones to learn", () => {
+    assert.match(net.cvCalls.at(-1).user, /=== ADD to the skills ===\nDocker \(Grundkenntnisse\)\nAirflow/);
+    const d = c.find((x) => x.method === "sendDocument");
+    assert.match(d.body.caption, /with the ad's skills/); assert.match(d.body.caption, /Added to the skills:<\/b> Airflow\n<i>Learn these before an interview/);
+    assert.doesNotMatch(d.body.caption, /Kept the base/);
+  });
 }
 
 console.log(`\nall ${pass} jobs checks passed`);

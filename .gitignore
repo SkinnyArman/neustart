@@ -3,6 +3,7 @@
 neustart.yaml
 *.cv.txt
 filters.local.json
+cv/
 
 # local state
 *.pyc
@@ -15,3 +16,4 @@ cf/profile.json
 cf/profile.b64
 cf/profile.sql
 cf/config.sql
+cf/cv.sql

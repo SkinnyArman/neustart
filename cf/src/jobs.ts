@@ -24,6 +24,8 @@ import type { Store } from "./store.ts";
 import { esc, inTopic, type Button, type Telegram } from "./telegram.ts";
 import { xlsx } from "./xlsx.ts";
 import { nudgeCard, nudgeStep, setNudge } from "./nudge.ts";
+import { additions, check, cvText, fit, gapUser, GAP_SYSTEM, parseGaps, pickVersion, skillKey, tailorSystem, tailorUser, type Checked, type KnownSkills, type Level, type Mode } from "./cv.ts";
+import { cvPdf, type CvBase } from "./cvpdf.ts";
 import { adjustLetter, adText, learn, letterIssues, letterSystem, letterText, letterUser, parseLetter, placeDate, styleOf, type Letter } from "./letter.ts";
 import { letterPdf } from "./pdf.ts";
 import { introduce, topicOf } from "./topics.ts";
@@ -168,6 +170,7 @@ interface Facts {
   reason?: string; kind: string; why: string;
   gaps: string[]; german: string; hours: string; start: string; deadline: string; onsite?: string;
   lang: string; skills: string[];
+  seen?: number;   // how many characters of the ad the matcher read
 }
 
 const setJob = (db: D1Database, id: string, f: Record<string, unknown>) => {
@@ -356,7 +359,7 @@ async function match(env: JobsEnv, j: Jobs, p: Record<string, Person>, row: JobR
     `Searching right now: ${active.map((w) => p[w].name.toUpperCase()).join(" and ")} only - never return anyone else.\n\n` +
     active.map((w) => `${p[w].name.toUpperCase()}: ${p[w].summary}\nSkills: ${p[w].skills.join(", ")}\n\n`).join("") +
     `=== JOB ===\nTitle: ${row.title}\nCompany: ${row.company}\nPlace: ${row.place}\nType: ${row.kind || "?"}\n\n` +
-    text.slice(0, 1500);
+    text.slice(0, MATCH_CHARS);
   const d = JSON.parse(await ai(env.OPENAI_API_KEY, env.FINDS_MODEL || "gpt-5.6-luna", MATCH(j), user) || "{}");
   const arr = (x: unknown, n: number) => (Array.isArray(x) ? x.map(String).filter(Boolean).slice(0, n) : []);
   // keep the answer to the people actually searching
@@ -371,7 +374,48 @@ async function match(env: JobsEnv, j: Jobs, p: Record<string, Person>, row: JobR
     why: String(d.why ?? "").slice(0, 140), gaps: arr(d.gaps, 3).map((g) => g.slice(0, 110)),
     german: String(d.german ?? ""), hours: String(d.hours ?? ""), start: String(d.start ?? ""),
     deadline: String(d.deadline ?? ""), lang: d.lang === "en" ? "en" : "de", skills: arr(d.skills, 8),
+    seen: Math.min(text.length, MATCH_CHARS),
   };
+}
+
+// The requirements are often far down an ad: the matcher reads this much of it.
+const MATCH_CHARS = 5000, REGAP_PER_TICK = 2;
+/**
+ * A job matched on a short text (a feed's snippet, a LinkedIn job before its
+ * page was read) whose full ad came in later, from LinkedIn or pasted in:
+ * matched again on the full ad, for its gaps, German, hours and deadline.
+ * Who it's for stays; a posted card shows the new gaps.
+ */
+async function regap(env: JobsEnv, store: Store, tg: Telegram, j: Jobs): Promise<number> {
+  const { results } = await env.DB.prepare(
+    // jobs matched before "seen" was kept read 1500 characters
+    `SELECT * FROM jobs WHERE status IN ('ready','posted','approved') AND facts IS NOT NULL
+     AND MIN(LENGTH(text), ?) > COALESCE(json_extract(facts, '$.seen'), 1500) + 300
+     ORDER BY CASE status WHEN 'posted' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, first_seen DESC LIMIT ?`)
+    .bind(MATCH_CHARS, REGAP_PER_TICK).all<JobRow>();
+  if (!results?.length) return 0;
+  const p = await people(store, j);
+  const active = await activePeople(store, j);
+  let n = 0;
+  for (const row of results) {
+    const was: Facts = JSON.parse(row.facts!);
+    let f: Facts;
+    try { f = await match(env, j, p, row, row.text!, active); await aiWorked(store); }
+    catch (e: any) {
+      if (/OpenAI/.test(String(e?.message))) await aiFailed(store, tg, e);
+      console.error(`regap failed for ${row.id}:`, e?.message ?? e);
+      // don't try this one every tick: counted as read
+      await setJob(env.DB, row.id, { facts: JSON.stringify({ ...was, seen: Math.min(row.text!.length, MATCH_CHARS) }) });
+      continue;
+    }
+    const facts = { ...f, for: was.for, reason: was.reason, kind: was.kind || f.kind, why: was.why || f.why };
+    const updated = { ...row, facts: JSON.stringify(facts) };
+    await setJob(env.DB, row.id, { facts: updated.facts });
+    if (row.status === "posted" && row.msg_id)
+      try { await tg.editText(tg.chat, row.msg_id, card(updated, j), jobKeyboard(updated, j)); } catch { /* unchanged, or gone */ }
+    n++;
+  }
+  return n;
 }
 
 // ---------------------------------------------------------------- one tick
@@ -393,6 +437,8 @@ export async function jobsStep(env: JobsEnv, store: Store, tg: Telegram): Promis
     const did: string[] = [];
     did.push(await collect(db, store, cfg.jobs));
     did.push(await assess(env, store, tg, cfg.jobs));
+    const regapped = await regap(env, store, tg, cfg.jobs);
+    if (regapped) did.push(`${regapped} re-read in full`);
     const redone = await repost(db, store, tg, cfg.jobs);
     if (redone) did.push(`${redone} taken down to re-post`);
     const posted = await post(env, store, tg, cfg);
@@ -622,11 +668,13 @@ export function jobKeyboard(row: JobRow, j: Jobs): Button[][] {
   const skip = { text: "⏭ Skip", callback_data: buttonData("skip", "-", id) };
   // the employer stopped taking applications, while the site still lists it
   const closed = { text: "🚫 Closed", callback_data: buttonData("closed", "-", id) };
+  // ✍️ and 📄 side by side; one row each when there are several people
+  const write = many.length ? [each("letter", "✍️ Cover letter"), each("cv", "📄 CV")] : [[...each("letter", "✍️ Cover letter"), ...each("cv", "📄 CV")]];
   if (row.status === "posted")
-    return [each("letter", "✍️ Cover letter"), [...each("applied", "✅ Applied"), ...each("already", "🔁 Already applied")],
+    return [...write, [...each("applied", "✅ Applied"), ...each("already", "🔁 Already applied")],
       [...each("later", "🔖 Apply later"), skip, closed]];
   if (row.status === "approved")
-    return [each("letter", "✍️ Cover letter"), [...each("applied", "✅ Applied"), ...each("already", "🔁 Already applied")], [skip, closed]];
+    return [...write, [...each("applied", "✅ Applied"), ...each("already", "🔁 Already applied")], [skip, closed]];
   if (TRACKED.includes(row.status)) {
     const now = row.status === "already" ? "applied" : row.status;
     const b = TRACK.map(([code, st, label]) => ({ text: st === now ? `• ${label} •` : label, callback_data: buttonData(`t${code}`, "-", id) }));
@@ -797,6 +845,11 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
   // ✍️ a cover letter, and its buttons: shorter, more formal, more casual, the other language, a new one
   if (act === "letter" || /^w(short|long|formal|casual|de|en|redo|any|tell|edit|back|drop|sent)$/.test(act)) {
     await letterButton(env, store, tg, cfg, row, act, who, { answer: (t) => tg.answerCallback(cq.id, t), message: cq.message, from: cq.from?.id });
+    return;
+  }
+  // 📄 a CV for this job, the questions about its gaps, and the two ways to write it
+  if (act === "cv" || act === "cvh" || act === "cvx" || /^ck\d[nbu]$/.test(act)) {
+    await cvButton(env, store, tg, cfg, row, act, who, { answer: (t) => tg.answerCallback(cq.id, t), message: cq.message, from: cq.from?.id });
     return;
   }
 
@@ -1158,6 +1211,113 @@ const letterMessage = (l: Letter, p: Person, company: string) =>
 export const THIN_AD = 800;
 /** Where a letter was asked for: a button press, or a pasted ad (no button to answer). */
 interface Press { answer: (text?: string) => Promise<unknown>; message?: { message_id: number; chat: { id: number | string } }; from?: number }
+
+// ---------------------------------------------------------------- 📄 a CV for the job
+/** A CV being made for a job: the gaps the ad showed, the CV's language, the ad, and the message with the questions. */
+interface CvJob { gaps: string[]; lang: string; text: string; msg?: number | null }
+const LEVEL: Record<Level, [string, string]> = { no: ["✗", "never used"], basic: ["◐", "basics"], used: ["✓", "used it"] };
+
+function cvCard(row: JobRow, name: string, s: CvJob, known: KnownSkills, who: string): [string, Button[][]] {
+  const lines = s.gaps.map((g) => {
+    const k = known[skillKey(g)]?.level;
+    return k ? `${LEVEL[k][0]} ${esc(g)} <i>(${LEVEL[k][1]})</i>` : `❔ ${esc(g)}`;
+  });
+  const open = s.gaps.map((g, i) => [g, i] as const).filter(([g]) => !known[skillKey(g)]);
+  const text = [
+    `📄 <b>CV for ${esc(row.title)}</b> at ${esc(row.company)}`,
+    s.gaps.length ? `The ad asks for what ${esc(name)}'s CV doesn't show:\n${lines.join("\n")}` : "The CV already shows what the ad asks for.",
+    open.length ? `<i>Tap what ${esc(name)} knows - asked once, remembered for every job after this.</i>` : "",
+    `📄 <b>As is</b>: the real CV, in the ad's words and order${s.gaps.some((g) => ["basic", "used"].includes(known[skillKey(g)]?.level ?? "")) ? `, plus what ${esc(name)} knows from the list` : ""}` +
+      (s.gaps.length ? `\n🚀 <b>With the ad's skills</b>: the same, plus every skill above in the skills list` : ""),
+  ].filter(Boolean).join("\n\n");
+  const kb: Button[][] = open.map(([g, i]) => [
+    { text: `${g} · never`, callback_data: buttonData(`ck${i}n`, who, row.id) },
+    { text: "basics", callback_data: buttonData(`ck${i}b`, who, row.id) },
+    { text: "used it", callback_data: buttonData(`ck${i}u`, who, row.id) },
+  ]);
+  kb.push(s.gaps.length
+    ? [{ text: "📄 As is", callback_data: buttonData("cvh", who, row.id) }, { text: "🚀 With the ad's skills", callback_data: buttonData("cvx", who, row.id) }]
+    : [{ text: "📄 Make the CV", callback_data: buttonData("cvh", who, row.id) }]);
+  return [text, kb];
+}
+
+async function cvButton(env: JobsEnv, store: Store, tg: Telegram, cfg: Config, row: JobRow, act: string, who: string, cq: Press): Promise<void> {
+  const j = cfg.jobs;
+  const w = byId(j, who) ? who : peopleOf(j, row.person)[0] ?? ids(j)[0];
+  const name = nameOf(j, w);
+  const base: CvBase | null = JSON.parse((await store.kvGet(`cv_content:${w}`)) ?? "null");
+  if (!base?.versions || !Object.keys(base.versions).length) {
+    await cq.answer(`No base CV for ${name} yet: put cv/${w}.json in and run npm run cv`);
+    return;
+  }
+  const key = `cvjob:${row.id}:${w}`;
+  const known: KnownSkills = JSON.parse((await store.kvGet(`cv_skills:${w}`)) ?? "{}");
+  let s: CvJob | null = JSON.parse((await store.kvGet(key)) ?? "null");
+  const where = await topic(cfg, store, tg);
+  const chatId = cq.message?.chat?.id;
+  const failed = async (e: any) => {
+    if (/OpenAI/.test(String(e?.message))) await aiFailed(store, tg, e);
+    await tg.send(`⚠️ Couldn't make the CV: ${esc(String(e?.message ?? e).slice(0, 200))}`, where);
+  };
+
+  // a gap answered: kept for every job after this one
+  const m = /^ck(\d)([nbu])$/.exec(act);
+  if (m) {
+    const g = s?.gaps[Number(m[1])];
+    if (!s || !g) { await cq.answer("An old message - tap 📄 CV on the job again"); return; }
+    const level = ({ n: "no", b: "basic", u: "used" } as Record<string, Level>)[m[2]];
+    known[skillKey(g)] = { name: g, level };
+    await store.kvSet(`cv_skills:${w}`, JSON.stringify(known));
+    await cq.answer(`${g}: ${LEVEL[level][1]} - remembered`);
+    if (cq.message) try { const [t, kb] = cvCard(row, name, s, known, w); await tg.editText(chatId!, cq.message.message_id, t, kb); } catch { /* unchanged */ }
+    return;
+  }
+
+  // 📄 CV: read the ad, find the gaps, ask about the new ones
+  if (act === "cv") {
+    await cq.answer("Reading the ad…");
+    const f: Partial<Facts> = row.facts ? JSON.parse(row.facts) : {};
+    const letter = JSON.parse((await store.kvGet(`letter:${row.id}:${w}`)) ?? "null");
+    let text = [row.text ?? "", letter?.text ?? ""].sort((a, b) => b.length - a.length)[0];
+    if (text.length < THIN_AD) { const more = await adText(row.url); if (more.length > text.length) text = more; }
+    const [lang, v] = pickVersion(base, f.lang === "en" ? "en" : "de")!;
+    try {
+      const raw = await ai(env.OPENAI_API_KEY, env.FINDS_MODEL || "gpt-5.6-luna", GAP_SYSTEM, gapUser(cvText(base, v), `${row.title}\n${text}`), true);
+      await aiWorked(store);
+      s = { gaps: parseGaps(raw, cvText(base, v)), lang, text: `${row.title} - ${row.company}\n${text}`.slice(0, 6000) };
+    } catch (e) { await failed(e); return; }
+    const [t, kb] = cvCard(row, name, s, known, w);
+    const sent = await tg.send(t, { ...where, ...tg.keyboard(kb), ...(cq.message ? { reply_to_message_id: cq.message.message_id } : {}) });
+    s.msg = sent?.result?.message_id ?? null;
+    await store.kvSet(key, JSON.stringify(s));
+    return;
+  }
+
+  // 📄 As is / 🚀 With the ad's skills: write it, check it, send the PDF
+  if (!s) { await cq.answer("Tap 📄 CV on the job first"); return; }
+  const mode: Mode = act === "cvx" ? "skills" : "as-is";
+  await cq.answer(mode === "skills" ? "🚀 Writing the CV with the ad's skills…" : "📄 Writing the CV…");
+  const v = base.versions[s.lang] ?? pickVersion(base, s.lang)![1];
+  const add = additions(s.gaps, known, mode, s.lang);
+  let checked: Checked;
+  try {
+    const raw = await ai(env.OPENAI_API_KEY, env.OPENAI_MODEL, tailorSystem(s.lang), tailorUser(v, s.text, add), true);
+    await aiWorked(store);
+    checked = check(base, v, raw, add, s.gaps);
+  } catch (e) { await failed(e); return; }
+  const lang = s.lang;
+  const tailored = fit(checked.v, (x) => cvPdf(base, x, lang, true).overflow > 0);
+  const { pdf } = cvPdf(base, tailored, lang);
+  const fresh = s.gaps.filter((g) => !["basic", "used"].includes(known[skillKey(g)]?.level ?? ""));
+  const caption = [
+    `${mode === "skills" ? "🚀" : "📄"} <b>${esc(name)}'s CV</b> for ${esc(row.title)} at ${esc(row.company)}${mode === "skills" ? ", with the ad's skills" : ", in the ad's words and order"}`,
+    mode === "skills" && fresh.length ? `<b>Added to the skills:</b> ${esc(fresh.join(", "))}\n<i>Learn these before an interview.</i>` : "",
+    add.length && mode === "as-is" ? `Added from what ${esc(name)} knows: ${esc(add.join(", "))}` : "",
+    checked.kept.length ? `<i>Kept the base CV's wording for: ${checked.kept.join(", ")} (the rewrite changed a number or named a skill from the gaps).</i>` : "",
+  ].filter(Boolean).join("\n\n");
+  const file = `${lang === "de" ? "Lebenslauf" : "CV"}_${base.name.replace(/\s+/g, "_")}_${row.company.replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_|_$/g, "").slice(0, 40)}.pdf`;
+  await tg.sendFile(file, pdf, "application/pdf", { ...where, caption: caption.slice(0, 1024), parse_mode: "HTML", ...(s.msg ? { reply_to_message_id: s.msg } : {}) });
+}
 
 /** What's kept of a person's letter for a job: the letter, its message and PDF, the ad it was written from, and what they asked for. */
 interface SavedLetter { l: Letter; pdf?: number | null; msg?: number | null; text?: string; notes?: string[] }

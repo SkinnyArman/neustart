@@ -588,6 +588,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10001"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10001"
        }
       ],
       [
@@ -633,6 +637,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:arman:ba:10004"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:arman:ba:10004"
        }
       ],
       [
@@ -678,6 +686,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10006"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10006"
        }
       ],
       [
@@ -966,6 +978,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10009"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10009"
        }
       ],
       [
@@ -1011,6 +1027,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10010"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10010"
        }
       ],
       [
@@ -1060,6 +1080,16 @@
        {
         "text": "✍️ Cover letter (Arman)",
         "callback_data": "jb:letter:arman:ba:10011"
+       }
+      ],
+      [
+       {
+        "text": "📄 CV (Diba)",
+        "callback_data": "jb:cv:diba:ba:10011"
+       },
+       {
+        "text": "📄 CV (Arman)",
+        "callback_data": "jb:cv:arman:ba:10011"
        }
       ],
       [
@@ -1226,6 +1256,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:an:acme-working-student-ml"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:an:acme-working-student-ml"
        }
       ],
       [
@@ -1271,6 +1305,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:arman:an:web-cottbus"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:arman:an:web-cottbus"
        }
       ],
       [
@@ -8057,6 +8095,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:arman:ba:10004"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:arman:ba:10004"
        }
       ],
       [
@@ -8102,6 +8144,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10006"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10006"
        }
       ],
       [
@@ -8147,6 +8193,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10009"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10009"
        }
       ],
       [
@@ -8192,6 +8242,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10010"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10010"
        }
       ],
       [
@@ -8442,6 +8496,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:arman:ba:10004"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:arman:ba:10004"
        }
       ],
       [
@@ -8487,6 +8545,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10006"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10006"
        }
       ],
       [
@@ -8532,6 +8594,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10009"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10009"
        }
       ],
       [
@@ -8634,6 +8700,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10010"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10010"
        }
       ],
       [
@@ -10014,6 +10084,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10001"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10001"
        }
       ],
       [
@@ -10059,6 +10133,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10006"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10006"
        }
       ],
       [
@@ -10104,6 +10182,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10009"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10009"
        }
       ],
       [
@@ -10392,6 +10474,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10010"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10010"
        }
       ],
       [
@@ -10437,6 +10523,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10011"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10011"
        }
       ],
       [
@@ -10482,6 +10572,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10012"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10012"
        }
       ],
       [
@@ -10616,6 +10710,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:an:acme-working-student-ml"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:an:acme-working-student-ml"
        }
       ],
       [
@@ -11649,6 +11747,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10001"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10001"
        }
       ],
       [
@@ -11694,6 +11796,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10006"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10006"
        }
       ],
       [
@@ -11739,6 +11845,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10009"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10009"
        }
       ],
       [
@@ -12027,6 +12137,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10010"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10010"
        }
       ],
       [
@@ -12072,6 +12186,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10011"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10011"
        }
       ],
       [
@@ -12117,6 +12235,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:ba:10012"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:ba:10012"
        }
       ],
       [
@@ -12251,6 +12373,10 @@
        {
         "text": "✍️ Cover letter",
         "callback_data": "jb:letter:diba:an:acme-working-student-ml"
+       },
+       {
+        "text": "📄 CV",
+        "callback_data": "jb:cv:diba:an:acme-working-student-ml"
        }
       ],
       [
@@ -13331,7 +13457,7 @@
     "status": "interview",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"en\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"en\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"],\"seen\":911}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793089380,
@@ -13358,7 +13484,7 @@
     "status": "skipped",
     "why": "skipped by you",
     "person": "arman",
-    "facts": "{\"for\":\"arman\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"React work fits\",\"gaps\":[],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"\",\"lang\":\"de\",\"skills\":[\"React\",\"TypeScript\"]}",
+    "facts": "{\"for\":\"arman\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"React work fits\",\"gaps\":[],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"\",\"lang\":\"de\",\"skills\":[\"React\",\"TypeScript\"],\"seen\":17}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793089380,
@@ -13385,7 +13511,7 @@
     "status": "rejected",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793088180,
@@ -13439,7 +13565,7 @@
     "status": "posted",
     "why": null,
     "person": "arman",
-    "facts": "{\"for\":\"arman\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"React work fits\",\"gaps\":[],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"\",\"lang\":\"de\",\"skills\":[\"React\",\"TypeScript\"]}",
+    "facts": "{\"for\":\"arman\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"React work fits\",\"gaps\":[],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"\",\"lang\":\"de\",\"skills\":[\"React\",\"TypeScript\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793107980,
@@ -13493,7 +13619,7 @@
     "status": "posted",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"part-time\",\"why\":\"SQL pipelines\",\"gaps\":[\"Airflow\"],\"german\":\"C1\",\"hours\":\"20 h\",\"start\":\"\",\"deadline\":\"30.11.\",\"lang\":\"de\",\"skills\":[\"Airflow\",\"SQL\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"part-time\",\"why\":\"SQL pipelines\",\"gaps\":[\"Airflow\"],\"german\":\"C1\",\"hours\":\"20 h\",\"start\":\"\",\"deadline\":\"30.11.\",\"lang\":\"de\",\"skills\":[\"Airflow\",\"SQL\",\"Tableau\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793107980,
@@ -13547,7 +13673,7 @@
     "status": "posted",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793107980,
@@ -13574,7 +13700,7 @@
     "status": "posted",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793108580,
@@ -13601,7 +13727,7 @@
     "status": "applied",
     "why": null,
     "person": "arman",
-    "facts": "{\"for\":\"both\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"BI and dashboards for both\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"C1\",\"hours\":\"\",\"start\":\"\",\"deadline\":\"01.12.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Tableau\"]}",
+    "facts": "{\"for\":\"both\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"BI and dashboards for both\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"C1\",\"hours\":\"\",\"start\":\"\",\"deadline\":\"01.12.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Tableau\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793088780,
@@ -14447,7 +14573,7 @@
     "status": "posted",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"en\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"en\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"],\"seen\":911}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793089380,
@@ -14501,7 +14627,7 @@
     "status": "posted",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793088180,
@@ -14609,7 +14735,7 @@
     "status": "posted",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"part-time\",\"why\":\"SQL pipelines\",\"gaps\":[\"Airflow\"],\"german\":\"C1\",\"hours\":\"20 h\",\"start\":\"\",\"deadline\":\"30.11.\",\"lang\":\"de\",\"skills\":[\"Airflow\",\"SQL\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"part-time\",\"why\":\"SQL pipelines\",\"gaps\":[\"Airflow\"],\"german\":\"C1\",\"hours\":\"20 h\",\"start\":\"\",\"deadline\":\"30.11.\",\"lang\":\"de\",\"skills\":[\"Airflow\",\"SQL\",\"Tableau\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793088180,
@@ -14663,7 +14789,7 @@
     "status": "posted",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793088180,
@@ -14690,7 +14816,7 @@
     "status": "posted",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793088780,
@@ -14717,7 +14843,7 @@
     "status": "posted",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"BI and dashboards for both\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"C1\",\"hours\":\"\",\"start\":\"\",\"deadline\":\"01.12.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"BI and dashboards for both\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"C1\",\"hours\":\"\",\"start\":\"\",\"deadline\":\"01.12.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Tableau\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793088780,
@@ -14744,7 +14870,7 @@
     "status": "posted",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793088780,
@@ -15405,7 +15531,7 @@
     "status": "posted",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"en\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"en\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"],\"seen\":911}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793089380,
@@ -15459,7 +15585,7 @@
     "status": "posted",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793088180,
@@ -15567,7 +15693,7 @@
     "status": "posted",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"part-time\",\"why\":\"SQL pipelines\",\"gaps\":[\"Airflow\"],\"german\":\"C1\",\"hours\":\"20 h\",\"start\":\"\",\"deadline\":\"30.11.\",\"lang\":\"de\",\"skills\":[\"Airflow\",\"SQL\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"part-time\",\"why\":\"SQL pipelines\",\"gaps\":[\"Airflow\"],\"german\":\"C1\",\"hours\":\"20 h\",\"start\":\"\",\"deadline\":\"30.11.\",\"lang\":\"de\",\"skills\":[\"Airflow\",\"SQL\",\"Tableau\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793088180,
@@ -15621,7 +15747,7 @@
     "status": "posted",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793088180,
@@ -15648,7 +15774,7 @@
     "status": "posted",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793088780,
@@ -15675,7 +15801,7 @@
     "status": "posted",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"BI and dashboards for both\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"C1\",\"hours\":\"\",\"start\":\"\",\"deadline\":\"01.12.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"BI and dashboards for both\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"C1\",\"hours\":\"\",\"start\":\"\",\"deadline\":\"01.12.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Tableau\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793088780,
@@ -15702,7 +15828,7 @@
     "status": "posted",
     "why": null,
     "person": "diba",
-    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"]}",
+    "facts": "{\"for\":\"diba\",\"reason\":\"\",\"kind\":\"werkstudent\",\"why\":\"Dashboards and SQL fit\",\"gaps\":[\"Tableau - mention Power BI\"],\"german\":\"B2\",\"hours\":\"20 h/week\",\"start\":\"asap\",\"deadline\":\"15.11.\",\"lang\":\"de\",\"skills\":[\"SQL\",\"Python\",\"Tableau\"],\"seen\":993}",
     "attempts": 0,
     "first_seen": 1793088180,
     "posted_at": 1793088780,

@@ -55,6 +55,23 @@ room profile and CVs it is far over a secret's 5 KB. After changing
 A module whose part of the config doesn't add up is switched off with a
 reason (shown by `npm run config` and in `/status`); the others keep running.
 
+**CV files** (optional, per person): the bot can hold each person's CV as
+Word files, for tweaking it to a job. They go in `cv/` next to
+`neustart.yaml` (gitignored), named by the person's `id`:
+
+    cv/alex.json         the CV's content, per language - built into cv/alex-de.docx, cv/alex-en.docx, …
+    cv/alex-<name>.docx  or your own Word files, stored as they are
+
+    npm run cv                  build from the .json, then store everyone's
+    npm run cv -- alex          only alex
+    npm run cv -- --no-build    store the .docx as they are
+    npm run cv -- --build-only  only build the .docx
+
+They're kept in D1 (kv `cv_content:<id>`, `cv_docx:<id>:<name>`). The
+.json's shape, and the one-page layout it's built into, are described at the
+top of `scripts/cv-build.mjs`. The plain-text `cv:` in `neustart.yaml` is
+separate: it's what cover letters are written from.
+
 ## Day to day
 
 Owner commands: `/status`, `/review`, `/scan`, `/more`, `/filters`,
@@ -201,6 +218,18 @@ Offer. No answer after 10 days: one reminder. `/jobs` is the board and lists
 where each application stands, `/skills <id> + Power BI` keeps the skills list
 current (changes are kept in D1 and win over the config), `/jobreport` (and every Monday) shows what gets answers, what's due
 and the one skill most asked for. Open to everyone in the group.
+
+📄 CV (needs a base CV, see `npm run cv`): a one-page PDF of the person's CV
+for that job. The cheap model lists what the ad asks for that the CV doesn't
+show, and the bot asks once per skill - never used · basics · used it - and
+keeps the answer (kv `cv_skills:<id>`) for every job after. Then 📄 **As is**
+(the CV reworded in the ad's terms and reordered for it, plus what they know)
+or 🚀 **With the ad's skills** (the same, plus every gap in the skills list;
+the caption names them, to learn before an interview). The rewrite (the
+letters' model) is checked in code, not trusted: jobs, schooling, dates and
+every number stay the base CV's, a gap only ever goes into the skills list,
+and too long for one page loses its last bullets. The PDF is drawn in the
+Worker (`src/cvpdf.ts`, Amiri embedded, about 2 ms).
 
 CVs: send the PDF in the chat and answer it with `/cv <id>`; `/cv` sends it
 back, and it comes with every cover letter (Telegram keeps the file, D1 only
