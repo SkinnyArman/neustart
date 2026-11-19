@@ -350,12 +350,21 @@ const say0 = async (text) => { net.tg = []; await worker.fetch(new Request("http
   headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" },
   body: JSON.stringify({ message: { text, from: { id: 555 }, chat: { id: -100 }, message_thread_id: 965, is_topic_message: true } }) }), E); return net.tg; };
 calls = await say0("/waiting-list");
-await ok("/waiting-list (or /waitinglist): every waitlisted ad as its card, to apply from", () => {
+await ok("/waiting-list (or /waitinglist): ONE message, a numbered line per ad and a button per number", () => {
   const m = calls.filter((c) => c.method === "sendMessage");
-  assert.match(m[0].body.text, /^🔖 <b>Waiting list<\/b> · 1 ad to apply to$/);
-  assert.match(m[1].body.text, /^💼 /); assert.match(m[1].body.text, /🔖 On the waiting list by Diba/);
-  assert.deepEqual(kbOf(m[1]), ["✍️ Cover letter", "📄 CV", "✅ Applied", "🔁 Already applied", "⏭ Skip", "🚫 Closed"]);
-  assert.ok(m.every((x) => x.body.message_thread_id === 965));
+  assert.equal(m.length, 1);
+  assert.match(m[0].body.text, /^🔖 <b>Waiting list<\/b> · 1 ad to apply to\n\n<b>1\.<\/b> .+\n {6}.+saved \d\d\.\d\d/);
+  assert.match(m[0].body.text, /Tap a number for that ad, with its buttons/);
+  assert.deepEqual(kbOf(m[0]), ["1"]);
+  assert.equal(m[0].body.message_thread_id, 965);
+});
+calls = await press(`jb:lshow:-:${later}`, 555, -100, 1);
+await ok("…tapping its number sends that ad's card, with its buttons, and the card is the one the buttons then edit", () => {
+  const m = calls.filter((c) => c.method === "sendMessage");
+  assert.equal(m.length, 1);
+  assert.match(m[0].body.text, /^💼 /); assert.match(m[0].body.text, /🔖 On the waiting list by Diba/);
+  assert.deepEqual(kbOf(m[0]), ["✍️ Cover letter", "📄 CV", "✅ Applied", "🔁 Already applied", "⏭ Skip", "🚫 Closed"]);
+  assert.equal(row(DB, later).msg_id, msgId);
 });
 calls = await press(`jb:applied:diba:${later}`, 555, -100, row(DB, later).msg_id);
 calls = await press(`jb:applied:diba:${analyst}`, 555, -100, cardMsg);
@@ -1246,6 +1255,41 @@ console.log("\n16. 📄 a CV for the job: the gaps asked once, then as is or wit
     const d = c.find((x) => x.method === "sendDocument");
     assert.match(d.body.caption, /with the ad's skills/); assert.match(d.body.caption, /Added to the skills:<\/b> Airflow\n<i>Learn these before an interview/);
     assert.doesNotMatch(d.body.caption, /Kept the base/);
+  });
+}
+
+console.log("\n17. a long waiting list: pages of ten in the same message");
+{
+  const [DBw, stw, Ew] = await fresh();
+  await J.jobsStep(Ew, stw, tg);                                  // makes the table
+  const t0 = Math.floor(Date.now() / 1000);
+  for (let i = 1; i <= 12; i++)
+    DBw.raw.prepare("INSERT INTO jobs (id, dkey, source, title, company, place, url, remote, kind, text, status, person, facts, first_seen, approved_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+      .run(`ba:w${i}`, `w${i}`, "Jobbörse", `Werkstudent Nummer ${i}`, `Firma ${i}`, "Berlin", "u", 0, "werkstudent", "", "approved", "diba", JSON.stringify({ german: "B2" }), t0, t0 + i);
+  const [t1, kb1] = J.waitingListCard(DBw.raw.prepare("SELECT * FROM jobs WHERE status='approved' ORDER BY approved_at").all(), JOBS, 0);
+  await ok("12 ads: page 1 of 2, ten numbered lines (title, company, place, kind, German), numbers 1-10, More", () => {
+    assert.match(t1, /· 12 ads to apply to · page 1\/2/);
+    assert.match(t1, /<b>1\.<\/b> Werkstudent Nummer 1\n {6}Firma 1 · 📍 Berlin · 🎓 Werkstudent · 🇩🇪 B2 · saved/);
+    assert.ok(!/Nummer 11/.test(t1));
+    assert.deepEqual(kb1.map((r) => r.map((b) => b.text)), [["1", "2", "3", "4", "5"], ["6", "7", "8", "9", "10"], ["More ▶️"]]);
+    assert.equal(kb1[2][0].callback_data, "jb:list:waiting:1");
+  });
+  net.tg = [];
+  await worker.fetch(new Request("https://w/", { method: "POST", headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" },
+    body: JSON.stringify({ callback_query: { id: "q", data: "jb:list:waiting:1", from: { id: 555 }, message: { chat: { id: -100 }, message_id: 777 } } }) }), Ew);
+  await ok("…More ▶️ turns the page in the same message: 11 and 12, and Back", () => {
+    const e = net.tg.find((x) => x.method === "editMessageText");
+    assert.equal(e.body.message_id, 777); assert.ok(!net.tg.some((x) => x.method === "sendMessage"));
+    assert.match(e.body.text, /page 2\/2\n\n<b>11\.<\/b> Werkstudent Nummer 11/);
+    assert.deepEqual(e.body.reply_markup.inline_keyboard.map((r) => r.map((b) => b.text)), [["11", "12"], ["◀️ Back"]]);
+  });
+  DBw.raw.prepare("UPDATE jobs SET status='applied' WHERE id='ba:w3'").run();
+  net.tg = [];
+  await worker.fetch(new Request("https://w/", { method: "POST", headers: { "X-Telegram-Bot-Api-Secret-Token": "s", "Content-Type": "application/json" },
+    body: JSON.stringify({ callback_query: { id: "q", data: "jb:lshow:-:ba:w3", from: { id: 555 }, message: { chat: { id: -100 }, message_id: 777 } } }) }), Ew);
+  await ok("a number for an ad applied to since: says so, sends nothing", () => {
+    assert.match(net.tg.find((x) => x.method === "answerCallbackQuery").body.text, /Not on the waiting list any more/);
+    assert.ok(!net.tg.some((x) => x.method === "sendMessage"));
   });
 }
 

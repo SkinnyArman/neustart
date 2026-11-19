@@ -832,7 +832,10 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
   if (act === "csv") { await tg.answerCallback(cq.id, "Making the CSV…"); await sendTrackerCsv(db, store, tg, cfg); return; }
   if (act === "list") {
     await tg.answerCallback(cq.id);
-    await (who === "tracker" ? sendTracker : sendWaitingList)(db, store, tg, cfg);
+    if (who === "tracker") await sendTracker(db, store, tg, cfg);
+    // jb:list:waiting:<page> - a page of the list, in the same message
+    else if (/^\d+$/.test(ref) && cq.message) await sendWaitingList(db, store, tg, cfg, Number(ref), { chat: cq.message.chat.id, msg: cq.message.message_id });
+    else await sendWaitingList(db, store, tg, cfg);
     return;
   }
   // "~…": the end of a long id (see buttonData)
@@ -841,6 +844,15 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
     : await db.prepare("SELECT * FROM jobs WHERE id=?").bind(ref).first<JobRow>();
   if (!row) { await tg.answerCallback(cq.id, "Unknown job"); return; }
   const id = row.id;
+
+  // 🔖 a number on the waiting list: that ad's card, with its buttons
+  if (act === "lshow") {
+    if (row.status !== "approved") { await tg.answerCallback(cq.id, "Not on the waiting list any more"); return; }
+    await tg.answerCallback(cq.id);
+    const sent = await tg.send(card(row, j), { ...tg.keyboard(jobKeyboard(row, j)), ...(await topic(cfg, store, tg)) });
+    await setJob(db, id, { msg_id: sent?.result?.message_id ?? null });
+    return;
+  }
 
   // ✍️ a cover letter, and its buttons: shorter, more formal, more casual, the other language, a new one
   if (act === "letter" || /^w(short|long|formal|casual|de|en|redo|any|tell|edit|back|drop|sent)$/.test(act)) {
@@ -900,17 +912,38 @@ export async function jobButton(env: JobsEnv, store: Store, tg: Telegram, cq: an
   await edit(m[1].replace("The ad for", "Ad for"), undoBtn);
 }
 
-/** /waitinglist: every ad on the waiting list, as its card - ready to apply. */
-export async function sendWaitingList(db: D1Database, store: Store, tg: Telegram, cfg: Config): Promise<void> {
+const WAIT_PAGE = 10;
+/** The waiting list as one message: a numbered line per ad, a button per number for its card, pages of ten. */
+export function waitingListCard(rows: JobRow[], j: Jobs, page = 0): [string, Button[][]] {
+  if (!rows.length) return ["🔖 <b>Waiting list</b>\n\nNothing on it. 🔖 Apply later on a job card puts it here.", []];
+  const pages = Math.ceil(rows.length / WAIT_PAGE);
+  page = Math.min(Math.max(0, page), pages - 1);
+  const shown = rows.slice(page * WAIT_PAGE, (page + 1) * WAIT_PAGE);
+  const lines = shown.map((r, i) => {
+    const n = page * WAIT_PAGE + i + 1;
+    const f: Partial<Facts> = r.facts ? JSON.parse(r.facts) : {};
+    const bits = [esc(r.company), r.place ? `📍 ${esc(r.place)}` : "", KIND[r.kind ?? ""] ?? "", f.german ? `🇩🇪 ${esc(f.german)}` : "",
+      single(j, r.person) ? "" : `for ${esc(forWhom(j, r.person))}`, r.approved_at ? `saved ${day(r.approved_at)}` : ""].filter(Boolean);
+    return `<b>${n}.</b> ${esc(r.title)}\n      ${bits.join(" · ")}`;
+  });
+  const text = `🔖 <b>Waiting list</b> · ${rows.length} ad${rows.length > 1 ? "s" : ""} to apply to` +
+    (pages > 1 ? ` · page ${page + 1}/${pages}` : "") + `\n\n${lines.join("\n\n")}\n\n<i>Tap a number for that ad, with its buttons.</i>`;
+  const nums = shown.map((r, i) => ({ text: String(page * WAIT_PAGE + i + 1), callback_data: buttonData("lshow", "-", r.id) }));
+  const kb: Button[][] = [nums.slice(0, 5), nums.slice(5, 10)].filter((x) => x.length);
+  if (pages > 1) kb.push([
+    ...(page > 0 ? [{ text: "◀️ Back", callback_data: `jb:list:waiting:${page - 1}` }] : []),
+    ...(page < pages - 1 ? [{ text: "More ▶️", callback_data: `jb:list:waiting:${page + 1}` }] : []),
+  ]);
+  return [text, kb];
+}
+
+/** /waitinglist: the ads on the waiting list, as one message; each ad's card on tap. Turning a page edits that message. */
+export async function sendWaitingList(db: D1Database, store: Store, tg: Telegram, cfg: Config, page = 0, edit?: { chat: number | string; msg: number }): Promise<void> {
   await ensureTable(db);
-  const { results } = await db.prepare("SELECT * FROM jobs WHERE status='approved' ORDER BY approved_at LIMIT 20").all<JobRow>();
-  const where = await topic(cfg, store, tg);
-  const rows = results ?? [];
-  await tg.send(rows.length ? `🔖 <b>Waiting list</b> · ${rows.length} ad${rows.length > 1 ? "s" : ""} to apply to` : "🔖 <b>Waiting list</b>\n\nNothing on it. 🔖 Apply later on a job card puts it here.", where);
-  for (const r of rows) {
-    const sent = await tg.send(card(r, cfg.jobs), { ...tg.keyboard(jobKeyboard(r, cfg.jobs)), ...where });
-    await setJob(db, r.id, { msg_id: sent?.result?.message_id ?? null });
-  }
+  const { results } = await db.prepare("SELECT * FROM jobs WHERE status='approved' ORDER BY approved_at, rowid").all<JobRow>();
+  const [text, kb] = waitingListCard(results ?? [], cfg.jobs, page);
+  if (edit) { try { await tg.editText(edit.chat, edit.msg, text, kb); } catch { /* unchanged */ } return; }
+  await tg.send(text, { ...(kb.length ? tg.keyboard(kb) : {}), ...(await topic(cfg, store, tg)) });
 }
 
 // ---------------------------------------------------------------- the tracker as a spreadsheet
