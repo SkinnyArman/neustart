@@ -59,6 +59,21 @@ await ok("searches: each active person's, a few terms per query, in each city", 
   assert.deepEqual(L.queriesFor(cfg, ["diba"], { searches: ["Data Analyst"] }).map((x) => x.keywords), ['"Data Analyst"', '"Data Analyst"', '"Data Analyst"']);
 });
 
+await ok("searches: two people take turns, and a run picks up where the last one stopped", () => {
+  const cfg = normalize(CONFIG);
+  const people = cfg.jobs.people.slice(0, 2);
+  if (people.length < 2) return;
+  const two = { ...cfg, jobs: { ...cfg.jobs, people: [
+    { ...people[0], searches: ["A1", "A2"] }, { ...people[1], searches: ["B1", "B2"] }] } };
+  const q = L.queriesFor(two, people.map((p) => p.id));
+  const n = two.jobs.cities.length + (two.jobs.remote ? 1 : 0);
+  assert.equal(q.length, 2 * n);
+  assert.deepEqual(q.slice(0, 2).map((x) => x.keywords), ['"A1" OR "A2"', '"B1" OR "B2"'], "the second person's first search comes second, not last");
+  assert.deepEqual(L.fromNext([1, 2, 3, 4], 3), [4, 1, 2, 3]);
+  assert.deepEqual(L.fromNext([1, 2, 3, 4], 6), [3, 4, 1, 2]);
+  assert.deepEqual(L.fromNext([], 2), []);
+});
+
 // ---------------------------------------------------------------- a run
 console.log("\n2. a run");
 const dir = mkdtempSync(join(tmpdir(), "neustart-li-"));

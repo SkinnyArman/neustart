@@ -64,14 +64,28 @@ export function parseJob(html) {
  * city close by).
  */
 export function queriesFor(cfg, active, opts = {}) {
-  const terms = opts.searches?.length ? opts.searches
-    : cfg.jobs.people.filter((p) => active.includes(p.id)).flatMap((p) => p.searches);
-  const groups = [];
-  for (let i = 0; i < terms.length; i += TERMS_PER_QUERY)
-    groups.push(terms.slice(i, i + TERMS_PER_QUERY).map((t) => `"${t}"`).join(" OR "));
-  return groups.flatMap((keywords) => [...cfg.jobs.cities.map((c) => ({ keywords, location: c.name })),
-    ...(cfg.jobs.remote ? [{ keywords, location: "Germany", remote: true }] : [])]);
+  const lists = opts.searches?.length ? [opts.searches]
+    : cfg.jobs.people.filter((p) => active.includes(p.id)).map((p) => p.searches);
+  const perPerson = lists.map((terms) => {
+    const groups = [];
+    for (let i = 0; i < terms.length; i += TERMS_PER_QUERY)
+      groups.push(terms.slice(i, i + TERMS_PER_QUERY).map((t) => `"${t}"`).join(" OR "));
+    return groups.flatMap((keywords) => [...cfg.jobs.cities.map((c) => ({ keywords, location: c.name })),
+      ...(cfg.jobs.remote ? [{ keywords, location: "Germany", remote: true }] : [])]);
+  });
+  // taking turns: one person's searches don't all come before the next one's
+  // (LinkedIn often stops a run after a few requests)
+  const out = [];
+  for (let i = 0; i < Math.max(0, ...perPerson.map((q) => q.length)); i++)
+    for (const q of perPerson) if (q[i]) out.push(q[i]);
+  return out;
 }
+
+/** The queries from where the last run stopped, so a run cut short doesn't start over from the same ones. */
+export const fromNext = (queries, next = 0) => {
+  const k = queries.length ? ((next % queries.length) + queries.length) % queries.length : 0;
+  return [...queries.slice(k), ...queries.slice(0, k)];
+};
 
 // posted since: the seconds back to the last run, at least a day, at most a week
 const searchUrl = (q, since = 86400) => "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?" +
@@ -86,7 +100,8 @@ const saveState = (p, s) => { mkdirSync(dirname(p), { recursive: true }); writeF
 
 export async function run(cfg, { fetch, sleep, now, state = STATE, env, log = () => {}, progress = () => {}, opts = {} }) {
   const st = readState(state);
-  const done = (status, extra = {}) => { saveState(state, { lastRun: now(), lastResult: status, ...extra }); return { status, ...extra }; };
+  let next = st.next ?? 0;     // where in the queries the next run starts
+  const done = (status, extra = {}) => { saveState(state, { lastRun: now(), lastResult: status, next, ...extra }); return { status, ...extra }; };
   if (!cfg.modules.jobs) return { status: "off" };
   if (!env.INGEST_SECRET || !env.NEUSTART_URL) return { status: "no secret" };
   const active = cfg.jobs.people.filter((p) => p.active).map((p) => p.id);
@@ -99,7 +114,9 @@ export async function run(cfg, { fetch, sleep, now, state = STATE, env, log = ()
     return r.json();
   };
 
-  const queries = queriesFor(cfg, active, opts).slice(0, MAX_REQUESTS);
+  const all = queriesFor(cfg, active, opts);
+  const queries = fromNext(all, next).slice(0, MAX_REQUESTS);
+  const start = next;
   let asked = 0;
   const wait = async (p) => { if (asked++) await sleep(GAP_MS[0] + Math.random() * (GAP_MS[1] - GAP_MS[0]), p); };
   const linkedin = async (url) => {
@@ -117,8 +134,9 @@ export async function run(cfg, { fetch, sleep, now, state = STATE, env, log = ()
     for (const q of queries) {
       await wait(p);
       log(`search ${p.done + 1}/${p.total}: ${q.keywords.slice(0, 70)} in ${q.location}${q.remote ? " (remote/hybrid)" : ""}`);
-      p.done++;
       const html = await linkedin(searchUrl(q, since));
+      p.done++;
+      next = (start + p.done) % all.length;
       // handed to the bot at once: a refusal later loses nothing
       const jobs = parseSearch(html).filter((c) => !seen.has(c.id)).map((c) => {
         seen.add(c.id);
