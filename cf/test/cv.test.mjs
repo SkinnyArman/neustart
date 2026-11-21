@@ -86,6 +86,20 @@ await ok("a CV too long for the page: the entry with the most bullets loses its 
   const short = fit(long, (v) => cvPdf(BASE, v, "de", true).overflow > 0);
   assert.ok(short.jobs[0].bullets.length < 60 && short.jobs[0].bullets.length >= 2);
 });
+await ok("a long contact line gets smaller to fit, and a long company line wraps: nothing past the right margin", () => {
+  const long = { ...BASE, contact: { place: "Berlin", email: "someone.with.a.long.name@example.com", phone: "+49 151 41319788",
+    github: "github.com/SomeoneWithAVeryLongName", linkedin: "linkedin.com/in/someone-with-a-very-long-name" } };
+  const v = JSON.parse(JSON.stringify(long.versions.de));
+  v.jobs[0].about = "Ein sehr langer Satz darüber, was diese Firma macht, mit vielen Produkten, Märkten, Kunden und noch mehr Wörtern, die nicht in eine Zeile passen";
+  const s = new TextDecoder("latin1").decode(cvPdf(long, v, "de").pdf);
+  const runs = [...s.matchAll(/\/(F\d) ([\d.]+) Tf ([\d.-]+) ([\d.-]+) Td <([0-9a-f]+)> Tj/g)];
+  const keys = { F1: "Regular", F2: "Bold", F3: "Italic" };
+  const widths = Object.fromEntries(Object.entries(CV_FONTS).map(([k, f]) => [k, Object.fromEntries(f.table.split(",").map((e) => e.split(":").map(Number)).map(([, g, w]) => [g, w]))]));
+  const right = Math.max(...runs.map(([, f, size, x, , hex]) => Number(x) + hex.match(/.{4}/g).reduce((a, h) => a + (widths[keys[f]][parseInt(h, 16)] ?? 500), 0) * Number(size) / 1000));
+  assert.ok(right <= 547.5, `text reaches ${right.toFixed(1)} pt, the margin is 547`);
+  const italicLines = new Set(runs.filter(([, f]) => f === "F3").map(([, , , , y]) => y));
+  assert.ok(italicLines.size >= 3, "the company line wrapped onto a second line");
+});
 await ok("fast enough for a Worker's 10 ms: a PDF in well under 5 ms once warm", () => {
   for (let i = 0; i < 5; i++) cvPdf(BASE, BASE.versions.de, "de");
   const t = process.cpuUsage();

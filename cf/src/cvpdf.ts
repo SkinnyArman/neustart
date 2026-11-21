@@ -132,13 +132,19 @@ export function cvPdf(base: CvBase, v: CvVersion, lang = "de", measure = false):
   if (c.linkedin) bits.push(["linkedin", bare(c.linkedin), `https://www.${bare(c.linkedin)}/`]);
   if (bits.length) {
     y += 25.2;
+    // one line if it can be: smaller type and tighter gaps until it fits between the margins
+    let size = 9.5, gap = 12;
+    const lineWidth = () => bits.reduce((a, [, text]) => a + 12 + widthOf(faces.Regular, text, size), 0) + gap * (bits.length - 1);
+    while (lineWidth() > RIGHT - LEFT && (size > 8 || gap > 7)) { if (gap > 7) gap -= 1; else size -= 0.25; }
     let x = LEFT;
     for (const [ic, text, url] of bits) {
+      // still too long at the smallest size: the rest goes on a second line
+      if (x > LEFT && x + 12 + widthOf(faces.Regular, text, size) > RIGHT) { x = LEFT; y += 12.5; }
       icon(ic, x, y, 9);
       const start = x;
-      x = draw([{ text, style: "Regular", size: 9.5 }], x + 12, y);
-      if (url) link(url, start, x, y, 9.5);
-      x += 12;
+      x = draw([{ text, style: "Regular", size }], x + 12, y);
+      if (url) link(url, start, x, y, size);
+      x += gap;
     }
   }
 
@@ -158,7 +164,11 @@ export function cvPdf(base: CvBase, v: CvVersion, lang = "de", measure = false):
     if (e.url) { icon("ext", x + 2.5, y, 6.75); link(e.url, x + 2.5, x + 9.25, y, BODY); }
     const right = [e.dates, e.place].filter(Boolean).join("  |  ");
     if (right) draw([{ text: right, style: "Regular", size: BODY }], RIGHT - widthOf(faces.Regular, right, BODY), y);
-    if (e.about) { y += 12.9; draw([{ text: e.about, style: "Italic", size: 10, grey: true }], LEFT, y); y += 14.1 - PITCH; }
+    // what the company is: wrapped like any other text, a little tighter
+    if (e.about) {
+      wrap([{ text: e.about, style: "Italic", size: 10, grey: true }], RIGHT - LEFT).forEach((l, k) => { y += k ? 12.4 : 12.9; draw(l, LEFT, y); });
+      y += 14.1 - PITCH;
+    }
     for (const b of e.bullets ?? []) {
       const lns = wrap(rich(b), RIGHT - BULLET_TEXT);
       y += PITCH; draw([{ text: "•", style: "Regular", size: BODY }], BULLET_X, y); y -= PITCH;
