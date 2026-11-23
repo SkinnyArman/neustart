@@ -268,7 +268,7 @@ export async function statusReport(env: Env, store: Store, cfg: Config): Promise
 
   const down = SOURCES.filter((x) => b[x] > 0);
   let head: string;
-  if (paused) head = `⏸ <b>Paused</b> — ${pstate}. Send /start to go again.`;
+  if (paused) head = `⏸ <b>WG search paused</b> — ${pstate.replace(/^paused,? ?/, "")}. Jobs, finds and events keep running. /start brings the WG search back.`;
   else if (down.length === SOURCES.length)
     head = `⏳ <b>Waiting out bot checks</b> — nothing for you to do.`;
   else {
@@ -606,7 +606,7 @@ async function handleUpdate(update: any, env: Env, tg: Telegram, wait?: (p: Prom
         return;
       }
       const msg = await pause(store, secs);
-      await reply(`${msg}. Nothing is lost — queued ads stay queued. /start when you want it back.`);
+      await reply(`⏸ WG search: ${msg.toLowerCase()}. Nothing is lost — queued ads stay queued, and jobs, finds and events keep running. /start brings it back.`);
       return;
     }
 

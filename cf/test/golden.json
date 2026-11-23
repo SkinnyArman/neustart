@@ -7036,7 +7036,7 @@
    "method": "POST",
    "body": {
     "chat_id": "-1001234567890",
-    "text": "Paused for 2h 01m. Nothing is lost — queued ads stay queued. /start when you want it back.",
+    "text": "⏸ WG search: paused for 2h 01m. Nothing is lost — queued ads stay queued, and jobs, finds and events keep running. /start brings it back.",
     "parse_mode": "HTML",
     "disable_web_page_preview": true,
     "message_thread_id": 597
