@@ -956,12 +956,15 @@ function helpLines(cfg: Config) {
   const on = cfg.modules;
   const first = cfg.jobs.people[0]?.id ?? "name";
   const finds = on.finds ? "/finds — bikes, bed, Kommode, carpet & free stuff alerts" : "";
-  const jobs = on.jobs ? `/jobs — job stats · /waitinglist — ads to apply later · /tracker — applications and their status · /cv — the CVs · /skills ${first} · /jobreport` : "";
+  // the jobs commands as the "/" menu lists them, so a new one can't be missing here
+  const JOB_COMMANDS = ["jobs", "waitinglist", "tracker", "german", "nudge", "cv", "jobreport", "skills"];
+  const jobs = on.jobs ? commandMenus(cfg).owner.filter((c) => JOB_COMMANDS.includes(c.command))
+    .map((c) => `/${c.command} — ${c.description.charAt(0).toLowerCase()}${c.description.slice(1)}`).join("\n") : "";
   const casual = [on.casual_jobs ? "/casual — Minijobs: which town, how far around it (anyone in the group)" : "",
     on.events ? "/events — cultural and career events: budget, pause (anyone in the group)" : ""].filter(Boolean).join("\n");
   const start = on.rooms
     ? `/status — is it running\n/review — decide on ads you haven't answered\n` +
-      `/pause [2h] — stop it\n` +
+      `/pause [2h] — stop the WG search\n` +
       `/scan — check now\n/more [n] — send more now\n` +
       `/filters — which ads qualify\n/settings — timing\n/stats — totals` + (finds ? `\n${finds}` : "")
     : [`/status — is it running`, finds, jobs, casual].filter(Boolean).join("\n");
@@ -969,7 +972,7 @@ function helpLines(cfg: Config) {
     ...(on.rooms ? [
       `/start — start it (also un-pauses)\n/status — is it running\n` +
       `/review — decide on ads you haven't answered\n` +
-      `/pause [2h] — stop it\n/scan — check now\n/more [n] — send more now\n` +
+      `/pause [2h] — stop the WG search\n/scan — check now\n/more [n] — send more now\n` +
       `/filters — which ads qualify\n/settings — timing\n` +
       `/stats — totals\n/retry — re-draft failed`,
     ] : [`/status — is it running`]),
